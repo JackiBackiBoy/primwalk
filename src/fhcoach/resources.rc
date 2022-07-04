@@ -1,0 +1,35 @@
+#include <windows.h>
+#include "resource.h"
+#include <winres.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION    1,0,0,0
+PRODUCTVERSION 1,0,0,0
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "040904b0"
+        {
+            VALUE "CompanyName",        "Jack Henrikson\0"
+            VALUE "FileDescription",    "Forza Coach\0"
+            VALUE "FileVersion",        "1.0.0.1\0"
+            VALUE "LegalCopyright",     "Copyright 2021-2022 Jack Henrikson.\0"
+            VALUE "OriginalFilename",   "Forza Coach\0"
+            VALUE "ProductName",        "Forza Coach\0"
+            VALUE "ProductVersion",     "Beta 1.0.0.1\0"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x409, 1200
+    }
+}
+
+STRINGTABLE
+BEGIN
+  IDS_APP_TITLE "Forza Coach (Beta)"
+END
+
+IDI_APP_ICON_SMALL ICON "fhcoach.ico"
+IDB_SNIPER_ICON BITMAP DISCARDABLE "icons/sniper.bmp"
+
