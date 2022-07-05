@@ -27,3 +27,5 @@ file(GLOB RESOURCE_FILE ${CMAKE_HOME_DIRECTORY}/resources.o)
 
 add_executable(${NAME} ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCE_FILE})
 set_property(TARGET ${NAME} PROPERTY C_STANDARD 11)
+target_link_libraries(${NAME} PUBLIC
+  comctl32.lib)

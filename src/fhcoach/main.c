@@ -10,10 +10,10 @@
 #endif
 
 #include <windows.h>
+#include <commctrl.h>
 #include "resource.h"
 #include "utilities.h"
 #include <tchar.h>
-#include <strsafe.h>
 
 #define FILE_MENU_OPEN 1
 #define FILE_MENU_SAVE 2
@@ -26,11 +26,6 @@ BOOL CALLBACK SetFont(HWND child, LPARAM font){
   return TRUE;
 }
 
-void OnSize(HWND hwnd, UINT flag, int width, int height)
-{
-    // Handle resizing
-}
-
 HMENU hMenu;
 
 // Buttons
@@ -41,12 +36,18 @@ HWND hSearchWindowButton;
 // Text
 HWND hWindowSearchTitle;
 
+// List Views
+HWND hMatchList = NULL;
+LVCOLUMN lvCol;
+LVITEM lvItem;
+
 HBITMAP hAuctionSniperImage;
 HINSTANCE globalInstance;
 
 void addMenu(HWND hWnd);
 void addButtons(HWND hWnd);
 void addText(HWND hWnd);
+void addListViews(HWND hWnd);
 void addImages(HWND hWnd);
 HBRUSH whiteBrush;
 
@@ -57,6 +58,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
       addMenu(hwnd);
       addButtons(hwnd);
       addText(hwnd);
+      addListViews(hwnd);
       addImages(hwnd);
 
       EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)GetStockObject(DEFAULT_GUI_FONT));
@@ -266,6 +268,28 @@ void addText(HWND hWnd) {
     (HMENU)IDT_WINDOW_MATCHES_TITLE,       // No menu.
     globalInstance, 
     NULL);      // Pointer not needed.
+}
+
+void addListViews(HWND hWnd) {
+  INITCOMMONCONTROLSEX icex;           // Structure for control initialization.
+    icex.dwICC = ICC_LISTVIEW_CLASSES;
+    InitCommonControlsEx(&icex);
+
+    RECT rcClient;                       // The parent window's client area.
+
+    GetClientRect (hWnd, &rcClient); 
+
+    // Create the list-view window in report view with label editing enabled.
+    HWND hWndListView = CreateWindow(WC_LISTVIEW, 
+                                     L"",
+                                     WS_CHILD | LVS_REPORT | LVS_EDITLABELS,
+                                     0, 0,
+                                     rcClient.right - rcClient.left,
+                                     rcClient.bottom - rcClient.top,
+                                     hWnd,
+                                     (HMENU)IDL_WINDOW_MATCHES,
+                                     globalInstance,
+                                     NULL);
 }
 
 void addImages(HWND hWnd) {
