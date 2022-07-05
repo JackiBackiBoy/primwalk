@@ -30,6 +30,6 @@ BEGIN
   IDS_APP_TITLE "Forza Coach (Beta)"
 END
 
-IDI_APP_ICON_SMALL ICON "fhcoach.ico"
+IDI_APP_ICON_SMALL ICON "fzcoach.ico"
 IDB_SNIPER_ICON BITMAP DISCARDABLE "icons/sniper.bmp"
 

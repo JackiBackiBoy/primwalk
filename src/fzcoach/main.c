@@ -281,7 +281,7 @@ void addListViews(HWND hWnd) {
 
     // Create the list-view window in report view with label editing enabled.
     HWND hWndListView = CreateWindow(WC_LISTVIEW, 
-                                     L"",
+                                     L"List",
                                      WS_CHILD | LVS_REPORT | LVS_EDITLABELS,
                                      0, 0,
                                      rcClient.right - rcClient.left,

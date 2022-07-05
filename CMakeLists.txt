@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-set(NAME fhcoach)
+set(NAME fzcoach)
 set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/src/${NAME}) 
 
 project(${NAME})
