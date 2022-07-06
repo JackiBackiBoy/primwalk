@@ -1,4 +1,5 @@
 #include "utilities.h"
+#include <commctrl.h>
 #include <stdio.h>
 #include <process.h>
 #include "resource.h"
@@ -29,4 +30,58 @@ void stopAuctionBot(HWND hWnd) {
     m_BotActive = FALSE;
     printf("Closing thread!");
   }
+}
+
+void findActiveWindows() {
+  int windowCount = 0;
+  EnumWindows(countWindowsCallback, (LPARAM)&windowCount);
+  printf("Number of windows: %d\n", windowCount);
+}
+
+// Target presumed to be a list view
+void listAllWindows(HWND* target) {
+  EnumWindows(listWindowCallback, (LPARAM)target);
+}
+
+BOOL CALLBACK listWindowCallback(HWND hWnd, LPARAM lParam) {
+  LVITEM matchListItem;
+  matchListItem.pszText = L"Item";
+  matchListItem.mask = LVIF_TEXT | LVIF_STATE;
+  matchListItem.stateMask = 0;
+  matchListItem.iItem = ;
+  matchListItem.iSubItem = 0;
+  matchListItem.state = 0;
+
+  int res = ListView_InsertItem(hMatchList, &matchListItem);
+
+  if (res == -1) {
+    printf("Failed to add list item!\n");
+  }
+
+  ListView_SetItemText(hMatchList, res, 0, L"Item 1");
+  ListView_SetItemText(hMatchList, res, 1, L"Item 1");
+  ListView_SetItemText(hMatchList, res, 2, L"Item 1");
+}
+
+BOOL CALLBACK countWindowsCallback(HWND hWnd, LPARAM lParam) {
+  int length = GetWindowTextLength(hWnd);
+
+  if (length <= 0) {
+    return TRUE;
+  }
+
+  WCHAR* buffer = (WCHAR*)malloc((length + 1) * sizeof(WCHAR));
+  GetWindowText(hWnd, buffer, length + 1);
+
+
+  int* windowCount = (int*)lParam;
+  *windowCount += 1;
+
+  DWORD written = 0;
+  WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), buffer, length + 1, &written, NULL);
+  printf("\n");
+
+  free(buffer); // free the buffer from memory
+
+  return TRUE;
 }

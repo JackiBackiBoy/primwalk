@@ -80,20 +80,10 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
       }
       break;
     case WM_GETMINMAXINFO:
+    {
       LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
       lpMMI->ptMinTrackSize.x = 300;
       lpMMI->ptMinTrackSize.y = 300;
-      break;
-
-    case WM_CTLCOLORSTATIC:
-    {
-      DWORD ctrlID = GetDlgCtrlID((HWND)lParam); //Window Control ID
-      if (ctrlID == IDT_WINDOW_MATCHES_TITLE) // If desired control
-      {
-         HDC hdcStatic = (HDC)wParam;
-         SetBkColor(hdcStatic, RGB(255, 255, 255));
-         return (INT_PTR)whiteBrush;
-      }
       break;
     }
     case WM_DESTROY:
@@ -108,6 +98,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+  findActiveWindows();
   whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
   globalInstance = hInstance;
 
@@ -145,8 +136,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
   cs.x = CW_USEDEFAULT; // Window X position
   cs.y = CW_USEDEFAULT; // Window Y position
-  cs.cx = 640;  // Window width
-  cs.cy = 480;  // Window height
+  cs.cx = 840;  // Window width
+  cs.cy = 680;  // Window height
   cs.hInstance = hInstance; // Window instance.
   cs.lpszClass = wcex.lpszClassName;    // Window class name
   cs.lpszName = title;  // Window title
@@ -280,16 +271,70 @@ void addListViews(HWND hWnd) {
     GetClientRect (hWnd, &rcClient); 
 
     // Create the list-view window in report view with label editing enabled.
-    HWND hWndListView = CreateWindow(WC_LISTVIEW, 
-                                     L"List",
-                                     WS_CHILD | LVS_REPORT | LVS_EDITLABELS,
-                                     0, 0,
-                                     rcClient.right - rcClient.left,
-                                     rcClient.bottom - rcClient.top,
-                                     hWnd,
-                                     (HMENU)IDL_WINDOW_MATCHES,
-                                     globalInstance,
-                                     NULL);
+    hMatchList = CreateWindow(
+        WC_LISTVIEW, 
+        L"List",
+        WS_VISIBLE |WS_CHILD | LVS_REPORT | LVS_EDITLABELS,
+        10, 160,
+        300,
+        200,
+        hWnd,
+        (HMENU)IDL_WINDOW_MATCHES,
+        globalInstance,
+        NULL);
+
+    WCHAR szText[256];     // Temporary buffer.
+    LVCOLUMN lvc;
+    int iCol;
+
+    // Initialize the LVCOLUMN structure.
+    // The mask specifies that the format, width, text,
+    // and subitem members of the structure are valid.
+    lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
+
+    // Add the columns.
+    for (iCol = 0; iCol < 2; iCol++)
+    {
+        lvc.iSubItem = iCol;
+        lvc.pszText = szText;
+        lvc.cx = 100;               // Width of column in pixels.
+        lvc.fmt = LVCFMT_LEFT;  // Left-aligned column.
+
+        // Load the names of the column headings from the string resources.
+        LoadString(globalInstance,
+                   IDS_WINDOW_NAMES_COLUMN + iCol,
+                   szText,
+                   sizeof(szText)/sizeof(szText[0]));
+
+        // Insert the columns into the list view.
+        if (ListView_InsertColumn(hMatchList, iCol, &lvc) == -1) {
+          printf("Could not create list view!\n");
+        }
+    }
+
+    ListView_SetExtendedListViewStyle(hMatchList, LVS_EX_FULLROWSELECT);
+
+
+    // Insert list items
+    for (int c = 0; c < 3; c++) {
+      LVITEM matchListItem;
+      matchListItem.pszText = L"Item";
+      matchListItem.mask = LVIF_TEXT | LVIF_STATE;
+      matchListItem.stateMask = 0;
+      matchListItem.iItem = c;
+      matchListItem.iSubItem = 0;
+      matchListItem.state = 0;
+
+      int res = ListView_InsertItem(hMatchList, &matchListItem);
+
+      if (res == -1) {
+        printf("Failed to add list item!\n");
+      }
+
+      ListView_SetItemText(hMatchList, res, 0, L"Item 1");
+      ListView_SetItemText(hMatchList, res, 1, L"Item 1");
+      ListView_SetItemText(hMatchList, res, 2, L"Item 1");
+    }
 }
 
 void addImages(HWND hWnd) {
