@@ -1,6 +1,7 @@
 #include <sdkddkver.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <conio.h>
 #include <process.h>
@@ -32,6 +33,7 @@ HMENU hMenu;
 HWND hStartButton;
 HWND hStopButton;
 HWND hSearchWindowButton;
+HWND hMatchSearch;
 
 // Text
 HWND hWindowSearchTitle;
@@ -53,47 +55,97 @@ HBRUSH whiteBrush;
 
 static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-  switch(message) {
-    case WM_CREATE:
-      addMenu(hwnd);
-      addButtons(hwnd);
-      addText(hwnd);
-      addListViews(hwnd);
-      addImages(hwnd);
+  LRESULT result = 0;
 
-      EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)GetStockObject(DEFAULT_GUI_FONT));
-      break;
-    case WM_COMMAND:
-      switch(HIWORD(wParam)) {
-        case BN_CLICKED:
-          if ((HWND)lParam == hStartButton) {
-            startAuctionBot(hwnd);
-          }
-          else if((HWND)lParam == hStopButton) {
-            stopAuctionBot(hwnd);
-          }
-          break;
-      }
+  if (message == WM_CREATE) {
+    addMenu(hwnd);
+    addButtons(hwnd);
+    addText(hwnd);
+    addListViews(hwnd);
+    addImages(hwnd);
 
-      if (wParam == VIEW_MENU_SCREEN_CAPTURE) {
-        SendMessage(hwnd, WM_DESTROY, wParam, lParam);
-      }
-      break;
-    case WM_GETMINMAXINFO:
+    hMatchSearch = CreateWindow(WC_COMBOBOX, TEXT(""), 
+     CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE,
+     350, 300, 100, 30, hwnd, NULL, globalInstance,
+     NULL);
+
+    TCHAR Planets[9][10] =  
     {
-      LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-      lpMMI->ptMinTrackSize.x = 300;
-      lpMMI->ptMinTrackSize.y = 300;
-      break;
+        TEXT("Mercury"), TEXT("Venus"), TEXT("Terra"), TEXT("Mars"), 
+        TEXT("Jupiter"), TEXT("Saturn"), TEXT("Uranus"), TEXT("Neptune"), 
+        TEXT("Pluto??") 
+    };
+           
+    TCHAR A[16]; 
+    int  k = 0; 
+
+    memset(&A,0,sizeof(A));       
+    for (k = 0; k <= 8; k += 1)
+    {
+        wcscpy_s(A, sizeof(A)/sizeof(TCHAR),  (TCHAR*)Planets[k]);
+
+        // Add string to combobox.
+        SendMessage(hMatchSearch,(UINT) CB_ADDSTRING,(WPARAM) 0,(LPARAM) A); 
     }
-    case WM_DESTROY:
-      PostQuitMessage(0);
-      break;
-    default:
-      return DefWindowProc(hwnd, message, wParam, lParam);
+
+    // Send the CB_SETCURSEL message to display an initial item 
+    //  in the selection field  
+    SendMessage(hMatchSearch, CB_SETCURSEL, (WPARAM)2, (LPARAM)0);
+    EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)GetStockObject(DEFAULT_GUI_FONT));
+    
+    result = 1;
+  }
+  else {
+    bool wasHandled = false;
+
+    switch (message) {
+      case WM_COMMAND:
+      {
+        switch(HIWORD(wParam)) {
+          case BN_CLICKED:
+          {
+            if ((HWND)lParam == hStartButton) {
+              startAuctionBot(hwnd);
+            }
+            else if((HWND)lParam == hStopButton) {
+              stopAuctionBot(hwnd);
+            }
+            break;
+          }
+          case CBN_SELCHANGE: 
+          {
+            int ItemIndex = SendMessage((HWND) lParam, (UINT) CB_GETCURSEL, 
+                (WPARAM) 0, (LPARAM) 0);
+                TCHAR  ListItem[256];
+                SendMessage((HWND) lParam, (UINT) CB_GETLBTEXT, 
+                (WPARAM) ItemIndex, (LPARAM) ListItem);
+            MessageBox(hwnd, (LPCWSTR) ListItem, TEXT("Item Selected"), MB_OK);                        
+          }
+        }
+
+        if (wParam == VIEW_MENU_SCREEN_CAPTURE) {
+          SendMessage(hwnd, WM_DESTROY, wParam, lParam);
+        }
+
+        wasHandled = true;
+        result = 0;
+        break;
+      }
+      case WM_DESTROY:
+      {
+        PostQuitMessage(0);
+        wasHandled = true;
+        result = 1;
+        break;
+      }
+    }
+
+    if (!wasHandled) {
+      result = DefWindowProc(hwnd, message, wParam, lParam);
+    }
   }
 
-  return 0;
+  return result;
 }
 
 // Main thread (window thread)
@@ -168,7 +220,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   UpdateWindow(hWnd);
 
   MSG msg;
-  while(GetMessage(&msg, hWnd, 0, 0 ) > 0) {
+  while(GetMessage(&msg, NULL, 0, 0 )) {
+    TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
 
@@ -184,7 +237,7 @@ void addMenu(HWND hWnd) {
   AppendMenu(hFileMenu, MF_STRING, (UINT_PTR)FILE_MENU_SAVE, L"Save");
   AppendMenu(hFileMenu, MF_SEPARATOR, (UINT_PTR)NULL, NULL); 
 
-  // View menju
+  // View menu
   HMENU hViewMenu = CreateMenu();
   AppendMenu(hViewMenu, MF_STRING, (UINT_PTR)VIEW_MENU_DEVICES, L"Devices");
   AppendMenu(hViewMenu, MF_STRING, (UINT_PTR)VIEW_MENU_SCREEN_CAPTURE, L"Screen Capture");
@@ -252,7 +305,7 @@ void addText(HWND hWnd) {
     WS_VISIBLE | WS_CHILD | SS_CENTER,  // Styles 
     10,         // x position 
     140,         // y position 
-    200,        // Button width
+    300,        // Button width
     20,        // Button height
     hWnd,     // Parent window
     (HMENU)IDT_WINDOW_MATCHES_TITLE,       // No menu.
@@ -310,8 +363,8 @@ void addListViews(HWND hWnd) {
           printf("Could not create list view!\n");
         }
     }
-
     ListView_SetExtendedListViewStyle(hMatchList, LVS_EX_FULLROWSELECT);
+
     listAllWindows(&hMatchList);
 }
 

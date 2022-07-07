@@ -34,5 +34,4 @@ BEGIN
 END
 
 IDI_APP_ICON_SMALL ICON "fzcoach.ico"
-IDB_SNIPER_ICON BITMAP DISCARDABLE "icons/sniper.bmp"
 
