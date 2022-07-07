@@ -6,6 +6,7 @@
 
 BOOL m_BotActive = FALSE;
 HANDLE m_TimingThread = NULL;
+static int m_WindowCount = 0;
 
 void auctionSniper(void* data) { 
   // This thread will terminate itself when condition is not met
@@ -32,38 +33,14 @@ void stopAuctionBot(HWND hWnd) {
   }
 }
 
-void findActiveWindows() {
-  int windowCount = 0;
-  EnumWindows(countWindowsCallback, (LPARAM)&windowCount);
-  printf("Number of windows: %d\n", windowCount);
-}
-
 // Target presumed to be a list view
 void listAllWindows(HWND* target) {
-  EnumWindows(listWindowCallback, (LPARAM)target);
+  EnumWindows(listWindowsCallback, (LPARAM)target);
+  printf("Number of windows: %d\n", m_WindowCount);
+  m_WindowCount = 0;
 }
 
-BOOL CALLBACK listWindowCallback(HWND hWnd, LPARAM lParam) {
-  LVITEM matchListItem;
-  matchListItem.pszText = L"Item";
-  matchListItem.mask = LVIF_TEXT | LVIF_STATE;
-  matchListItem.stateMask = 0;
-  matchListItem.iItem = ;
-  matchListItem.iSubItem = 0;
-  matchListItem.state = 0;
-
-  int res = ListView_InsertItem(hMatchList, &matchListItem);
-
-  if (res == -1) {
-    printf("Failed to add list item!\n");
-  }
-
-  ListView_SetItemText(hMatchList, res, 0, L"Item 1");
-  ListView_SetItemText(hMatchList, res, 1, L"Item 1");
-  ListView_SetItemText(hMatchList, res, 2, L"Item 1");
-}
-
-BOOL CALLBACK countWindowsCallback(HWND hWnd, LPARAM lParam) {
+BOOL CALLBACK listWindowsCallback(HWND hWnd, LPARAM lParam) {
   int length = GetWindowTextLength(hWnd);
 
   if (length <= 0) {
@@ -73,15 +50,34 @@ BOOL CALLBACK countWindowsCallback(HWND hWnd, LPARAM lParam) {
   WCHAR* buffer = (WCHAR*)malloc((length + 1) * sizeof(WCHAR));
   GetWindowText(hWnd, buffer, length + 1);
 
+  // Get window handle ID and truncate it
+  WCHAR longWindowId[16];
+  swprintf(longWindowId, sizeof(longWindowId), L"%p", hWnd);
+  WCHAR windowId[9];
+  memcpy(windowId, &longWindowId[8], sizeof(WCHAR) * 8);
+  windowId[8] = '\0';
 
-  int* windowCount = (int*)lParam;
-  *windowCount += 1;
+  // Insert list items
+  LVITEM matchListItem;
+  matchListItem.pszText = L"Item";
+  matchListItem.mask = LVIF_TEXT | LVIF_STATE;
+  matchListItem.stateMask = 0;
+  matchListItem.iItem = m_WindowCount;
+  matchListItem.iSubItem = 0;
+  matchListItem.state = 0;
 
-  DWORD written = 0;
-  WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), buffer, length + 1, &written, NULL);
-  printf("\n");
+  HWND listHandle = *(HWND*)lParam;
+  int res = ListView_InsertItem(listHandle, &matchListItem);
 
+  if (res == -1) {
+    printf("Failed to add list item!\n");
+  }
+
+  ListView_SetItemText(listHandle, res, 0, buffer);
+  ListView_SetItemText(listHandle, res, 1, windowId);
   free(buffer); // free the buffer from memory
+
+  m_WindowCount++;
 
   return TRUE;
 }

@@ -98,7 +98,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-  findActiveWindows();
   whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
   globalInstance = hInstance;
 
@@ -313,28 +312,7 @@ void addListViews(HWND hWnd) {
     }
 
     ListView_SetExtendedListViewStyle(hMatchList, LVS_EX_FULLROWSELECT);
-
-
-    // Insert list items
-    for (int c = 0; c < 3; c++) {
-      LVITEM matchListItem;
-      matchListItem.pszText = L"Item";
-      matchListItem.mask = LVIF_TEXT | LVIF_STATE;
-      matchListItem.stateMask = 0;
-      matchListItem.iItem = c;
-      matchListItem.iSubItem = 0;
-      matchListItem.state = 0;
-
-      int res = ListView_InsertItem(hMatchList, &matchListItem);
-
-      if (res == -1) {
-        printf("Failed to add list item!\n");
-      }
-
-      ListView_SetItemText(hMatchList, res, 0, L"Item 1");
-      ListView_SetItemText(hMatchList, res, 1, L"Item 1");
-      ListView_SetItemText(hMatchList, res, 2, L"Item 1");
-    }
+    listAllWindows(&hMatchList);
 }
 
 void addImages(HWND hWnd) {
