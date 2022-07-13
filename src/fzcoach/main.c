@@ -12,15 +12,22 @@
 
 #include <windows.h>
 #include <commctrl.h>
+#include <dwmapi.h>
 #include "resource.h"
 #include "utilities.h"
 #include <tchar.h>
+#include <uxtheme.h>
+
+#include "rendering/renderer.h"
 
 #define FILE_MENU_OPEN 1
 #define FILE_MENU_SAVE 2
 #define VIEW_MENU_DEVICES 3
 #define VIEW_MENU_SCREEN_CAPTURE 4
 #define MAX_LOADSTRING 100
+#define NC_TOP_HEIGHT 30
+#define NC_SIDE_WIDTH 5
+#define NC_BOTTOM_HEIGHT 5
 
 BOOL CALLBACK SetFont(HWND child, LPARAM font){
   SendMessage(child, WM_SETFONT, font, TRUE);
@@ -29,11 +36,15 @@ BOOL CALLBACK SetFont(HWND child, LPARAM font){
 
 HMENU hMenu;
 
+// Resources
+HBITMAP hAppLogo;
+
 // Buttons
 HWND hStartButton;
 HWND hStopButton;
 HWND hSearchWindowButton;
 HWND hMatchSearch;
+HWND hForzaHandle;
 
 // Text
 HWND hWindowSearchTitle;
@@ -43,14 +54,11 @@ HWND hMatchList = NULL;
 LVCOLUMN lvCol;
 LVITEM lvItem;
 
-HBITMAP hAuctionSniperImage;
 HINSTANCE globalInstance;
 
-void addMenu(HWND hWnd);
 void addButtons(HWND hWnd);
 void addText(HWND hWnd);
-void addListViews(HWND hWnd);
-void addImages(HWND hWnd);
+LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam);
 HBRUSH whiteBrush;
 
 static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -58,54 +66,120 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
   LRESULT result = 0;
 
   if (message == WM_CREATE) {
-    addMenu(hwnd);
     addButtons(hwnd);
     addText(hwnd);
-    addListViews(hwnd);
-    addImages(hwnd);
 
-    hMatchSearch = CreateWindow(WC_COMBOBOX, TEXT(""), 
-     CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE,
-     350, 300, 100, 30, hwnd, NULL, globalInstance,
-     NULL);
-
-    TCHAR Planets[9][10] =  
-    {
-        TEXT("Mercury"), TEXT("Venus"), TEXT("Terra"), TEXT("Mars"), 
-        TEXT("Jupiter"), TEXT("Saturn"), TEXT("Uranus"), TEXT("Neptune"), 
-        TEXT("Pluto??") 
-    };
-           
-    TCHAR A[16]; 
-    int  k = 0; 
-
-    memset(&A,0,sizeof(A));       
-    for (k = 0; k <= 8; k += 1)
-    {
-        wcscpy_s(A, sizeof(A)/sizeof(TCHAR),  (TCHAR*)Planets[k]);
-
-        // Add string to combobox.
-        SendMessage(hMatchSearch,(UINT) CB_ADDSTRING,(WPARAM) 0,(LPARAM) A); 
-    }
-
-    // Send the CB_SETCURSEL message to display an initial item 
-    //  in the selection field  
-    SendMessage(hMatchSearch, CB_SETCURSEL, (WPARAM)2, (LPARAM)0);
     EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)GetStockObject(DEFAULT_GUI_FONT));
-    
-    result = 1;
+
+    RECT rcClient;
+    GetWindowRect(hwnd, &rcClient);
+
+    SetWindowPos(hwnd, 
+                 NULL, 
+                 rcClient.left, rcClient.top,
+                 rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
+                 SWP_FRAMECHANGED);
+
+    SetWindowTheme(hwnd, L"", L"");
+
+    // Load resources
+    hAppLogo = (HBITMAP)LoadImage(globalInstance, L"assets/fzcoach_logo.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    ShowWindow(hwnd, SW_SHOWDEFAULT);
+    UpdateWindow(hwnd);
   }
   else {
     bool wasHandled = false;
 
     switch (message) {
+      case WM_SYSCOMMAND:
+      {
+        if (wParam == SC_MOUSEMENU ||
+            wParam == SC_KEYMENU || wParam == SC_NEXTWINDOW ||
+            wParam == SC_PREVWINDOW || wParam == SC_MOVE ||
+            wParam == SC_TASKLIST ||
+            wParam == SC_MAXIMIZE || wParam == SC_SIZE) {
+          return 0;
+        }
+        break;
+      }
+      case WM_NCCALCSIZE:
+        if (wParam == TRUE) {
+          LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
+            ncParams->rgrc[0].top += NC_TOP_HEIGHT;
+            ncParams->rgrc[0].left += NC_SIDE_WIDTH;
+            ncParams->rgrc[0].bottom -= NC_BOTTOM_HEIGHT;
+            ncParams->rgrc[0].right -= NC_SIDE_WIDTH;
+            return 0;
+
+          wasHandled = true;
+          result = 0;
+          break;
+        }
+      case WM_NCHITTEST:
+      {
+        result = hitTest(hwnd, wParam, lParam);
+        wasHandled = true;
+        break;
+      }
+      case WM_NCACTIVATE:
+        //RedrawWindow(hwnd, NULL, NULL, RDW_UPDATENOW);
+        wasHandled = true;
+        result = 0;
+        break;
+      case WM_NCPAINT:
+      {
+        RECT rect;
+            GetWindowRect(hwnd, &rect);
+            HRGN region = NULL;
+            if (wParam == NULLREGION) {
+                region = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
+            } else {
+                HRGN copy = CreateRectRgn(0, 0, 0, 0);
+                if (CombineRgn(copy, (HRGN) wParam, NULL, RGN_COPY)) {
+                    region = copy;
+                } else {
+                    DeleteObject(copy);
+                }
+            }
+            HDC dc = GetDCEx(hwnd, region, DCX_WINDOW | DCX_CACHE | DCX_INTERSECTRGN | DCX_LOCKWINDOWUPDATE);
+            HDC dcMem = CreateCompatibleDC(dc);
+
+            if (!dc && region) {
+                DeleteObject(region);
+            }
+
+            // Draw window borders
+            HBRUSH ncBrush = CreateSolidBrush(RGB(18, 20, 25));
+            HGDIOBJ old = SelectObject(dc, ncBrush);
+            int width = rect.right - rect.left;
+            int height = rect.bottom - rect.top;
+            Rectangle(dc, 0, 0, width, height);
+            SelectObject(dc, old);
+            DeleteObject(ncBrush);
+
+            // Draw window icon
+            BITMAP bm;
+            HBITMAP hbmOld = (HBITMAP)SelectObject(dcMem, hAppLogo);
+            GetObject(hAppLogo, sizeof(bm), &bm);
+            BitBlt(dc, NC_SIDE_WIDTH, NC_TOP_HEIGHT / 2 - bm.bmHeight / 2, bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+            SelectObject(dcMem, hbmOld);
+            DeleteDC(dcMem);
+
+            ReleaseDC(hwnd, dc);
+            return 0;
+
+        wasHandled = true;
+        result = 0;
+        break;
+      }
       case WM_COMMAND:
       {
         switch(HIWORD(wParam)) {
           case BN_CLICKED:
           {
             if ((HWND)lParam == hStartButton) {
-              startAuctionBot(hwnd);
+              startAuctionBot(hForzaHandle);
             }
             else if((HWND)lParam == hStopButton) {
               stopAuctionBot(hwnd);
@@ -134,6 +208,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
       case WM_DESTROY:
       {
         PostQuitMessage(0);
+
         wasHandled = true;
         result = 1;
         break;
@@ -148,28 +223,43 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
   return result;
 }
 
+HWND graphicsWindow = NULL;
+
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+  // Create main window on main thread
+  hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
+  SetForegroundWindow(hForzaHandle);
+  
+  HDC windowDC = GetWindowDC(hForzaHandle);
+  HDC mem = CreateCompatibleDC(windowDC);
+
+  int windowWidth = 1920;
+  int windowHeight = 1080;
+
+  HBITMAP windowImage = CreateCompatibleBitmap(windowDC, windowWidth, windowHeight);
+  HBITMAP oldBitmap = SelectObject(mem, windowImage);
+  BitBlt(mem, 0, 0, windowWidth, windowHeight, windowDC, 0, 0, SRCCOPY);
+
   whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
   globalInstance = hInstance;
 
   TCHAR title[MAX_LOADSTRING];
-  HCURSOR cursor;
+  HCURSOR cursor = LoadCursor(NULL, IDC_ARROW);
   HICON icon, iconSmall;
 
   LoadString(hInstance, IDS_APP_TITLE, title, sizeof(TCHAR) * MAX_LOADSTRING);
   icon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APP_ICON_SMALL));
   iconSmall = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APP_ICON_SMALL));
 
-
   // Setup window class attributes.
   WNDCLASSEX wcex;
   ZeroMemory(&wcex, sizeof(wcex));
 
   wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
-  wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
+  wcex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;   // Window class styles
   wcex.lpszClassName = title; // Window class name
-  wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);  // Window background brush color.
+  wcex.hbrBackground = CreateSolidBrush(RGB(255, 255, 255));  // Window background brush color.
   wcex.hCursor = cursor;    // Window cursor
   wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
   wcex.hInstance = hInstance; // The application instance.
@@ -215,9 +305,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     return 1;
   }
 
+  // Create graphics window on separate thread
+  setGraphicsParent(hWnd);
+  //HANDLE graphicsThread = (HANDLE)_beginthread(createGraphicsWindow, 0, (void*)&hInstance);
 
-  ShowWindow(hWnd, SW_SHOWDEFAULT);
-  UpdateWindow(hWnd);
+
 
   MSG msg;
   while(GetMessage(&msg, NULL, 0, 0 )) {
@@ -228,29 +320,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   UnregisterClass(wcex.lpszClassName, hInstance);
 
   return (int)msg.wParam;
-}
-
-void addMenu(HWND hWnd) {
-  // File menu
-  HMENU hFileMenu = CreateMenu();
-  AppendMenu(hFileMenu, MF_STRING, (UINT_PTR)FILE_MENU_OPEN, L"Open");
-  AppendMenu(hFileMenu, MF_STRING, (UINT_PTR)FILE_MENU_SAVE, L"Save");
-  AppendMenu(hFileMenu, MF_SEPARATOR, (UINT_PTR)NULL, NULL); 
-
-  // View menu
-  HMENU hViewMenu = CreateMenu();
-  AppendMenu(hViewMenu, MF_STRING, (UINT_PTR)VIEW_MENU_DEVICES, L"Devices");
-  AppendMenu(hViewMenu, MF_STRING, (UINT_PTR)VIEW_MENU_SCREEN_CAPTURE, L"Screen Capture");
-
-  // Main menu
-  hMenu = CreateMenu();
-
-  AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"&File");
-  AppendMenu(hMenu, MF_STRING, (UINT_PTR)NULL, L"&Edit");
-  AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hViewMenu, L"&View");
-  AppendMenu(hMenu, MF_STRING, (UINT_PTR)NULL, L"&Help");
-
-  SetMenu(hWnd, hMenu);
 }
 
 void addButtons(HWND hWnd) {
@@ -313,61 +382,52 @@ void addText(HWND hWnd) {
     NULL);      // Pointer not needed.
 }
 
-void addListViews(HWND hWnd) {
-  INITCOMMONCONTROLSEX icex;           // Structure for control initialization.
-    icex.dwICC = ICC_LISTVIEW_CLASSES;
-    InitCommonControlsEx(&icex);
+LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) {
+    // Get the point coordinates for the hit test.
+    POINT ptMouse = { LOWORD(lParam), HIWORD(lParam)};
 
-    RECT rcClient;                       // The parent window's client area.
+    // Get the window rectangle.
+    RECT rcWindow;
+    GetWindowRect(hWnd, &rcWindow);
 
-    GetClientRect (hWnd, &rcClient); 
+    // Get the frame rectangle, adjusted for the style without a caption.
+    RECT rcFrame = { 0 };
+    AdjustWindowRectEx(&rcFrame, WS_OVERLAPPEDWINDOW & ~WS_CAPTION, FALSE, 0);
 
-    // Create the list-view window in report view with label editing enabled.
-    hMatchList = CreateWindow(
-        WC_LISTVIEW, 
-        L"List",
-        WS_VISIBLE |WS_CHILD | LVS_REPORT | LVS_EDITLABELS,
-        10, 160,
-        300,
-        200,
-        hWnd,
-        (HMENU)IDL_WINDOW_MATCHES,
-        globalInstance,
-        NULL);
+    // Determine if the hit test is for resizing. Default middle (1,1).
+    USHORT uRow = 1;
+    USHORT uCol = 1;
+    bool fOnResizeBorder = false;
 
-    WCHAR szText[256];     // Temporary buffer.
-    LVCOLUMN lvc;
-    int iCol;
-
-    // Initialize the LVCOLUMN structure.
-    // The mask specifies that the format, width, text,
-    // and subitem members of the structure are valid.
-    lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
-
-    // Add the columns.
-    for (iCol = 0; iCol < 2; iCol++)
+    // Determine if the point is at the top or bottom of the window.
+    if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + NC_TOP_HEIGHT)
     {
-        lvc.iSubItem = iCol;
-        lvc.pszText = szText;
-        lvc.cx = 100;               // Width of column in pixels.
-        lvc.fmt = LVCFMT_LEFT;  // Left-aligned column.
-
-        // Load the names of the column headings from the string resources.
-        LoadString(globalInstance,
-                   IDS_WINDOW_NAMES_COLUMN + iCol,
-                   szText,
-                   sizeof(szText)/sizeof(szText[0]));
-
-        // Insert the columns into the list view.
-        if (ListView_InsertColumn(hMatchList, iCol, &lvc) == -1) {
-          printf("Could not create list view!\n");
-        }
+        fOnResizeBorder = (ptMouse.y < (rcWindow.top - rcFrame.top));
+        uRow = 0;
     }
-    ListView_SetExtendedListViewStyle(hMatchList, LVS_EX_FULLROWSELECT);
+    else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom - NC_BOTTOM_HEIGHT)
+    {
+        uRow = 2;
+    }
 
-    listAllWindows(&hMatchList);
-}
+    // Determine if the point is at the left or right of the window.
+    if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.left + NC_SIDE_WIDTH)
+    {
+        uCol = 0; // left side
+    }
+    else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - NC_SIDE_WIDTH)
+    {
+        uCol = 2; // right side
+    }
 
-void addImages(HWND hWnd) {
+    // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
+    LRESULT hitTests[3][3] = 
+    {
+        { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
+        { HTLEFT,       HTNOWHERE,     HTRIGHT },
+        { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
+    };
+
+    return hitTests[uRow][uCol];
 }
 

@@ -10,11 +10,23 @@ static int m_WindowCount = 0;
 
 void auctionSniper(void* data) { 
   // This thread will terminate itself when condition is not met
-  while (*(BOOL*)data == TRUE) {
-    printf("Initiating auction sniper...\n");
-    Sleep(1000);
-    printf("Quick search...\n");
-    Sleep(1000);
+  while (m_BotActive == TRUE) {
+    Sleep(100);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
+    Sleep(230);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
+    Sleep(1200);
+    SendMessage((HWND)data, WM_KEYDOWN, 0x59, 0); // y
+    Sleep(250);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_DOWN, 0);
+    SendMessage((HWND)data, WM_KEYUP, VK_DOWN, 0);
+    Sleep(50);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
+    Sleep(200);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
+    Sleep(10);
+    SendMessage((HWND)data, WM_KEYDOWN, VK_ESCAPE, 0);
+    Sleep(700);
   }
 }
 
@@ -22,7 +34,7 @@ void startAuctionBot(HWND hWnd) {
   // Dispatch timing thread executing the necessary inputs
   if (m_BotActive == FALSE) {
     m_BotActive = TRUE;
-    m_TimingThread = (HANDLE)_beginthread(auctionSniper, 0, (void*)&m_BotActive); // last argument = data
+    m_TimingThread = (HANDLE)_beginthread(auctionSniper, 0, (void*)hWnd); // last argument = data
   }
 }
 
@@ -33,7 +45,7 @@ void stopAuctionBot(HWND hWnd) {
   }
 }
 
-// Target presumed to be a list view
+// Target presumed to be a listview
 void listAllWindows(HWND* target) {
   EnumWindows(listWindowsCallback, (LPARAM)target);
   printf("Number of windows: %d\n", m_WindowCount);
