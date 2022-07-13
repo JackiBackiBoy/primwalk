@@ -38,6 +38,9 @@ HMENU hMenu;
 
 // Resources
 HBITMAP hAppLogo;
+HBITMAP hAppMin;
+HBITMAP hAppMax;
+HBITMAP hAppExit;
 
 // Buttons
 HWND hStartButton;
@@ -84,6 +87,9 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 
     // Load resources
     hAppLogo = (HBITMAP)LoadImage(globalInstance, L"assets/fzcoach_logo.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    hAppMin  = (HBITMAP)LoadImage(globalInstance, L"assets/min.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE); 
+    hAppMax  = (HBITMAP)LoadImage(globalInstance, L"assets/max.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE); 
+    hAppExit = (HBITMAP)LoadImage(globalInstance, L"assets/exit.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE); 
 
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
@@ -160,10 +166,55 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 
             // Draw window icon
             BITMAP bm;
-            HBITMAP hbmOld = (HBITMAP)SelectObject(dcMem, hAppLogo);
+            HBITMAP oldBm = (HBITMAP)SelectObject(dcMem, hAppLogo);
             GetObject(hAppLogo, sizeof(bm), &bm);
-            BitBlt(dc, NC_SIDE_WIDTH, NC_TOP_HEIGHT / 2 - bm.bmHeight / 2, bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
-            SelectObject(dcMem, hbmOld);
+            BitBlt(
+                dc,
+                NC_SIDE_WIDTH + 10, NC_TOP_HEIGHT / 2 - bm.bmHeight / 2,
+                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+
+            SelectObject(dcMem, oldBm);
+            DeleteDC(dcMem);
+
+            // Draw minimize, maximize and exit buttons
+            int offsetX = 1;
+            int offsetY = NC_TOP_HEIGHT / 2 - 6;
+
+            dcMem = CreateCompatibleDC(dc);
+            oldBm = (HBITMAP)SelectObject(dcMem, hAppExit);
+            GetObject(hAppExit, sizeof(bm), &bm);
+            offsetX += bm.bmWidth;
+            BitBlt(
+                dc,
+                width - offsetX, offsetY,
+                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+
+            SelectObject(dcMem, oldBm);
+            DeleteDC(dcMem);
+
+
+            dcMem = CreateCompatibleDC(dc);
+            oldBm = (HBITMAP)SelectObject(dcMem, hAppMax);
+            GetObject(hAppMax, sizeof(bm), &bm);
+            offsetX += bm.bmWidth;
+            BitBlt(
+                dc,
+                width - offsetX, offsetY,
+                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+
+            SelectObject(dcMem, oldBm);
+            DeleteDC(dcMem);
+
+            dcMem = CreateCompatibleDC(dc);
+            oldBm = (HBITMAP)SelectObject(dcMem, hAppMin);
+            GetObject(hAppMin, sizeof(bm), &bm);
+            offsetX += bm.bmWidth;
+            BitBlt(
+                dc,
+                width - offsetX, offsetY,
+                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+
+            SelectObject(dcMem, oldBm);
             DeleteDC(dcMem);
 
             ReleaseDC(hwnd, dc);
@@ -399,10 +450,12 @@ LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     USHORT uCol = 1;
     bool fOnResizeBorder = false;
 
+    printf("Mouse Y: %ld\n", ptMouse.y);
+
     // Determine if the point is at the top or bottom of the window.
     if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + NC_TOP_HEIGHT)
     {
-        fOnResizeBorder = (ptMouse.y < (rcWindow.top - rcFrame.top));
+        fOnResizeBorder = (ptMouse.y == rcWindow.top);
         uRow = 0;
     }
     else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom - NC_BOTTOM_HEIGHT)
