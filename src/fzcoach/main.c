@@ -28,6 +28,9 @@
 #define NC_TOP_HEIGHT 30
 #define NC_SIDE_WIDTH 5
 #define NC_BOTTOM_HEIGHT 5
+#define NC_MINIMIZE_BUTTON_WIDTH 38
+#define NC_MAXIMIZE_BUTTON_WIDTH 40
+#define NC_EXIT_BUTTON_WIDTH 41
 
 BOOL CALLBACK SetFont(HWND child, LPARAM font){
   SendMessage(child, WM_SETFONT, font, TRUE);
@@ -98,17 +101,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
     bool wasHandled = false;
 
     switch (message) {
-      case WM_SYSCOMMAND:
-      {
-        if (wParam == SC_MOUSEMENU ||
-            wParam == SC_KEYMENU || wParam == SC_NEXTWINDOW ||
-            wParam == SC_PREVWINDOW || wParam == SC_MOVE ||
-            wParam == SC_TASKLIST ||
-            wParam == SC_MAXIMIZE || wParam == SC_SIZE) {
-          return 0;
-        }
-        break;
-      }
       case WM_NCCALCSIZE:
         if (wParam == TRUE) {
           LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
@@ -120,7 +112,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 
           wasHandled = true;
           result = 0;
-          break;
         }
       case WM_NCHITTEST:
       {
@@ -132,6 +123,27 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
         //RedrawWindow(hwnd, NULL, NULL, RDW_UPDATENOW);
         wasHandled = true;
         result = 0;
+        break;
+      case WM_NCLBUTTONDOWN:
+        wasHandled = true;
+        result = 0;
+
+        if (wParam == HTMINBUTTON) {
+          ShowWindow(hwnd, SW_MINIMIZE);
+        }
+        else if (wParam == HTMAXBUTTON) {
+          WINDOWPLACEMENT wp;
+          GetWindowPlacement(hwnd, &wp);
+
+          ShowWindow(hwnd, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+        }
+        else if (wParam == HTCLOSE) {
+          SendMessage(hwnd, WM_DESTROY, 0, 0);
+        }
+        else {
+          wasHandled = false;
+        }
+
         break;
       case WM_NCPAINT:
       {
@@ -308,7 +320,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   ZeroMemory(&wcex, sizeof(wcex));
 
   wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
-  wcex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;   // Window class styles
+  wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
   wcex.lpszClassName = title; // Window class name
   wcex.hbrBackground = CreateSolidBrush(RGB(255, 255, 255));  // Window background brush color.
   wcex.hCursor = cursor;    // Window cursor
@@ -333,7 +345,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   cs.hInstance = hInstance; // Window instance.
   cs.lpszClass = wcex.lpszClassName;    // Window class name
   cs.lpszName = title;  // Window title
-  cs.style = WS_OVERLAPPEDWINDOW;   // Window style
+  cs.style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;   // Window style
   cs.dwExStyle = WS_EX_TOPMOST;
 
   // Create the window.
@@ -441,44 +453,55 @@ LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     RECT rcWindow;
     GetWindowRect(hWnd, &rcWindow);
 
-    // Get the frame rectangle, adjusted for the style without a caption.
-    RECT rcFrame = { 0 };
-    AdjustWindowRectEx(&rcFrame, WS_OVERLAPPEDWINDOW & ~WS_CAPTION, FALSE, 0);
-
     // Determine if the hit test is for resizing. Default middle (1,1).
     USHORT uRow = 1;
     USHORT uCol = 1;
     bool fOnResizeBorder = false;
 
-    printf("Mouse Y: %ld\n", ptMouse.y);
-
-    // Determine if the point is at the top or bottom of the window.
+    // Check if cursor is in the top caption area
     if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + NC_TOP_HEIGHT)
     {
-        fOnResizeBorder = (ptMouse.y == rcWindow.top);
-        uRow = 0;
+      fOnResizeBorder = (ptMouse.y == rcWindow.top);
+      uRow = 0;
     }
+    // Else the cursor must reside in the bottom area of the window
     else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom - NC_BOTTOM_HEIGHT)
     {
-        uRow = 2;
+      uRow = 2;
     }
 
     // Determine if the point is at the left or right of the window.
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.left + NC_SIDE_WIDTH)
     {
-        uCol = 0; // left side
+
+      uCol = 0; // left side
     }
-    else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - NC_SIDE_WIDTH)
+    else if (ptMouse.x < rcWindow.right)
     {
+      if (ptMouse.x >= rcWindow.right - NC_SIDE_WIDTH) {
         uCol = 2; // right side
+      }
+      else if (uRow == 0 &&
+               ptMouse.x >= rcWindow.right - 1 - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH - NC_MINIMIZE_BUTTON_WIDTH) {
+        // On minimize button
+        if (ptMouse.x <= rcWindow.right - 1 - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH) {
+          return HTMINBUTTON;
+        }
+        else if (ptMouse.x <= rcWindow.right - 1 - NC_EXIT_BUTTON_WIDTH) {
+          return HTMAXBUTTON;
+        }
+        else {
+          return HTCLOSE;
+        }
+      }
     }
 
     // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
     LRESULT hitTests[3][3] = 
     {
-        { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
-        { HTLEFT,       HTNOWHERE,     HTRIGHT },
-        { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
+      { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
+      { HTLEFT,       HTNOWHERE,     HTRIGHT },
+      { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
     };
 
     return hitTests[uRow][uCol];
