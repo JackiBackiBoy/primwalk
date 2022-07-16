@@ -13,7 +13,7 @@ void auctionSniper(void* data) {
   while (m_BotActive == TRUE) {
     Sleep(100);
     SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(230);
+    Sleep(300);
     SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
     Sleep(1200);
     SendMessage((HWND)data, WM_KEYDOWN, 0x59, 0); // y

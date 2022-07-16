@@ -20,6 +20,8 @@
 
 #include "rendering/renderer.h"
 
+#define WINDOW_WIDTH 840
+#define WINDOW_HEIGHT 680
 #define FILE_MENU_OPEN 1
 #define FILE_MENU_SAVE 2
 #define VIEW_MENU_DEVICES 3
@@ -44,6 +46,7 @@ HBITMAP hAppLogo;
 HBITMAP hAppMin;
 HBITMAP hAppMax;
 HBITMAP hAppExit;
+LRESULT m_HoverState = HTNOWHERE;
 
 // Buttons
 HWND hStartButton;
@@ -101,6 +104,17 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
     bool wasHandled = false;
 
     switch (message) {
+      case WM_GETMINMAXINFO:
+      {
+        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
+        lpMMI->ptMinTrackSize.x = NC_SIDE_WIDTH + 10 + 1 + 160 +
+          NC_EXIT_BUTTON_WIDTH + NC_MAXIMIZE_BUTTON_WIDTH + NC_MINIMIZE_BUTTON_WIDTH;
+        lpMMI->ptMinTrackSize.y = 50;
+
+        wasHandled = true;
+        result = 0;
+        break;
+      }
       case WM_NCCALCSIZE:
         if (wParam == TRUE) {
           LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
@@ -116,15 +130,73 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
       case WM_NCHITTEST:
       {
         result = hitTest(hwnd, wParam, lParam);
+        LRESULT lastResult = m_HoverState;
+
+        // --- Redraw the non-client area when buttons are hovered/unhovered ---
+        // Close button
+        if ((result == HTCLOSE && lastResult != HTCLOSE) ||
+            (result != HTCLOSE && lastResult == HTCLOSE)) {
+          RECT wr;
+          GetWindowRect(hwnd, &wr);
+          int width = wr.right - wr.left;
+          int height = wr.bottom - wr.top;
+
+          m_HoverState = result;
+          HRGN rgn = CreateRectRgn(wr.left + width - NC_EXIT_BUTTON_WIDTH, wr.top, wr.right, wr.top + NC_TOP_HEIGHT);
+          SendMessage(hwnd, WM_NCPAINT, (WPARAM)rgn, 0);
+        }
+        // Maximize button
+        if ((result == HTMAXBUTTON && lastResult != HTMAXBUTTON) ||
+            (result != HTMAXBUTTON && lastResult == HTMAXBUTTON)) {
+          RECT wr;
+          GetWindowRect(hwnd, &wr);
+          int width = wr.right - wr.left;
+          int height = wr.bottom - wr.top;
+
+          m_HoverState = result;
+          HRGN rgn = CreateRectRgn(
+              wr.left + width - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH,
+              wr.top,
+              wr.right - NC_EXIT_BUTTON_WIDTH, wr.top + NC_TOP_HEIGHT);
+          SendMessage(hwnd, WM_NCPAINT, (WPARAM)rgn, 0);
+        }
+        // Minimize button
+        if ((result == HTMINBUTTON && lastResult != HTMINBUTTON) ||
+            (result != HTMINBUTTON && lastResult == HTMINBUTTON)) {
+          RECT wr;
+          GetWindowRect(hwnd, &wr);
+          int width = wr.right - wr.left;
+          int height = wr.bottom - wr.top;
+
+          m_HoverState = result;
+          HRGN rgn = CreateRectRgn(
+              wr.left + width - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH - NC_MINIMIZE_BUTTON_WIDTH,
+              wr.top,
+              wr.right - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH, wr.top + NC_TOP_HEIGHT);
+          SendMessage(hwnd, WM_NCPAINT, (WPARAM)rgn, 0);
+        }
+
+        m_HoverState = result;
         wasHandled = true;
         break;
       }
       case WM_NCACTIVATE:
-        //RedrawWindow(hwnd, NULL, NULL, RDW_UPDATENOW);
         wasHandled = true;
         result = 0;
         break;
       case WM_NCLBUTTONDOWN:
+      {
+        wasHandled = true;
+        result = 0;
+
+        if (wParam != HTMINBUTTON && wParam != HTMAXBUTTON && wParam != HTCLOSE) {
+          wasHandled = false;
+        }
+
+        break;
+      }
+      case WM_NCLBUTTONUP:
+      {
         wasHandled = true;
         result = 0;
 
@@ -145,92 +217,115 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
         }
 
         break;
+      }
       case WM_NCPAINT:
       {
         RECT rect;
-            GetWindowRect(hwnd, &rect);
-            HRGN region = NULL;
-            if (wParam == NULLREGION) {
-                region = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
-            } else {
-                HRGN copy = CreateRectRgn(0, 0, 0, 0);
-                if (CombineRgn(copy, (HRGN) wParam, NULL, RGN_COPY)) {
-                    region = copy;
-                } else {
-                    DeleteObject(copy);
-                }
-            }
-            HDC dc = GetDCEx(hwnd, region, DCX_WINDOW | DCX_CACHE | DCX_INTERSECTRGN | DCX_LOCKWINDOWUPDATE);
-            HDC dcMem = CreateCompatibleDC(dc);
+        GetWindowRect(hwnd, &rect);
+        HRGN region = NULL;
 
-            if (!dc && region) {
-                DeleteObject(region);
-            }
+        if (wParam == NULLREGION) {
+            region = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
+        }
+        else {
+          HRGN copy = CreateRectRgn(0, 0, 0, 0);
+          if (CombineRgn(copy, (HRGN) wParam, NULL, RGN_COPY)) {
+              region = copy;
+          } else {
+              DeleteObject(copy);
+          }
+        }
 
-            // Draw window borders
-            HBRUSH ncBrush = CreateSolidBrush(RGB(18, 20, 25));
-            HGDIOBJ old = SelectObject(dc, ncBrush);
-            int width = rect.right - rect.left;
-            int height = rect.bottom - rect.top;
-            Rectangle(dc, 0, 0, width, height);
-            SelectObject(dc, old);
-            DeleteObject(ncBrush);
+        HDC dc = GetDCEx(hwnd, region, DCX_WINDOW | DCX_CACHE | DCX_INTERSECTRGN | DCX_LOCKWINDOWUPDATE);
+        HDC dcMem = CreateCompatibleDC(dc);
 
-            // Draw window icon
-            BITMAP bm;
-            HBITMAP oldBm = (HBITMAP)SelectObject(dcMem, hAppLogo);
-            GetObject(hAppLogo, sizeof(bm), &bm);
-            BitBlt(
-                dc,
-                NC_SIDE_WIDTH + 10, NC_TOP_HEIGHT / 2 - bm.bmHeight / 2,
-                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+        if (!dc && region) {
+            DeleteObject(region);
+        }
 
-            SelectObject(dcMem, oldBm);
-            DeleteDC(dcMem);
+        // Draw window borders
+        HBRUSH ncBrush = CreateSolidBrush(RGB(18, 20, 25));
+        HGDIOBJ old = SelectObject(dc, ncBrush);
+        int width = rect.right - rect.left;
+        int height = rect.bottom - rect.top;
+        Rectangle(dc, 0, 0, width, height);
+        SelectObject(dc, old);
+        DeleteObject(ncBrush);
 
-            // Draw minimize, maximize and exit buttons
-            int offsetX = 1;
-            int offsetY = NC_TOP_HEIGHT / 2 - 6;
+        // Draw window icon
+        BITMAP bm;
+        HBITMAP oldBm = (HBITMAP)SelectObject(dcMem, hAppLogo);
+        GetObject(hAppLogo, sizeof(bm), &bm);
+        TransparentBlt(
+            dc,
+            NC_SIDE_WIDTH + 10, NC_TOP_HEIGHT / 2 - bm.bmHeight / 2,
+            bm.bmWidth, bm.bmHeight, dcMem, 0, 0, bm.bmWidth, bm.bmHeight, RGB(18, 20, 25));
 
-            dcMem = CreateCompatibleDC(dc);
-            oldBm = (HBITMAP)SelectObject(dcMem, hAppExit);
-            GetObject(hAppExit, sizeof(bm), &bm);
-            offsetX += bm.bmWidth;
-            BitBlt(
-                dc,
-                width - offsetX, offsetY,
-                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+        // Draw minimize, maximize and exit buttons
+        int offsetX = 1;
+        int offsetY = NC_TOP_HEIGHT / 2 - 6;
 
-            SelectObject(dcMem, oldBm);
-            DeleteDC(dcMem);
+        if (m_HoverState == HTCLOSE) {
+          HBRUSH hoverBrush = CreateSolidBrush(RGB(255, 0, 0));
+          HGDIOBJ old = SelectObject(dc, hoverBrush);
+          Rectangle(dc, width - NC_EXIT_BUTTON_WIDTH, 0, width, NC_TOP_HEIGHT);
+          SelectObject(dc, old);
+          DeleteObject(hoverBrush);
+        }
+        else if (m_HoverState == HTMAXBUTTON) {
+          HBRUSH hoverBrush = CreateSolidBrush(RGB(70, 70, 70));
+          HGDIOBJ old = SelectObject(dc, hoverBrush);
+          Rectangle(
+              dc,
+              width - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH,
+              0,
+              width - NC_EXIT_BUTTON_WIDTH,
+              NC_TOP_HEIGHT);
+          SelectObject(dc, old);
+          DeleteObject(hoverBrush);
+        }
+        else if (m_HoverState == HTMINBUTTON) {
+          HBRUSH hoverBrush = CreateSolidBrush(RGB(70, 70, 70));
+          HGDIOBJ old = SelectObject(dc, hoverBrush);
+          Rectangle(
+              dc,
+              width - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH - NC_MINIMIZE_BUTTON_WIDTH,
+              0,
+              width - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH,
+              NC_TOP_HEIGHT);
+          SelectObject(dc, old);
+          DeleteObject(hoverBrush);
+        }
+
+        oldBm = (HBITMAP)SelectObject(dcMem, hAppExit);
+        GetObject(hAppExit, sizeof(bm), &bm);
+        offsetX += bm.bmWidth;
+        TransparentBlt(
+            dc,
+            width - offsetX, offsetY,
+            bm.bmWidth, bm.bmHeight, dcMem, 0, 0, bm.bmWidth, bm.bmHeight, RGB(0, 255, 0));
+
+        oldBm = (HBITMAP)SelectObject(dcMem, hAppMax);
+        GetObject(hAppMax, sizeof(bm), &bm);
+        offsetX += bm.bmWidth;
+        TransparentBlt(
+            dc,
+            width - offsetX, offsetY,
+            bm.bmWidth, bm.bmHeight, dcMem, 0, 0, bm.bmWidth, bm.bmHeight, RGB(0, 255, 0));
 
 
-            dcMem = CreateCompatibleDC(dc);
-            oldBm = (HBITMAP)SelectObject(dcMem, hAppMax);
-            GetObject(hAppMax, sizeof(bm), &bm);
-            offsetX += bm.bmWidth;
-            BitBlt(
-                dc,
-                width - offsetX, offsetY,
-                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
+        oldBm = (HBITMAP)SelectObject(dcMem, hAppMin);
+        GetObject(hAppMin, sizeof(bm), &bm);
+        offsetX += bm.bmWidth;
+        TransparentBlt(
+            dc,
+            width - offsetX, offsetY,
+            bm.bmWidth, bm.bmHeight, dcMem, 0, 0, bm.bmWidth, bm.bmHeight, RGB(0, 255, 0));
 
-            SelectObject(dcMem, oldBm);
-            DeleteDC(dcMem);
-
-            dcMem = CreateCompatibleDC(dc);
-            oldBm = (HBITMAP)SelectObject(dcMem, hAppMin);
-            GetObject(hAppMin, sizeof(bm), &bm);
-            offsetX += bm.bmWidth;
-            BitBlt(
-                dc,
-                width - offsetX, offsetY,
-                bm.bmWidth, bm.bmHeight, dcMem, 0, 0, SRCCOPY);
-
-            SelectObject(dcMem, oldBm);
-            DeleteDC(dcMem);
-
-            ReleaseDC(hwnd, dc);
-            return 0;
+        SelectObject(dcMem, oldBm);
+        DeleteDC(dcMem);
+        ReleaseDC(hwnd, dc);
+        return 0;
 
         wasHandled = true;
         result = 0;
@@ -291,8 +386,8 @@ HWND graphicsWindow = NULL;
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
   // Create main window on main thread
-  hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
-  SetForegroundWindow(hForzaHandle);
+  //hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
+  //SetForegroundWindow(hForzaHandle);
   
   HDC windowDC = GetWindowDC(hForzaHandle);
   HDC mem = CreateCompatibleDC(windowDC);
@@ -481,7 +576,7 @@ LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) {
       if (ptMouse.x >= rcWindow.right - NC_SIDE_WIDTH) {
         uCol = 2; // right side
       }
-      else if (uRow == 0 &&
+      else if (uRow == 0 && fOnResizeBorder == false &&
                ptMouse.x >= rcWindow.right - 1 - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH - NC_MINIMIZE_BUTTON_WIDTH) {
         // On minimize button
         if (ptMouse.x <= rcWindow.right - 1 - NC_EXIT_BUTTON_WIDTH - NC_MAXIMIZE_BUTTON_WIDTH) {

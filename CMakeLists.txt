@@ -43,6 +43,7 @@ target_include_directories(${NAME} PRIVATE
 target_link_libraries(${NAME} PUBLIC
   OpenGL::GL
   comctl32.lib
+  msimg32.lib
   Dwmapi.lib
   UxTheme
 )
