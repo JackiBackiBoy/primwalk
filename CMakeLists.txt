@@ -4,6 +4,12 @@ set(NAME fzcoach)
 set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/src/${NAME}) 
 set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)
 
+# Compiler specification
+if (WIN32)
+  set(CMAKE_CXX_COMPILER "C:/Users/TheGa/mingw64/bin/g++.exe")
+  set(CMAKE_C_COMPILER "C:/Users/TheGa/mingw64/bin/gcc.exe")
+endif()
+
 project(${NAME})
 
 include_directories(

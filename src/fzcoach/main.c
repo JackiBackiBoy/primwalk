@@ -17,6 +17,7 @@
 #include "utilities.h"
 #include <tchar.h>
 #include <uxtheme.h>
+#include <time.h>
 
 #include "rendering/renderer.h"
 
@@ -39,7 +40,22 @@ BOOL CALLBACK SetFont(HWND child, LPARAM font){
   return TRUE;
 }
 
+// Bot steps
+int endStage = 1;
+bool stopOptionsTimer = false;
+clock_t clickOptionsStart;
+clock_t placeBidStart;
+clock_t endBotCycleStart;
+clock_t start;
+clock_t stop;
+bool confirm = false;
+bool listingExists = false;
+bool placeBidExists = false;
+bool endBotCycle = false;
+bool botCycleDone = false;
+
 HMENU hMenu;
+BITMAP bm;
 
 // Resources
 HBITMAP hAppLogo;
@@ -56,7 +72,7 @@ HWND hMatchSearch;
 HWND hForzaHandle;
 
 // Text
-HWND hWindowSearchTitle;
+HWND hWindowPreviewLabel;
 
 // List Views
 HWND hMatchList = NULL;
@@ -104,6 +120,195 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
     bool wasHandled = false;
 
     switch (message) {
+      case WM_PAINT:
+      {
+        if (hForzaHandle != NULL) {
+          // Screen Capture
+          HDC hScreenDC = GetDC(NULL); // CreateDC("DISPLAY",nullptr,nullptr,nullptr);
+          HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+          int width = GetDeviceCaps(hScreenDC,HORZRES);
+          int height = GetDeviceCaps(hScreenDC,VERTRES);
+
+          // Only capture the game window (if available)
+          RECT forzaWindowRect;
+          forzaWindowRect.left = 0;
+          forzaWindowRect.top = 0;
+          forzaWindowRect.right = width;
+          forzaWindowRect.bottom = height;
+
+          RECT forzaClientRect;
+
+          GetWindowRect(hForzaHandle, &forzaWindowRect);
+          GetClientRect(hForzaHandle, &forzaClientRect);
+
+          // Forza window metrics
+          int forzaWidth = forzaClientRect.right - forzaClientRect.left;
+          int forzaHeight = forzaClientRect.bottom - forzaClientRect.top;
+          int forzaBorderThicknessX = GetSystemMetrics(SM_CXSIZEFRAME);
+          int forzaBorderThicknessY = GetSystemMetrics(SM_CYSIZEFRAME);
+
+          HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC,width,height);
+          HBITMAP hOldBitmap = (HBITMAP)(SelectObject(hMemoryDC,hBitmap));
+          BitBlt(
+              hMemoryDC,
+              0,
+              0,
+              forzaClientRect.right - forzaClientRect.left,
+              forzaClientRect.bottom - forzaClientRect.top,
+              hScreenDC,
+              forzaBorderThicknessX + forzaWindowRect.left,
+              forzaWindowRect.top + 30,
+              SRCCOPY);
+
+          // Bot
+          int forzaCenterX = forzaWidth / 2;
+          int forzaCenterY = forzaHeight / 2;
+
+          if (!endBotCycle) {
+            int forzaConfirmY = (int)(0.672f * forzaHeight);
+            int forzaConfirmX = forzaCenterX + 100;
+
+            // Check the RGB-color of the confirm button (if available)
+            COLORREF confirmColor = GetPixel(hMemoryDC, forzaConfirmX, forzaConfirmY);
+            int r = GetRValue(confirmColor);
+            int g = GetGValue(confirmColor);
+            int b = GetBValue(confirmColor);
+
+            if (!confirm && r == 255 && g == 0 && b == 134) {
+              // Issue 'enter' click
+              SendMessage(hForzaHandle, WM_KEYDOWN, VK_RETURN, 0);
+              start = clock();
+
+              confirm = true;
+            }
+
+            int forzaListingAreaX = (int)(0.389f * forzaWidth);
+            int forzaListingAreaY = (int)(0.2743f * forzaHeight);
+
+            COLORREF listingColor = GetPixel(hMemoryDC, forzaListingAreaX, forzaListingAreaY);
+            r = GetRValue(listingColor);
+            g = GetGValue(listingColor);
+            b = GetBValue(listingColor);
+
+            if (confirm && !listingExists && r == 247 && g == 247 && b == 247) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, 0x59, 0);
+
+              listingExists = true;
+            }
+            else if (confirm && listingExists && !placeBidExists) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, 0x59, 0);
+            }
+
+            int forzaPlaceBidX = (int)(0.330625f * forzaWidth);
+            int forzaPlaceBidY = (int)(0.31f * forzaHeight);
+
+            COLORREF placeBidColor = GetPixel(hMemoryDC, forzaPlaceBidX, forzaPlaceBidY);
+            r = GetRValue(placeBidColor);
+            g = GetGValue(placeBidColor);
+            b = GetBValue(placeBidColor);
+
+            if (confirm && listingExists && !placeBidExists &&
+                r == 171 && g == 171 && b == 171) {
+              clickOptionsStart = clock();
+
+              placeBidExists = true;
+            }
+
+            if (placeBidExists && !stopOptionsTimer && !endBotCycle) {
+              clock_t diff = clock() - clickOptionsStart;
+              int mSec = diff * 1000 / CLOCKS_PER_SEC;
+
+              if (mSec >= 300) {
+                SendMessage(hForzaHandle, WM_KEYDOWN, VK_DOWN, 0);
+                SendMessage(hForzaHandle, WM_KEYUP, VK_DOWN, 0);
+                endBotCycleStart = clock();
+                stopOptionsTimer = true;
+              }
+            }
+
+            int forzaCollectCarX = (int)(0.611328125f * forzaWidth);
+            int forzaCollectCarY = (int)(0.497916667f * forzaHeight);
+
+            COLORREF collectCarColor = GetPixel(hMemoryDC, forzaCollectCarX, forzaCollectCarY);
+            r = GetRValue(collectCarColor);
+            g = GetGValue(collectCarColor);
+            b = GetBValue(collectCarColor);
+
+            if (stopOptionsTimer && r == 255 && g == 0 && b == 134 && !endBotCycle &&
+                (clock() - endBotCycleStart) * 1000 / CLOCKS_PER_SEC >= 1000) {
+              endBotCycleStart = clock();
+              endBotCycle = true;
+            }
+            else if (stopOptionsTimer && !endBotCycle) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, VK_RETURN, 0);
+            }
+          }
+          else {
+            int mSec = (clock() - endBotCycleStart) * 1000 / CLOCKS_PER_SEC;
+
+            if (mSec >= 5000 && endStage == 1) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, VK_RETURN, 0);
+              endStage = 2;
+            }
+            else if (mSec >= 5500 && endStage == 2) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, VK_ESCAPE, 0);
+              endStage = 3;
+            }
+            else if (mSec >= 6000 && endStage == 3) {
+              SendMessage(hForzaHandle, WM_KEYDOWN, VK_ESCAPE, 0);
+              endStage = 4;
+            }
+
+            int forzaEndCycleTagX = (int)(0.7953125f * forzaWidth);
+            int forzaEndCycleTagY = (int)(0.3f * forzaHeight);
+            COLORREF forzaEndCycleTagColor = GetPixel(hMemoryDC, forzaEndCycleTagX, forzaEndCycleTagY);
+            int r = GetRValue(forzaEndCycleTagColor);
+            int g = GetGValue(forzaEndCycleTagColor);
+            int b = GetBValue(forzaEndCycleTagColor);
+
+            if (mSec >= 7000 && endStage == 4) {
+              // Bot cycle completed, reset bot flags
+              if (r == 52 && g == 23 && b == 53) {
+                endBotCycle = false;
+                confirm = false;
+                listingExists = false;
+                placeBidExists = false;
+                stopOptionsTimer = false;
+                endStage = 1;
+              }
+              else {
+                endBotCycleStart = clock();
+                endStage = 1;
+              }
+            }
+          }
+
+
+          PAINTSTRUCT ps;
+          GetObject(hBitmap, sizeof(BITMAP), &bm);
+
+          HDC hdc = BeginPaint(hwnd, &ps);
+
+          float aspectRatio = (float)bm.bmWidth / bm.bmHeight;
+          SetStretchBltMode(hdc, STRETCH_HALFTONE);
+          StretchBlt(hdc, 10, 170, (int)(360 * aspectRatio), 360,
+              hMemoryDC,0,0, forzaClientRect.right - forzaClientRect.left,
+              forzaClientRect.bottom - forzaClientRect.top, SRCCOPY);
+
+
+          EndPaint(hwnd, &ps);
+          DeleteDC(hMemoryDC);
+          DeleteDC(hScreenDC);
+          DeleteObject(hBitmap);
+          DeleteObject(hOldBitmap);
+
+          InvalidateRect(hwnd, NULL, FALSE);
+        }
+
+        wasHandled = true;
+        result = 0;
+        break;
+      }
       case WM_GETMINMAXINFO:
       {
         LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
@@ -355,10 +560,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
           }
         }
 
-        if (wParam == VIEW_MENU_SCREEN_CAPTURE) {
-          SendMessage(hwnd, WM_DESTROY, wParam, lParam);
-        }
-
         wasHandled = true;
         result = 0;
         break;
@@ -386,8 +587,11 @@ HWND graphicsWindow = NULL;
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
   // Create main window on main thread
-  //hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
-  //SetForegroundWindow(hForzaHandle);
+  hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
+
+  if (hForzaHandle != NULL) {
+    SetForegroundWindow(hForzaHandle);
+  }
   
   HDC windowDC = GetWindowDC(hForzaHandle);
   HDC mem = CreateCompatibleDC(windowDC);
@@ -467,8 +671,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   setGraphicsParent(hWnd);
   //HANDLE graphicsThread = (HANDLE)_beginthread(createGraphicsWindow, 0, (void*)&hInstance);
 
-
-
   MSG msg;
   while(GetMessage(&msg, NULL, 0, 0 )) {
     TranslateMessage(&msg);
@@ -526,16 +728,16 @@ void addButtons(HWND hWnd) {
 }
 
 void addText(HWND hWnd) {
-  hWindowSearchTitle = CreateWindow(
+  hWindowPreviewLabel = CreateWindow(
     L"STATIC",  // Predefined class; Unicode assumed 
-    L"Forza Horizon 5 window matches:",      // Button text 
+    L"Window preview:",      // Button text 
     WS_VISIBLE | WS_CHILD | SS_CENTER,  // Styles 
     10,         // x position 
     140,         // y position 
     300,        // Button width
     20,        // Button height
     hWnd,     // Parent window
-    (HMENU)IDT_WINDOW_MATCHES_TITLE,       // No menu.
+    (HMENU)IDT_WINDOW_PREVIEW_LABEL,       // No menu.
     globalInstance, 
     NULL);      // Pointer not needed.
 }
