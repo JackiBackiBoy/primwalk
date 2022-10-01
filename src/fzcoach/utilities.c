@@ -93,3 +93,12 @@ BOOL CALLBACK listWindowsCallback(HWND hWnd, LPARAM lParam) {
 
   return TRUE;
 }
+
+void getColorFromDC(Color* target, HDC hdc, const int x, const int y) {
+  COLORREF tempColorRef = GetPixel(hdc, x, y);
+
+  target->r = GetRValue(tempColorRef);
+  target->g = GetGValue(tempColorRef);
+  target->b = GetBValue(tempColorRef);
+}
+
