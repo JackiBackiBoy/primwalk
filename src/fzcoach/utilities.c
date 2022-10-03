@@ -5,45 +5,7 @@
 #include "resource.h"
 
 BOOL m_BotActive = FALSE;
-HANDLE m_TimingThread = NULL;
 static int m_WindowCount = 0;
-
-void auctionSniper(void* data) { 
-  // This thread will terminate itself when condition is not met
-  while (m_BotActive == TRUE) {
-    Sleep(100);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(300);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(1200);
-    SendMessage((HWND)data, WM_KEYDOWN, 0x59, 0); // y
-    Sleep(250);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_DOWN, 0);
-    SendMessage((HWND)data, WM_KEYUP, VK_DOWN, 0);
-    Sleep(50);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(200);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_RETURN, 0);
-    Sleep(10);
-    SendMessage((HWND)data, WM_KEYDOWN, VK_ESCAPE, 0);
-    Sleep(700);
-  }
-}
-
-void startAuctionBot(HWND hWnd) {
-  // Dispatch timing thread executing the necessary inputs
-  if (m_BotActive == FALSE) {
-    m_BotActive = TRUE;
-    m_TimingThread = (HANDLE)_beginthread(auctionSniper, 0, (void*)hWnd); // last argument = data
-  }
-}
-
-void stopAuctionBot(HWND hWnd) {
-  if (m_BotActive == TRUE) {
-    m_BotActive = FALSE;
-    printf("Closing thread!");
-  }
-}
 
 // Target presumed to be a listview
 void listAllWindows(HWND* target) {
@@ -102,3 +64,7 @@ void getColorFromDC(Color* target, HDC hdc, const int x, const int y) {
   target->b = GetBValue(tempColorRef);
 }
 
+
+int getDeltaTime(const clock_t t1, const clock_t t2) {
+  return (t1 - t2) * 1000 / CLOCKS_PER_SEC;
+}
