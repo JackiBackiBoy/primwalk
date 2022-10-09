@@ -34,17 +34,17 @@ int createWin32Label(HWND window, HWND* targetLabel, const wchar_t* text,
 int createWin32Button(HWND window, HWND* targetButton, const wchar_t* text,
     const int x, const int y, const int width, const int height, HFONT font) {
   *targetButton = CreateWindow(
-    L"BUTTON",  // Predefined class; Unicode assumed 
-    text,      // Button text 
+    L"BUTTON",
+    text,
     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles 
-    x,         // x position 
-    y,         // y position 
-    width,        // Button width
-    height,        // Button height
-    window,     // Parent window
-    NULL,       // No menu.
+    x,
+    y,
+    width,
+    height,
+    window,
+    NULL,
     (HINSTANCE)GetWindowLongPtr(window, GWLP_HINSTANCE), 
-    NULL);      // Pointer not needed.
+    NULL);
 
   SendMessage(*targetButton, WM_SETFONT, (LPARAM)font, TRUE);
 

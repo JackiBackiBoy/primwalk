@@ -8,6 +8,7 @@ set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)
 if (WIN32)
   set(CMAKE_CXX_COMPILER "C:/Users/TheGa/mingw64/bin/g++.exe")
   set(CMAKE_C_COMPILER "C:/Users/TheGa/mingw64/bin/gcc.exe")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mwindows")
 endif()
 
 project(${NAME})
@@ -44,7 +45,6 @@ set_property(TARGET ${NAME} PROPERTY C_STANDARD 11)
 target_include_directories(${NAME} PRIVATE
   ${GLAD_INCLUDE_DIR}
 )
-  
 
 target_link_libraries(${NAME} PUBLIC
   OpenGL::GL

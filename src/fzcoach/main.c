@@ -19,8 +19,6 @@
 #include "resource.h"
 #include "utilities.h"
 #include <tchar.h>
-#include <uxtheme.h>
-#include <time.h>
 
 #include "ui/win32ui.h"
 #include "ai/auctionBot.h"
@@ -28,11 +26,9 @@
 
 #define MAX_LOADSTRING 100
 
-BOOL CALLBACK SetFont(HWND child, LPARAM font){
-  SendMessage(child, WM_SETFONT, font, TRUE);
-  return TRUE;
-}
+static bool m_ShowLivePreview = false;
 
+BITMAP bm;
 HMENU hMenu;
 HFONT hSmallFont;
 HFONT hMediumFont;
@@ -44,8 +40,6 @@ HWND hAuctionBotTitle;
 // Buttons
 HWND hStartButton;
 HWND hStopButton;
-HWND hSearchWindowButton;
-HWND hMatchSearch;
 HWND hForzaHandle;
 
 // Checkboxes
@@ -58,124 +52,17 @@ HWND hAuctionBotSettings;
 HWND hAuctionBotSettingsHorz;
 HWND hAbOverdriveCheckBox;
 
-// List Views
-HWND hMatchList = NULL;
-LVCOLUMN lvCol;
-LVITEM lvItem;
-
+HBRUSH backgroundBrush;
 HINSTANCE globalInstance;
 
-void initUI(HWND hWnd);
-HBRUSH whiteBrush;
-
-static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-  LRESULT result = 0;
-
-  if (message == WM_CREATE) {
-    // Fonts
-    hSmallFont = CreateFont(SMALL_FONT_SIZE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    hMediumFont = CreateFont(MEDIUM_FONT_SIZE, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    hLargeFont = CreateFont(LARGE_FONT_SIZE, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-
-    initUI(hwnd);
-
-
-    //EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)hWindowFont);
-
-    RECT rcClient;
-    GetWindowRect(hwnd, &rcClient);
-
-    SetWindowPos(hwnd, 
-                 NULL, 
-                 rcClient.left, rcClient.top,
-                 rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
-                 SWP_FRAMECHANGED);
-
-    ShowWindow(hwnd, SW_SHOWDEFAULT);
-    UpdateWindow(hwnd);
-  }
-  else {
-    bool wasHandled = false;
-
-    switch (message) {
-      case WM_CTLCOLORDLG:
-      {
-        wasHandled = true;
-        result = (INT_PTR)whiteBrush;
-        break;
-      }
-      case WM_CTLCOLORSTATIC:
-      {
-        wasHandled = true;
-        result = 0;
-        break;
-      }
-      case WM_CTLCOLORBTN:
-      {
-        HDC hdc = (HDC)wParam;
-        POINT pt;
-        HWND hwndCtl;
-
-        SetBkMode(hdc,TRANSPARENT); // Ensure that "static" text doesn't use a solid fill
-
-        pt.x = 0; pt.y = 0;
-        MapWindowPoints(hwndCtl, hwnd, &pt, 1);
-        SetBrushOrgEx(hdc, -pt.x, -pt.y, NULL);
-
-        wasHandled = true;
-        result = (INT_PTR)whiteBrush;
-        break;
-      }
-      case WM_COMMAND:
-      {
-        switch(HIWORD(wParam)) {
-          case BN_CLICKED:
-          {
-            if ((HWND)lParam == hStartButton) {
-              startAuctionBot(hForzaHandle, true);
-            }
-            else if((HWND)lParam == hStopButton) {
-              stopAuctionBot();
-            }
-            else if ((HWND)lParam == hPreviewCheckBox) {
-              BOOL checked = IsDlgButtonChecked(hwnd, IDC_LIVE_PREVIEW);
-
-              if (checked) {
-                CheckDlgButton(hwnd, IDC_LIVE_PREVIEW, BST_UNCHECKED);
-              }
-              else {
-                CheckDlgButton(hwnd, IDC_LIVE_PREVIEW, BST_CHECKED);
-              }
-            }
-            break;
-          }
-        }
-
-        break;
-      }
-      case WM_DESTROY:
-      {
-        PostQuitMessage(0);
-
-        wasHandled = true;
-        result = 1;
-        break;
-      }
-    }
-
-    if (!wasHandled) {
-      result = DefWindowProc(hwnd, message, wParam, lParam);
-    }
-  }
-
-  return result;
-}
-
-HWND graphicsWindow = NULL;
+static void initUI(HWND hWnd);
+static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+  // Create popup start window
+
+
   INITCOMMONCONTROLSEX icc;
 
   // Initialise common controls.
@@ -190,17 +77,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     SetForegroundWindow(hForzaHandle);
   }
   
-  HDC windowDC = GetWindowDC(hForzaHandle);
-  HDC mem = CreateCompatibleDC(windowDC);
-
-  int windowWidth = 1920;
-  int windowHeight = 1080;
-
-  HBITMAP windowImage = CreateCompatibleBitmap(windowDC, windowWidth, windowHeight);
-  HBITMAP oldBitmap = SelectObject(mem, windowImage);
-  BitBlt(mem, 0, 0, windowWidth, windowHeight, windowDC, 0, 0, SRCCOPY);
-
-  whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
+  backgroundBrush = CreateSolidBrush(RGB(255, 255, 255));
   globalInstance = hInstance;
 
   TCHAR title[MAX_LOADSTRING];
@@ -218,7 +95,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
   wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
   wcex.lpszClassName = title; // Window class name
-  wcex.hbrBackground = CreateSolidBrush(RGB(255, 255, 255));  // Window background brush color.
+  wcex.hbrBackground = backgroundBrush;  // Window background brush color.
   wcex.hCursor = cursor;    // Window cursor
   wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
   wcex.hInstance = hInstance; // The application instance.
@@ -287,5 +164,194 @@ void initUI(HWND hWnd) {
   createWin32HorzLine(hWnd, &hAuctionBotSettingsHorz, 20, 170, hSmallFont);
 
   createWin32CheckBox(hWnd, &hPreviewCheckBox, L"Live Preview", 20, 180, hSmallFont, IDC_LIVE_PREVIEW);
-  createWin32CheckBox(hWnd, &hAbOverdriveCheckBox, L"Overdrive Mode", 180, 180, hSmallFont, IDC_OVERDRIVE_MODE);
+  createWin32CheckBox(hWnd, &hAbOverdriveCheckBox, L"Overdrive Mode",180, 180, hSmallFont, IDC_OVERDRIVE_MODE);
+}
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+  LRESULT result = 0;
+
+  if (message == WM_CREATE) {
+    SetTimer(hwnd, 1, 16, NULL);
+
+    // Fonts
+    hSmallFont = CreateFont(SMALL_FONT_SIZE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    hMediumFont = CreateFont(MEDIUM_FONT_SIZE, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    hLargeFont = CreateFont(LARGE_FONT_SIZE, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+
+    initUI(hwnd);
+
+    RECT rcClient;
+    GetWindowRect(hwnd, &rcClient);
+
+    SetWindowPos(hwnd, 
+                 NULL, 
+                 rcClient.left, rcClient.top,
+                 rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
+                 SWP_FRAMECHANGED);
+
+    ShowWindow(hwnd, SW_SHOWDEFAULT);
+    UpdateWindow(hwnd);
+  }
+  else {
+    bool wasHandled = false;
+
+    switch (message) {
+      case WM_TIMER:
+      {
+          RECT forzaClientRect;
+          GetClientRect(hForzaHandle, &forzaClientRect);
+
+          int forzaWidth = forzaClientRect.right - forzaClientRect.left;
+          int forzaHeight = forzaClientRect.bottom - forzaClientRect.top;
+          float aspectRatio = (float)forzaWidth / forzaHeight;
+
+          RECT invalidRect;
+          invalidRect.left = 20;
+          invalidRect.top = 210;
+          invalidRect.right = invalidRect.left + (int)(360 * aspectRatio);
+          invalidRect.bottom = invalidRect.top + 360;
+
+          InvalidateRect(hwnd, &invalidRect, FALSE);
+
+        wasHandled = true;
+        result = 0;
+        break;
+      }
+      case WM_PAINT:
+      {
+        if (m_ShowLivePreview) {
+          // General window info
+          RECT botClientRect;
+          GetClientRect(hwnd, &botClientRect);
+          int botClientHeight = botClientRect.bottom - botClientRect.top;
+          int previewHeight = (int)(0.5f * botClientHeight);
+
+          // Screen Capture
+          HDC hScreenDC = GetDC(NULL);
+          HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+          int width = GetDeviceCaps(hScreenDC,HORZRES);
+          int height = GetDeviceCaps(hScreenDC,VERTRES);
+
+          // Only capture the game window (if available)
+          RECT forzaWindowRect;
+          RECT forzaClientRect;
+
+          GetWindowRect(hForzaHandle, &forzaWindowRect);
+          GetClientRect(hForzaHandle, &forzaClientRect);
+
+          // Forza window metrics
+          int forzaWidth = forzaClientRect.right - forzaClientRect.left;
+          int forzaHeight = forzaClientRect.bottom - forzaClientRect.top;
+          int forzaBorderThicknessX = GetSystemMetrics(SM_CXSIZEFRAME);
+          int forzaBorderThicknessY = GetSystemMetrics(SM_CYSIZEFRAME);
+
+          // Capture screen area
+          HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC,width,height);
+          HBITMAP hOldBitmap = (HBITMAP)(SelectObject(hMemoryDC,hBitmap));
+          BitBlt(
+              hMemoryDC,
+              0,
+              0,
+              forzaClientRect.right - forzaClientRect.left,
+              forzaClientRect.bottom - forzaClientRect.top,
+              hScreenDC,
+              forzaBorderThicknessX + forzaWindowRect.left,
+              GetSystemMetrics(SM_CYCAPTION) + forzaBorderThicknessY + forzaWindowRect.top,
+              SRCCOPY);
+
+          PAINTSTRUCT ps;
+          GetObject(hBitmap, sizeof(BITMAP), &bm);
+
+          HDC hdc = BeginPaint(hwnd, &ps);
+
+          float aspectRatio = (float)bm.bmWidth / bm.bmHeight;
+          SetStretchBltMode(hdc, STRETCH_HALFTONE);
+          StretchBlt(hdc, 20, 210, (int)(previewHeight * aspectRatio), previewHeight,
+              hMemoryDC,0,0, forzaClientRect.right - forzaClientRect.left,
+              forzaClientRect.bottom - forzaClientRect.top, SRCCOPY);
+
+
+          EndPaint(hwnd, &ps);
+
+          DeleteDC(hMemoryDC);
+          DeleteDC(hScreenDC);
+          DeleteObject(hBitmap);
+          DeleteObject(hOldBitmap);
+        }
+        break;
+      }
+      case WM_CTLCOLORDLG:
+      {
+        wasHandled = true;
+        result = (INT_PTR)backgroundBrush;
+        break;
+      }
+      case WM_CTLCOLORSTATIC:
+      {
+        wasHandled = true;
+        result = 0;
+        break;
+      }
+      case WM_CTLCOLORBTN:
+      {
+        HDC hdc = (HDC)wParam;
+        POINT pt;
+        HWND hwndCtl;
+
+        SetBkMode(hdc,TRANSPARENT); // Ensure that "static" text doesn't use a solid fill
+
+        pt.x = 0; pt.y = 0;
+        MapWindowPoints(hwndCtl, hwnd, &pt, 1);
+        SetBrushOrgEx(hdc, -pt.x, -pt.y, NULL);
+
+        wasHandled = true;
+        result = (INT_PTR)backgroundBrush;
+        break;
+      }
+      case WM_COMMAND:
+      {
+        switch(HIWORD(wParam)) {
+          case BN_CLICKED:
+          {
+            if ((HWND)lParam == hStartButton) {
+              startAuctionBot(hForzaHandle, true);
+            }
+            else if((HWND)lParam == hStopButton) {
+              stopAuctionBot();
+            }
+            else if ((HWND)lParam == hPreviewCheckBox) {
+              BOOL checked = IsDlgButtonChecked(hwnd, IDC_LIVE_PREVIEW);
+
+              if (checked) {
+                CheckDlgButton(hwnd, IDC_LIVE_PREVIEW, BST_UNCHECKED);
+                m_ShowLivePreview = false;
+              }
+              else {
+                CheckDlgButton(hwnd, IDC_LIVE_PREVIEW, BST_CHECKED);
+                m_ShowLivePreview = true;
+              }
+            }
+            break;
+          }
+        }
+
+        break;
+      }
+      case WM_DESTROY:
+      {
+        PostQuitMessage(0);
+
+        wasHandled = true;
+        result = 1;
+        break;
+      }
+    }
+
+    if (!wasHandled) {
+      result = DefWindowProc(hwnd, message, wParam, lParam);
+    }
+  }
+
+  return result;
 }
