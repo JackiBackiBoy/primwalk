@@ -1,4 +1,4 @@
-#include "win32ui.h"
+#include "fzui/ui/win32ui.hpp"
 
 int createWin32Label(HWND window, HWND* targetLabel, const wchar_t* text,
     const int x, const int y, HFONT font) {

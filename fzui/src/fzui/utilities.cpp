@@ -1,8 +1,8 @@
-#include "utilities.h"
+#include "fzui/utilities.hpp"
 #include <commctrl.h>
 #include <stdio.h>
 #include <process.h>
-#include "resource.h"
+#include "resource.hpp"
 
 BOOL m_BotActive = FALSE;
 static int m_WindowCount = 0;
@@ -32,8 +32,9 @@ BOOL CALLBACK listWindowsCallback(HWND hWnd, LPARAM lParam) {
   windowId[8] = '\0';
 
   // Insert list items
+  wchar_t itemText[16] = L"Item";
   LVITEM matchListItem;
-  matchListItem.pszText = L"Item";
+  matchListItem.pszText = itemText;
   matchListItem.mask = LVIF_TEXT | LVIF_STATE;
   matchListItem.stateMask = 0;
   matchListItem.iItem = m_WindowCount;
@@ -56,7 +57,7 @@ BOOL CALLBACK listWindowsCallback(HWND hWnd, LPARAM lParam) {
   return TRUE;
 }
 
-void getColorFromDC(Color* target, HDC hdc, const int x, const int y) {
+void getColorFromDC(fz::Color* target, HDC hdc, const int x, const int y) {
   COLORREF tempColorRef = GetPixel(hdc, x, y);
 
   target->r = GetRValue(tempColorRef);
@@ -67,4 +68,21 @@ void getColorFromDC(Color* target, HDC hdc, const int x, const int y) {
 
 int getDeltaTime(const clock_t t1, const clock_t t2) {
   return (t1 - t2) * 1000 / CLOCKS_PER_SEC;
+}
+
+std::wstring convertToWideString(const std::string& string) {
+  // Deal with trivial case of empty string
+  if(string.empty()) { return std::wstring(); }
+
+  // Determine required length of new string
+  size_t reqLength = ::MultiByteToWideChar( CP_UTF8, 0, string.c_str(), (int)string.length(), 0, 0 );
+
+  // Construct new string of required length
+  std::wstring ret( reqLength, L'\0' );
+
+  // Convert old string to new string
+  ::MultiByteToWideChar( CP_UTF8, 0, string.c_str(), (int)string.length(), &ret[0], (int)ret.length() );
+
+  // Return new string (compiler should optimize this away)
+  return ret;
 }

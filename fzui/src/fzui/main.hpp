@@ -1,3 +1,5 @@
+#pragma once
+
 #define WINVER 0x0A00
 #define _WIN32_WINNT  0x0A00
 
@@ -16,13 +18,14 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <dwmapi.h>
-#include "resource.h"
-#include "utilities.h"
 #include <tchar.h>
 
-#include "ui/win32ui.h"
-#include "ai/auctionBot.h"
-#include "color.h"
+#include "fzui/core/window.hpp"
+#include "fzui/ui/win32ui.hpp"
+#include "fzui/ai/auctionBot.hpp"
+#include "resource.hpp"
+#include "fzui/utilities.hpp"
+#include "color.hpp"
 
 #define MAX_LOADSTRING 100
 
@@ -58,10 +61,10 @@ HINSTANCE globalInstance;
 static void initUI(HWND hWnd);
 static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+extern fz::Window* targetApp();
+
 // Main thread (window thread)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-  // Create popup start window
-
 
   INITCOMMONCONTROLSEX icc;
 
@@ -69,6 +72,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   icc.dwSize = sizeof(icc);
   icc.dwICC = ICC_WIN95_CLASSES;
   InitCommonControlsEx(&icc);
+
+  // Create popup start window
+  fz::Window* app = targetApp();
+  app->run(hInstance);
+  //fz::Window window = fz::Window(L"Forza Coach - Startup", 300, 150, hInstance);
+  //window.run();
 
   // Create main window on main thread
   hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
@@ -119,7 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   cs.lpszClass = wcex.lpszClassName;    // Window class name
   cs.lpszName = title;  // Window title
   cs.style = WS_OVERLAPPEDWINDOW;   // Window style
-  cs.dwExStyle = WS_EX_TOPMOST;
+  cs.dwExStyle = 0;
 
   // Create the window.
   HWND hWnd = CreateWindowEx(
@@ -229,6 +238,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPara
 
           // Screen Capture
           HDC hScreenDC = GetDC(NULL);
+
           HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
           int width = GetDeviceCaps(hScreenDC,HORZRES);
           int height = GetDeviceCaps(hScreenDC,VERTRES);

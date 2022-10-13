@@ -1,5 +1,5 @@
 #include <windows.h>
-#include "resource.h"
+#include "resource.hpp"
 #include <winres.h>
 
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"

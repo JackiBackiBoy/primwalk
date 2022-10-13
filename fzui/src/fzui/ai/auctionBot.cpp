@@ -1,5 +1,5 @@
-#include "auctionBot.h"
-#include "utilities.h"
+#include "fzui/ai/auctionBot.hpp"
+#include "fzui/utilities.hpp"
 #include <commctrl.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -72,11 +72,11 @@ unsigned int __stdcall auctionBotThread(void* data) {
     const int forzaStartAuctionY = (int)(0.3f * forzaHeight);
 
     // Bot target colors
-    Color confirmColor;
-    Color listingColor;
-    Color placeBidColor;
-    Color collectCarColor;
-    Color startAuctionColor;
+    fz::Color confirmColor;
+    fz::Color listingColor;
+    fz::Color placeBidColor;
+    fz::Color collectCarColor;
+    fz::Color startAuctionColor;
 
     // Retrieve colors from screen regions
     getColorFromDC(&confirmColor, hMemoryDC, forzaConfirmX, forzaConfirmY);
