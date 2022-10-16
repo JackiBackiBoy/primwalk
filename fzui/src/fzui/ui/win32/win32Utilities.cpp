@@ -41,4 +41,8 @@ namespace fz {
 
     return reqSize;
   }
+
+  COLORREF getColorRef(const Color& color) {
+    return RGB(color.r, color.g, color.b);
+  }
 }

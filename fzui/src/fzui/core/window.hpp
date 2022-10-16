@@ -23,14 +23,17 @@ namespace fz {
       virtual void onDestroy() {};
 
       inline Win32UiElement* getUiElement(const int& id) { return m_UiElements[id]; }
+      inline HWND getUiHandle(const int& id) { return m_UiHandles[id]; }
 
       void addUiElement(Win32UiElement* element);
+      void setDarkMode(const bool& flag);
       HBRUSH backgroundBrush;
 
     private:
       int init(HINSTANCE hInstance);
       static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+      bool m_DarkMode = false;
       std::wstring m_Name;
       int m_Width;
       int m_Height;

@@ -10,6 +10,8 @@ class FZCoach : public fz::Window {
     FZCoach() : fz::Window::Window(L"Forza Coach (Beta)", 720, 360) {};
 
     void onCreate(HWND hWnd) override {
+      setDarkMode(true);
+
       // Create main window on main thread
       static HWND hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
 

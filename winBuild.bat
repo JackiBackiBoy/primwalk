@@ -1,4 +1,4 @@
-windres -i src\fzcoach\resources.rc -o resources.o --use-temp-file
+windres -i fzui/src/fzui/resources.rc -o resources.o --use-temp-file
 
 if not exist build mkdir build
 cd build

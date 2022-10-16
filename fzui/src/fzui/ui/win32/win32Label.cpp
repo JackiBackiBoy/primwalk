@@ -10,7 +10,7 @@ namespace fz {
     cs.dwExStyle = 0;
     cs.lpszClass = L"STATIC"; // Predefined system class name
     cs.lpszName = m_Text.c_str();  // Window title
-    cs.style = WS_VISIBLE | WS_CHILD;
+    cs.style = WS_VISIBLE | WS_CHILD | SS_OWNERDRAW;
     cs.x = m_X; // X position
     cs.y = m_Y; // Y position
     cs.cx = reqSize.cx; // Width
