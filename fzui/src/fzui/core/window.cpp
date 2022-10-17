@@ -6,6 +6,7 @@
 #include "fzui/ui/win32/win32Utilities.hpp"
 #include <iostream>
 #include <uxtheme.h>
+#include <olectl.h>
 
 namespace fz {
   Window::Window(const std::wstring& name, const int& width, const int& height) {
@@ -121,8 +122,8 @@ namespace fz {
     m_UiElements.insert({ m_LastID, element });
     m_LastID++;
 
-    // Change display font for the UI element
-    //SetWindowTheme(elementHandle, L"", L"");
+    SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)false); // hover
+    SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
     SendMessage(elementHandle, WM_SETFONT, (LPARAM)element->getFont(), TRUE);
   }
 
@@ -130,30 +131,60 @@ namespace fz {
     m_DarkMode = flag;
   }
 
-  LRESULT Window::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    static HBRUSH defaultbrush = NULL;
-    static HBRUSH hotbrush = NULL;
-    static HBRUSH selectbrush = NULL;
-    static HBRUSH buttonDefault = CreateSolidBrush(getColorRef(UiStyle::darkButtonDefaultColor));
+  LRESULT Window::TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData) {
+    static bool isHovered = false;
+
+    if (message == WM_MOUSEMOVE) { // Mouse is over the button
+      if (!(bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
+        TRACKMOUSEEVENT ev = {};
+        ev.cbSize = sizeof(TRACKMOUSEEVENT);
+        ev.dwFlags = TME_HOVER | TME_LEAVE;
+        ev.hwndTrack = hWnd;
+        ev.dwHoverTime = 1;
+        TrackMouseEvent(&ev);
+
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
+      }
+    }
+    else if (message == WM_MOUSEHOVER) {
+      RECT rc = getRelativeClientRect(hWnd, GetParent(hWnd));
+
+      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
+      InvalidateRect(GetParent(hWnd), &rc, FALSE);
+    }
+    else if (message == WM_MOUSELEAVE) { // Mouse left the control area
+      if ((bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
+        RECT rc = getRelativeClientRect(hWnd, GetParent(hWnd));
+
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)false); // hover flag
+        InvalidateRect(GetParent(hWnd), &rc, FALSE);
+      }
+    }
+
+    return DefSubclassProc(hWnd, message, wParam, lParam);
+  }
+
+  LRESULT Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    static HBRUSH buttonDefaultBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonDefaultColor));
     static HBRUSH buttonHoverBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonSelectColor));
 
     LRESULT result = 0;
     Window* window = nullptr;
-    window = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
     if (message == WM_CREATE) {
       // Set window pointer on create
       CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
       Window* window = reinterpret_cast<Window*>(pCreate->lpCreateParams);
-      SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
-      window = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
+      window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-      window->onCreate(hwnd);
+      window->onCreate(hWnd);
 
-      SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->backgroundBrush);
+      SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->backgroundBrush);
 
-      ShowWindow(hwnd, SW_SHOWDEFAULT);
-      UpdateWindow(hwnd);
+      ShowWindow(hWnd, SW_SHOWDEFAULT);
+      UpdateWindow(hWnd);
     }
     else {
       bool wasHandled = false;
@@ -173,145 +204,6 @@ namespace fz {
 
           break;
         }
-        case WM_NOTIFY:
-        {
-          LPNMHDR some_item = (LPNMHDR)lParam;
-
-          std::cout << some_item->code << " : " << BCN_HOTITEMCHANGE << " : " << NM_CUSTOMDRAW << std::endl;
-
-          if (some_item->code == BCN_HOTITEMCHANGE) { // mouse either entered or left button area
-            NMBCHOTITEM* hotItem = reinterpret_cast<NMBCHOTITEM*>(lParam);
-            HWND buttonHandle = some_item->hwndFrom;
-
-            // Mouse entering
-            if (hotItem->dwFlags & HICF_ENTERING) {
-              NMHDR nmhdr{};
-              nmhdr.hwndFrom = buttonHandle;
-              nmhdr.idFrom = 0;
-              nmhdr.code = NM_CUSTOMDRAW;
-              //BeginBufferedAnimation(buttonHandle, 
-            }
-            // Mouse leaving
-            else if (hotItem->dwFlags & HICF_LEAVING) {
-            }
-          }
-
-          if (some_item->code == NM_CUSTOMDRAW)
-          {
-            LPNMCUSTOMDRAW item = (LPNMCUSTOMDRAW)some_item;
-
-            if (item->uItemState & CDIS_SELECTED)
-            {
-              //Select our color when the button is selected
-              if (selectbrush == NULL)
-                  selectbrush = CreateSolidBrush(RGB(180, 0, 0));
-
-              //Create pen for button border
-              HPEN pen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
-
-              //Select our brush into hDC
-              HGDIOBJ old_pen = SelectObject(item->hdc, pen);
-              HGDIOBJ old_brush = SelectObject(item->hdc, selectbrush);
-
-              //If you want rounded button, then use this, otherwise use FillRect().
-              RoundRect(item->hdc, item->rc.left, item->rc.top, item->rc.right, item->rc.bottom, 5, 5);
-
-              //Clean up
-              SelectObject(item->hdc, old_pen);
-              SelectObject(item->hdc, old_brush);
-              DeleteObject(pen);
-
-              // Calculate button dimensions
-              int buttonWidth = item->rc.right - item->rc.left;
-              int buttonHeight = item->rc.bottom - item->rc.top;
-
-              WCHAR staticText[128];
-              int len = SendMessage(item->hdr.hwndFrom, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-              HFONT buttonFont = (HFONT)SendMessage(item->hdr.hwndFrom, WM_GETFONT, 0, 0);
-
-              SIZE buttonDim;
-              HFONT oldFont = (HFONT)SelectObject(item->hdc, buttonFont);
-              GetTextExtentPoint32(item->hdc, staticText, len, &buttonDim);
-
-              SetTextColor(item->hdc, RGB(255, 255, 255));
-              TextOut(item->hdc, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-              return CDRF_SKIPDEFAULT;
-            }
-            else {
-              if (item->uItemState & CDIS_HOT) { //Our mouse is over the button
-                //Select our color when the mouse hovers our button
-                if (hotbrush == NULL)
-                    hotbrush = CreateSolidBrush(RGB(255, 230, 0));
-
-                HPEN pen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
-
-                HGDIOBJ old_pen = SelectObject(item->hdc, pen);
-                HGDIOBJ old_brush = SelectObject(item->hdc, hotbrush);
-
-                RoundRect(item->hdc, item->rc.left, item->rc.top, item->rc.right, item->rc.bottom, 5, 5);
-
-                SelectObject(item->hdc, old_pen);
-                SelectObject(item->hdc, old_brush);
-                DeleteObject(pen);
-
-                // Calculate button dimensions
-                int buttonWidth = item->rc.right - item->rc.left;
-                int buttonHeight = item->rc.bottom - item->rc.top;
-
-                WCHAR staticText[128];
-                int len = SendMessage(item->hdr.hwndFrom, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-                HFONT buttonFont = (HFONT)SendMessage(item->hdr.hwndFrom, WM_GETFONT, 0, 0);
-
-                SIZE buttonDim;
-                HFONT oldFont = (HFONT)SelectObject(item->hdc, buttonFont);
-                GetTextExtentPoint32(item->hdc, staticText, len, &buttonDim);
-
-                SetTextColor(item->hdc, RGB(255, 255, 255));
-                SetBkMode(item->hdc, TRANSPARENT);
-                TextOut(item->hdc, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-                return CDRF_SKIPDEFAULT;
-              }
-
-              //Select our color when our button is doing nothing
-              if (defaultbrush == NULL) { defaultbrush = buttonDefault; }
-
-              HPEN pen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
-
-              HGDIOBJ old_pen = SelectObject(item->hdc, pen);
-              HGDIOBJ old_brush = SelectObject(item->hdc, defaultbrush);
-
-              RoundRect(item->hdc, item->rc.left, item->rc.top, item->rc.right, item->rc.bottom, 5, 5);
-
-              SelectObject(item->hdc, old_pen);
-              SelectObject(item->hdc, old_brush);
-              DeleteObject(pen);
-
-              // Calculate button dimensions
-              int buttonWidth = item->rc.right - item->rc.left;
-              int buttonHeight = item->rc.bottom - item->rc.top;
-
-              WCHAR staticText[128];
-              int len = SendMessage(item->hdr.hwndFrom, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-              HFONT buttonFont = (HFONT)SendMessage(item->hdr.hwndFrom, WM_GETFONT, 0, 0);
-
-              SIZE buttonDim;
-              HFONT oldFont = (HFONT)SelectObject(item->hdc, buttonFont);
-              GetTextExtentPoint32(item->hdc, staticText, len, &buttonDim);
-
-              SetTextColor(item->hdc, RGB(255, 255, 255));
-              SetBkMode(item->hdc, TRANSPARENT);
-              TextOut(item->hdc, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-              return CDRF_SKIPDEFAULT;
-            }
-          }
-
-          wasHandled = true;
-          result = CDRF_SKIPDEFAULT;
-          break;
-        }
         case WM_CTLCOLORBTN:
         {
           HDC hdcStatic = (HDC) wParam;
@@ -323,13 +215,47 @@ namespace fz {
         case WM_DRAWITEM:
         {
           LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
+          HPEN borderPen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
+          HGDIOBJ oldPen = SelectObject(pDIS->hDC, borderPen);
+          HGDIOBJ oldBrush;
+
+          bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+
+          if (hovering) {
+            std::cout << "Hovering" << std::endl;
+          }
+
+          if (hovering) {
+            oldBrush = SelectObject(pDIS->hDC, buttonHoverBrush);
+          }
+          else {
+            oldBrush = SelectObject(pDIS->hDC, buttonDefaultBrush);
+          }
+
+
+          // Rounded button
+          RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+
+          //Clean up
+          SelectObject(pDIS->hDC, oldPen);
+          SelectObject(pDIS->hDC, oldBrush);
+          DeleteObject(borderPen);
+
+          // Calculate button dimensions
+          int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+          int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+          WCHAR staticText[128];
+          int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+          HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+          SIZE buttonDim;
+          HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
+          GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
 
           SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-          WCHAR staticText[99];
-          int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-
           SetBkMode(pDIS->hDC, TRANSPARENT);
-          TextOut(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, staticText, len);
+          TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
 
           wasHandled = true;
           result = TRUE;
@@ -348,7 +274,7 @@ namespace fz {
       }
 
       if (!wasHandled) {
-        result = DefWindowProc(hwnd, message, wParam, lParam);
+        result = DefWindowProc(hWnd, message, wParam, lParam);
       }
     }
 

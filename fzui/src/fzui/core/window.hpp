@@ -31,7 +31,9 @@ namespace fz {
 
     private:
       int init(HINSTANCE hInstance);
-      static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+      static LRESULT CALLBACK TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData);
+      static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
       bool m_DarkMode = false;
       std::wstring m_Name;

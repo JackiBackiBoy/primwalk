@@ -45,4 +45,28 @@ namespace fz {
   COLORREF getColorRef(const Color& color) {
     return RGB(color.r, color.g, color.b);
   }
+
+  RECT getRelativeClientRect(HWND child, HWND base) {
+    RECT windowRect{};
+    RECT clientRect{};
+    POINT pos{};
+    int width;
+    int height;
+
+    GetWindowRect(child, &windowRect);
+    pos.x = windowRect.left;
+    pos.y = windowRect.top;
+
+    GetClientRect(child, &clientRect);
+    width = clientRect.right - clientRect.left;
+    height = clientRect.bottom - clientRect.top;
+
+    ScreenToClient(base, &pos);
+    clientRect.left = pos.x;
+    clientRect.top = pos.y;
+    clientRect.right = pos.x + width;
+    clientRect.bottom = pos.y + height;
+
+    return clientRect;
+  }
 }

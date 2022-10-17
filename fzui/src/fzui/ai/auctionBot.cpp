@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <process.h>
+#include <iostream>
 
 static bool botActive = false;
 static HANDLE m_BotThread;
@@ -198,14 +199,18 @@ unsigned int __stdcall auctionBotThread(void* data) {
 }
 
 void startAuctionBot(HWND hForzaHandle, const bool active) {
-  m_ForzaHandle = hForzaHandle;
-  botActive = active;
+  if (!botActive) {
+    m_ForzaHandle = hForzaHandle;
+    botActive = active;
 
-  // Create separate thread for bot
-  m_BotThread = (HANDLE)_beginthreadex((void*)0, 0, &auctionBotThread, (void*)botActive, 0, 0);
+    // Create separate thread for bot
+    m_BotThread = (HANDLE)_beginthreadex((void*)0, 0, &auctionBotThread, (void*)botActive, 0, 0);
+  }
 }
 
 void stopAuctionBot() {
-  botActive = false;
-  CloseHandle(m_BotThread);
+  if (botActive) {
+    botActive = false;
+    CloseHandle(m_BotThread);
+  }
 }
