@@ -8,6 +8,9 @@
 #include <uxtheme.h>
 #include <olectl.h>
 
+bool currentState = true;
+bool newState = true;
+
 namespace fz {
   Window::Window(const std::wstring& name, const int& width, const int& height) {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
@@ -122,8 +125,10 @@ namespace fz {
     m_UiElements.insert({ m_LastID, element });
     m_LastID++;
 
+    // Button specific
     SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)false); // hover
     SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
+
     SendMessage(elementHandle, WM_SETFONT, (LPARAM)element->getFont(), TRUE);
   }
 
@@ -132,33 +137,30 @@ namespace fz {
   }
 
   LRESULT Window::TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData) {
-    static bool isHovered = false;
-
     if (message == WM_MOUSEMOVE) { // Mouse is over the button
       if (!(bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
         TRACKMOUSEEVENT ev = {};
         ev.cbSize = sizeof(TRACKMOUSEEVENT);
         ev.dwFlags = TME_HOVER | TME_LEAVE;
         ev.hwndTrack = hWnd;
-        ev.dwHoverTime = 1;
+        ev.dwHoverTime = 16;
         TrackMouseEvent(&ev);
 
         SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
       }
     }
     else if (message == WM_MOUSEHOVER) {
-      RECT rc = getRelativeClientRect(hWnd, GetParent(hWnd));
-
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
-      InvalidateRect(GetParent(hWnd), &rc, FALSE);
+      InvalidateRect(hWnd, NULL, FALSE);
     }
     else if (message == WM_MOUSELEAVE) { // Mouse left the control area
       if ((bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
-        RECT rc = getRelativeClientRect(hWnd, GetParent(hWnd));
-
         SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)false); // hover flag
-        InvalidateRect(GetParent(hWnd), &rc, FALSE);
+        InvalidateRect(hWnd, NULL, FALSE);
       }
+    }
+    else if (message == WM_PAINT) {
+      InvalidateRect(hWnd, NULL, FALSE);
     }
 
     return DefSubclassProc(hWnd, message, wParam, lParam);
@@ -166,7 +168,7 @@ namespace fz {
 
   LRESULT Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     static HBRUSH buttonDefaultBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonDefaultColor));
-    static HBRUSH buttonHoverBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonSelectColor));
+    static HBRUSH buttonHoverBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonHoverColor));
 
     LRESULT result = 0;
     Window* window = nullptr;
@@ -206,40 +208,64 @@ namespace fz {
         }
         case WM_CTLCOLORBTN:
         {
-          HDC hdcStatic = (HDC) wParam;
-          SetTextColor(hdcStatic, RGB(255,255,255));
-          SetBkColor(hdcStatic, RGB(0,0,0));
           return (INT_PTR)window->backgroundBrush;
           break;
         }
         case WM_DRAWITEM:
         {
           LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
-          HPEN borderPen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
-          HGDIOBJ oldPen = SelectObject(pDIS->hDC, borderPen);
-          HGDIOBJ oldBrush;
 
-          bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+          // Button Owner Drawing
+          if (pDIS->CtlType == ODT_BUTTON) {
+            HPEN borderPen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
+            HGDIOBJ oldPen = SelectObject(pDIS->hDC, borderPen);
+            HGDIOBJ oldBrush;
 
-          if (hovering) {
-            std::cout << "Hovering" << std::endl;
+            bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+
+            // Hovering and unhovering animation
+            if (!BufferedPaintRenderAnimation(pDIS->hwndItem, pDIS->hDC)) {
+              BP_ANIMATIONPARAMS animParams;
+              ZeroMemory(&animParams, sizeof(animParams));
+              animParams.cbSize = sizeof(BP_ANIMATIONPARAMS);
+              animParams.style = BPAS_SINE;
+              animParams.dwDuration = 300;
+
+              RECT rc;
+              GetClientRect(pDIS->hwndItem, &rc);
+
+              HDC hdcFrom, hdcTo;
+              HANIMATIONBUFFER hbpAnimation =
+                BeginBufferedAnimation(
+                    pDIS->hwndItem,
+                    pDIS->hDC,
+                    &rc,
+                    BPBF_COMPATIBLEBITMAP, NULL, &animParams, &hdcFrom, &hdcTo);
+
+              if (hbpAnimation) {
+                if (hdcFrom) {
+                  oldBrush = SelectObject(hdcFrom, hovering ? buttonDefaultBrush : buttonHoverBrush);
+                  RoundRect(hdcFrom, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+                }
+
+                if (hdcTo) {
+                  oldBrush = SelectObject(hdcTo, hovering ? buttonHoverBrush : buttonDefaultBrush);
+                  RoundRect(hdcTo, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+                }
+
+                EndBufferedAnimation(hbpAnimation, TRUE);
+              }
+              else {
+                oldBrush = SelectObject(pDIS->hDC, buttonDefaultBrush);
+                RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+              }
+            }
+
+            //Clean up
+            SelectObject(pDIS->hDC, oldPen);
+            SelectObject(pDIS->hDC, oldBrush);
+            DeleteObject(borderPen);
           }
-
-          if (hovering) {
-            oldBrush = SelectObject(pDIS->hDC, buttonHoverBrush);
-          }
-          else {
-            oldBrush = SelectObject(pDIS->hDC, buttonDefaultBrush);
-          }
-
-
-          // Rounded button
-          RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
-
-          //Clean up
-          SelectObject(pDIS->hDC, oldPen);
-          SelectObject(pDIS->hDC, oldBrush);
-          DeleteObject(borderPen);
 
           // Calculate button dimensions
           int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
@@ -261,6 +287,9 @@ namespace fz {
           result = TRUE;
           break;
         }
+        case WM_SIZE:
+          BufferedPaintStopAllAnimations(hWnd);
+          break;
         case WM_DESTROY:
         {
           window->onDestroy();

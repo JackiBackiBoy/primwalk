@@ -12,7 +12,7 @@ namespace fz {
 
       // Buttons
       static constexpr Color darkButtonDefaultColor = { 57, 57, 57 };
-      static constexpr Color darkButtonSelectColor = { 87, 87, 87 };
+      static constexpr Color darkButtonHoverColor = { 87, 87, 87 };
       static constexpr Color darkButtonClickColor = { 100, 100, 100 };
       static constexpr Color lightButtonColor = { 240, 240, 240 };
       static constexpr Color lightButtonHoverColor = { 50, 50, 240 };
