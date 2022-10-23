@@ -4,6 +4,7 @@
 #include "fzui/managers/fontManager.hpp"
 #include "fzui/ui/uiStyle.hpp"
 #include "fzui/ui/win32/win32Utilities.hpp"
+#include "fzui/ui/win32/win32HoverFlags.hpp"
 #include <iostream>
 #include <uxtheme.h>
 #include <olectl.h>
@@ -126,9 +127,11 @@ namespace fz {
     m_LastID++;
 
     // Button specific
-    SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)false); // hover
+    SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::None); // hover
     SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
 
+    // Set control font
+    // TODO: Investigate usage of LPARAM as opposed to WPARAM
     SendMessage(elementHandle, WM_SETFONT, (LPARAM)element->getFont(), TRUE);
   }
 
@@ -138,7 +141,7 @@ namespace fz {
 
   LRESULT Window::TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData) {
     if (message == WM_MOUSEMOVE) { // Mouse is over the button
-      if (!(bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
+      if ((Win32HoverFlags)GetWindowLongPtr(hWnd, GWLP_USERDATA) == Win32HoverFlags::None) {
         TRACKMOUSEEVENT ev = {};
         ev.cbSize = sizeof(TRACKMOUSEEVENT);
         ev.dwFlags = TME_HOVER | TME_LEAVE;
@@ -146,29 +149,35 @@ namespace fz {
         ev.dwHoverTime = 16;
         TrackMouseEvent(&ev);
 
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::Hovering); // hover flag
       }
     }
     else if (message == WM_MOUSEHOVER) {
-      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
-      InvalidateRect(hWnd, NULL, FALSE);
+      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::Hovering); // hover flag
+      InvalidateRect(hWnd, NULL, true);
     }
     else if (message == WM_MOUSELEAVE) { // Mouse left the control area
-      if ((bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)false); // hover flag
-        InvalidateRect(hWnd, NULL, FALSE);
+      if ((Win32HoverFlags)GetWindowLongPtr(hWnd, GWLP_USERDATA) == Win32HoverFlags::Hovering) {
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::Unhovered); // hover flag
+        InvalidateRect(hWnd, NULL, true);
       }
     }
     else if (message == WM_PAINT) {
-      InvalidateRect(hWnd, NULL, FALSE);
+      if ((Win32HoverFlags)GetWindowLongPtr(hWnd, GWLP_USERDATA) != Win32HoverFlags::None) {
+        std::cout << "Paint" << std::endl;
+        InvalidateRect(hWnd, NULL, true);
+      }
+    }
+    else if (message == WM_ERASEBKGND) {
+      return 1;
     }
 
     return DefSubclassProc(hWnd, message, wParam, lParam);
   }
 
   LRESULT Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    static HBRUSH buttonDefaultBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonDefaultColor));
-    static HBRUSH buttonHoverBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonHoverColor));
+    static HBRUSH btnDefBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonDefaultColor));
+    static HBRUSH btnHovBrush = CreateSolidBrush(getColorRef(UiStyle::darkButtonHoverColor));
 
     LRESULT result = 0;
     Window* window = nullptr;
@@ -217,11 +226,13 @@ namespace fz {
 
           // Button Owner Drawing
           if (pDIS->CtlType == ODT_BUTTON) {
-            HPEN borderPen = CreatePen(PS_INSIDEFRAME, 0, RGB(0, 0, 0));
-            HGDIOBJ oldPen = SelectObject(pDIS->hDC, borderPen);
+            HPEN borderPen = CreatePen(PS_INSIDEFRAME, 0, getColorRef(UiStyle::darkButtonBorderColor));
+            HGDIOBJ oldPen;
             HGDIOBJ oldBrush;
+            oldPen = SelectObject(pDIS->hDC, borderPen);
+            oldBrush = SelectObject(pDIS->hDC, btnDefBrush);
 
-            bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+            auto hoverState = (Win32HoverFlags)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
 
             // Hovering and unhovering animation
             if (!BufferedPaintRenderAnimation(pDIS->hwndItem, pDIS->hDC)) {
@@ -229,7 +240,7 @@ namespace fz {
               ZeroMemory(&animParams, sizeof(animParams));
               animParams.cbSize = sizeof(BP_ANIMATIONPARAMS);
               animParams.style = BPAS_SINE;
-              animParams.dwDuration = 300;
+              animParams.dwDuration = hoverState != Win32HoverFlags::None ? 200 : 0;
 
               RECT rc;
               GetClientRect(pDIS->hwndItem, &rc);
@@ -244,44 +255,99 @@ namespace fz {
 
               if (hbpAnimation) {
                 if (hdcFrom) {
-                  oldBrush = SelectObject(hdcFrom, hovering ? buttonDefaultBrush : buttonHoverBrush);
-                  RoundRect(hdcFrom, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+                  HGDIOBJ oldPen;
+                  HGDIOBJ oldBrush;
+                  oldPen = SelectObject(hdcFrom, borderPen);
+                  oldBrush = SelectObject(hdcFrom, hoverState == Win32HoverFlags::Hovering ? btnDefBrush : btnHovBrush);
+
+                  FillRect(hdcFrom, &rc, window->backgroundBrush);
+                  RoundRect(hdcFrom, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 8, 8);
+                  
+                  // Calculate button dimensions
+                  int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+                  int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+                  WCHAR staticText[128];
+                  int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+                  HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+                  SIZE buttonDim;
+                  HFONT oldFont = (HFONT)SelectObject(hdcFrom, buttonFont);
+                  GetTextExtentPoint32(hdcFrom, staticText, len, &buttonDim);
+
+                  SetTextColor(hdcFrom, RGB(255, 255, 255));
+                  SetBkMode(hdcFrom, TRANSPARENT);
+                  TextOut(hdcFrom, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
+
+                  // Cleanup
+                  SelectObject(hdcFrom, oldPen);
+                  SelectObject(hdcFrom, oldBrush);
+                  DeleteObject(borderPen);
                 }
 
                 if (hdcTo) {
-                  oldBrush = SelectObject(hdcTo, hovering ? buttonHoverBrush : buttonDefaultBrush);
-                  RoundRect(hdcTo, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+                  HGDIOBJ oldPen;
+                  HGDIOBJ oldBrush;
+                  oldPen = SelectObject(hdcTo, borderPen);
+                  oldBrush = SelectObject(hdcTo, hoverState == Win32HoverFlags::Hovering ? btnHovBrush : btnDefBrush);
+
+                  FillRect(hdcTo, &rc, window->backgroundBrush);
+                  RoundRect(hdcTo, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 8, 8);
+
+                  // Calculate button dimensions
+                  int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+                  int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+                  WCHAR staticText[128];
+                  int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+                  HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+                  SIZE buttonDim;
+                  HFONT oldFont = (HFONT)SelectObject(hdcTo, buttonFont);
+                  GetTextExtentPoint32(hdcTo, staticText, len, &buttonDim);
+
+                  SetTextColor(hdcTo, RGB(255, 255, 255));
+                  SetBkMode(hdcTo, TRANSPARENT);
+                  TextOut(hdcTo, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
+
+                  // Cleanup
+                  SelectObject(hdcTo, oldPen);
+                  SelectObject(hdcTo, oldBrush);
+                  DeleteObject(borderPen);
+                }
+
+                if (hoverState == Win32HoverFlags::Unhovered) {
+                  SetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::None);
                 }
 
                 EndBufferedAnimation(hbpAnimation, TRUE);
               }
               else {
-                oldBrush = SelectObject(pDIS->hDC, buttonDefaultBrush);
-                RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 5, 5);
+                RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom, 8, 8);
+                // Calculate button dimensions
+                int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+                int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+                WCHAR staticText[128];
+                int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+                HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+                SIZE buttonDim;
+                HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
+                GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
+
+                SetTextColor(pDIS->hDC, RGB(255, 255, 255));
+                SetBkMode(pDIS->hDC, TRANSPARENT);
+                TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
               }
             }
 
-            //Clean up
+
+            //Cleanup
             SelectObject(pDIS->hDC, oldPen);
             SelectObject(pDIS->hDC, oldBrush);
             DeleteObject(borderPen);
           }
-
-          // Calculate button dimensions
-          int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-          int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-          WCHAR staticText[128];
-          int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-          HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-          SIZE buttonDim;
-          HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-          GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-          SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-          SetBkMode(pDIS->hDC, TRANSPARENT);
-          TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
 
           wasHandled = true;
           result = TRUE;
