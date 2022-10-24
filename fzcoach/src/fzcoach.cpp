@@ -10,6 +10,7 @@ class FZCoach : public fz::Window {
     FZCoach() : fz::Window::Window(L"Forza Coach (Beta)", 720, 360) {};
 
     void onCreate(HWND hWnd) override {
+      // Window settings
       setDarkMode(true);
 
       // Create main window on main thread
@@ -18,6 +19,18 @@ class FZCoach : public fz::Window {
       if (hForzaHandle != NULL) {
         SetForegroundWindow(hForzaHandle);
       }
+
+      // Menu area
+      fz::Win32MenuBar menuBar = {};
+
+        fz::Win32MenuItem fileMenu = { L"File" };
+        fz::Win32MenuItem newItem = { L"New", &fileMenu }; // top level drop down
+
+        fz::Win32MenuItem viewMenu = { L"View" };
+        //fz::Win32MenuItem newviewItem = { L"New", &viewMenu }; // top level drop down
+
+      menuBar.addItem(&fileMenu);
+      menuBar.addItem(&viewMenu);
 
       // Bot control area
       fz::Win32Label auctionBotTitle = { L"Forza Coach - Auction Bot", 20, 10, hWnd, "Segoe UI", 32, FW_BOLD };
@@ -35,6 +48,7 @@ class FZCoach : public fz::Window {
       fz::Win32CheckBox livePreviewCheck = { L"Live Preview", 20, 180, hWnd };
       fz::Win32CheckBox overDriveModeCheck = { L"Overdrive Mode", 180, 180, hWnd };
 
+      addMenuBar(&menuBar);
       addUiElement(&auctionBotTitle);
       addUiElement(&botTitleLine);
       addUiElement(botStartButton);

@@ -102,7 +102,10 @@ namespace fz {
     return 1;
   }
 
-  void Window::onCreate(HWND hWnd) {}
+  void Window::onCreate(HWND hWnd) {
+    m_Handle = hWnd;
+    m_Menu = CreateMenu();
+  }
 
   void Window::addUiElement(Win32UiElement* element) {
     // Create ui element from creation structure
@@ -122,17 +125,25 @@ namespace fz {
       cs.hInstance, 
       cs.lpCreateParams);
 
+    std::cout << m_LastID << std::endl;
     m_UiHandles.insert({ m_LastID, elementHandle });
     m_UiElements.insert({ m_LastID, element });
     m_LastID++;
 
     // Button specific
-    SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::None); // hover
-    SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
+    if (cs.style & BS_OWNERDRAW) {
+      SetWindowLongPtr(elementHandle, GWLP_USERDATA, (LONG_PTR)Win32HoverFlags::None); // hover
+      SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
+    }
 
     // Set control font
     // TODO: Investigate usage of LPARAM as opposed to WPARAM
     SendMessage(elementHandle, WM_SETFONT, (LPARAM)element->getFont(), TRUE);
+  }
+
+  void Window::addMenuBar(Win32MenuBar* menuBar) {
+    menuBar->create(m_LastID);
+    SetMenu(m_Handle, menuBar->getMenuHandle());
   }
 
   void Window::setDarkMode(const bool& flag) {
@@ -164,7 +175,6 @@ namespace fz {
     }
     else if (message == WM_PAINT) {
       if ((Win32HoverFlags)GetWindowLongPtr(hWnd, GWLP_USERDATA) != Win32HoverFlags::None) {
-        std::cout << "Paint" << std::endl;
         InvalidateRect(hWnd, NULL, true);
       }
     }
@@ -190,7 +200,8 @@ namespace fz {
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
       window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-      window->onCreate(hWnd);
+      window->Window::onCreate(hWnd); // base class
+      window->onCreate(hWnd); // derived class
 
       SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->backgroundBrush);
 
@@ -342,11 +353,27 @@ namespace fz {
               }
             }
 
-
             //Cleanup
             SelectObject(pDIS->hDC, oldPen);
             SelectObject(pDIS->hDC, oldBrush);
             DeleteObject(borderPen);
+          }
+          else {
+            // Calculate button dimensions
+            int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+            int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+            WCHAR staticText[128];
+            int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+            HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+            SIZE buttonDim;
+            HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
+            GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
+
+            SetTextColor(pDIS->hDC, RGB(255, 255, 255));
+            SetBkMode(pDIS->hDC, TRANSPARENT);
+            TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
           }
 
           wasHandled = true;

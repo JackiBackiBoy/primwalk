@@ -14,4 +14,6 @@
 #include "fzui/ui/win32/win32CheckBox.hpp"
 #include "fzui/ui/win32/win32HorzLine.hpp"
 #include "fzui/ui/win32/win32Label.hpp"
+#include "fzui/ui/win32/win32MenuBar.hpp"
+#include "fzui/ui/win32/win32MenuItem.hpp"
 #endif
