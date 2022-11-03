@@ -39,10 +39,13 @@ namespace fz {
       DispatchMessage(&msg);
     }
 
-    // Cleanup
     UnregisterClass(m_Name.c_str(), m_Instance);
 
     return (int)msg.wParam;
+  }
+
+  void Window::setWindowInfo(const WindowInfo& windowInfo) {
+    m_WindowInfo = windowInfo;
   }
 
   int Window::init(HINSTANCE hInstance) {
@@ -54,7 +57,6 @@ namespace fz {
     m_Icon = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     HCURSOR cursor = LoadCursor(NULL, IDC_ARROW);
-
     // Setup window class attributes.
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
@@ -210,10 +212,10 @@ namespace fz {
         this);
 
       // Validate window.
-      if (!m_Handle) { std::cout << "Could not validate child window!" << std::endl;  }
+      if (!m_Handle) { std::cout << "ERROR: Could not validate child window!" << std::endl; }
     }
 
-    // Resize menu bar accordingly
+    // Resize menubar accordingly
     RECT rc;
     GetWindowRect(m_MenuHandle, &rc);
     int width = rc.right - rc.left;
@@ -221,7 +223,9 @@ namespace fz {
 
     SetWindowPos(m_MenuHandle, 0, 0, 0, width + buttonSize.cx, height, SWP_NOMOVE | SWP_NOZORDER);
 
-    CREATESTRUCT cs = menuItem->getCreateStruct();
+    // New menu item pointer
+    Win32Button itemButton = Win32Button(menuItem->getText().c_str(), width, 0, buttonSize.cx, UiStyle::defaultMenuHeight, m_MenuHandle);
+    CREATESTRUCT cs = itemButton.getCreateStruct();
 
     HWND itemHandle = CreateWindowEx(
       cs.dwExStyle,
@@ -286,8 +290,8 @@ namespace fz {
   }
 
   // Hit test the frame for resizing and moving.
-LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
-{
+  LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
+  {
     // Get the point coordinates for the hit test.
     POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
 
@@ -301,7 +305,7 @@ LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
     bool fOnResizeBorder = false;
 
     // Determine if the point is at the top or bottom of the window.
-    if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 27)
+    if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 29)
     {
         fOnResizeBorder = (ptMouse.y == rcWindow.top);
         uRow = 0;
@@ -515,6 +519,19 @@ LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
           result = TRUE;
           break;
         }
+        case WM_MEASUREITEM:
+        {
+          LPMEASUREITEMSTRUCT measureStruct = (LPMEASUREITEMSTRUCT)lParam;
+
+          // Measure menu item
+          std::cout << "measure item" << std::endl;
+          measureStruct->itemWidth = 200;
+          measureStruct->itemHeight = 20;
+
+          wasHandled = true;
+          result = TRUE;
+          break;
+        }
         case WM_PAINT:
         {
           PAINTSTRUCT ps;
@@ -525,7 +542,7 @@ LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
           int width = rcClient.right - rcClient.left;
           int height = rcClient.bottom - rcClient.top;
 
-          rcClient.bottom += window->getWindowInfo().titleBarHeight - height;
+          rcClient.bottom += 29 - height;
 
           // ------ Caption area ------
           HBRUSH captionBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkCaptionColor));
@@ -537,17 +554,16 @@ LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
           DrawIconEx(hdc, 9, 6, appIcon, 16, 16, 0, NULL, DI_NORMAL);
 
           // Application title
-          std::wstring title = window->getTitle();
           HFONT buttonFont = FontManager::getInstance().getFont("Segoe UI", 17, FW_NORMAL);
 
           HFONT oldFont = (HFONT)SelectObject(hdc, buttonFont);
           SIZE titleDim;
-          GetTextExtentPoint32(hdc, title.c_str(), title.length(), &titleDim);
+          GetTextExtentPoint32(hdc, L"Forza Coach", 11, &titleDim);
           int titleX = width / 2 - titleDim.cx / 2;
 
           SetTextColor(hdc, RGB(204, 204, 204));
           SetBkMode(hdc, TRANSPARENT);
-          TextOut(hdc, titleX, window->getWindowInfo().titleBarHeight / 2 - titleDim.cy / 2, title.c_str(), title.length());
+          TextOut(hdc, titleX, 29 / 2 - titleDim.cy / 2, L"Forza Coach", 11);
 
           EndPaint(hWnd, &ps);
 
@@ -656,8 +672,6 @@ LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
       }
 
       return TRUE;
-    }
-    else if (message == WM_COMMAND) {
     }
 
     return DefWindowProc(hWnd, message, wParam, lParam);

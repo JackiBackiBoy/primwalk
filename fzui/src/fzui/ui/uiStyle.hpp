@@ -1,5 +1,6 @@
 #pragma once
 
+// FZUI
 #include "fzui/core/core.hpp"
 #include "fzui/color.hpp"
 
@@ -7,11 +8,11 @@ namespace fz {
   class FZ_API UiStyle {
     public:
       // ------ General ------
-      // Client Area
+      // Client area
       static constexpr Color darkBackground = { 39, 39, 39 };
       static constexpr Color lightBackground = { 255, 255, 255 };
 
-      // Caption area (non-client)
+      // Title bar (non-client) area
       static constexpr Color darkCaptionColor = { 60, 60, 60 };
       static constexpr int defaultMenuHeight = 22;
 
@@ -20,6 +21,7 @@ namespace fz {
       static constexpr Color darkButtonHoverColor = { 87, 87, 87 };
       static constexpr Color darkButtonClickColor = { 100, 100, 100 };
       static constexpr Color darkButtonBorderColor = { 120, 120, 120 };
+      static constexpr Color darkButtonTextColor = { 255, 255, 255 };
 
       static constexpr Color lightButtonColor = { 240, 240, 240 };
       static constexpr Color lightButtonHoverColor = { 50, 50, 240 };

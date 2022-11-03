@@ -33,9 +33,10 @@ namespace fz {
       CREATESTRUCT getCreateStruct();
 
     private:
-      int m_Width, m_Height;
-      int m_BorderThickness;
+      int m_Width;
+      int m_Height;
       int m_BorderRadius;
+      int m_BorderThickness;
 
       Color m_DefaultColor;
       Color m_HoverColor;

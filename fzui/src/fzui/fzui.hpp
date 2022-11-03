@@ -11,6 +11,7 @@
 
 // UI
 #include "fzui/ui/uiStyle.hpp"
+#include "fzui/ui/windowInfo.hpp"
 
 #ifdef WIN32
 #include "fzui/ui/win32/win32Button.hpp"

@@ -1,10 +1,15 @@
 #pragma once
 
+// std
 #include <string>
 #include <unordered_map>
-#include <windows.h>
+
+// FZUI
 #include "fzui/core/core.hpp"
 #include "fzui/data/fonts/fontInfo.hpp"
+
+// Windows
+#include <windows.h>
 
 namespace fz {
   class FZ_API FontManager {
@@ -18,9 +23,10 @@ namespace fz {
       HFONT getFont(const std::string& name, const int& size, const int& flags);
 
     private:
-      void loadFont(const FontInfo& fontInfo);
       FontManager();
       ~FontManager();
+
+      void loadFont(const FontInfo& fontInfo);
 
       std::unordered_map<FontInfo, HFONT> m_Fonts;
   };

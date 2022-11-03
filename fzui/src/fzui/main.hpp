@@ -7,10 +7,12 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+// Windows
 #include <sdkddkver.h>
 #include <windows.h>
 #include <dwmapi.h>
 
+// FZUI
 #include "fzui/core/window.hpp"
 #include "fzui/ai/auctionBot.hpp"
 
