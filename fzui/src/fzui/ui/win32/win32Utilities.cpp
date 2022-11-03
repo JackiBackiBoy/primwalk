@@ -1,7 +1,31 @@
 #include "fzui/ui/win32/win32Utilities.hpp"
 
 namespace fz {
-  SIZE calcReqCheckBoxSize(const std::wstring& text, HFONT font, HWND hWnd) {
+  Win32Utilities& Win32Utilities::Instance() {
+    static Win32Utilities instance;
+    return instance;
+  }
+
+  std::string Win32Utilities::getWindowsVersionString() {
+    // Acquire Windows version information if not already done
+    if (m_WindowsVersionString == "") {
+      NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+
+      OSVERSIONINFOEXW osInfo;
+
+      *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandle(L"ntdll"), "RtlGetVersion");
+      if (NULL != RtlGetVersion) {
+        osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+        RtlGetVersion(&osInfo);
+      }
+
+      m_WindowsVersionString = osInfo.dwBuildNumber >= 22000 ? "Windows 11" : "Windows 10";
+    }
+
+    return m_WindowsVersionString;
+  }
+
+  SIZE Win32Utilities::calcReqCheckBoxSize(const std::wstring& text, HFONT font, HWND hWnd) {
     HDC hdc = GetDC(hWnd);
 
     SIZE reqSize;
@@ -27,7 +51,7 @@ namespace fz {
     return reqSize;
   }
 
-  SIZE calcReqLabelSize(const std::wstring& text, HFONT font, HWND hWnd) {
+  SIZE Win32Utilities::calcReqLabelSize(const std::wstring& text, HFONT font, HWND hWnd) {
     HDC hdc = GetDC(hWnd);
 
     SIZE reqSize;
@@ -42,11 +66,29 @@ namespace fz {
     return reqSize;
   }
 
-  COLORREF getColorRef(const Color& color) {
+  SIZE Win32Utilities::calcReqButtonSize(const std::wstring& text, const int& marginX,
+      const int& marginY, HFONT font, HWND hWnd) {
+    HDC hdc = GetDC(hWnd);
+
+    SIZE reqSize;
+    HFONT oldFont = (HFONT)SelectObject(hdc, font);
+    GetTextExtentPoint32(hdc, text.c_str(), text.length(), &reqSize);
+    reqSize.cx += marginX * 2;
+    reqSize.cy += marginY * 2;
+
+    // Cleanup
+    SelectObject(hdc, oldFont);
+    DeleteObject(oldFont);
+    ReleaseDC(hWnd, hdc);
+
+    return reqSize;
+  }
+
+  COLORREF Win32Utilities::getColorRef(const Color& color) {
     return RGB(color.r, color.g, color.b);
   }
 
-  RECT getRelativeClientRect(HWND child, HWND base) {
+  RECT Win32Utilities::getRelativeClientRect(HWND child, HWND base) {
     RECT windowRect{};
     RECT clientRect{};
     POINT pos{};

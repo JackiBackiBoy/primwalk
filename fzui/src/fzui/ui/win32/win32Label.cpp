@@ -3,7 +3,7 @@
 
 namespace fz {
   CREATESTRUCT Win32Label::getCreateStruct() {
-    SIZE reqSize = calcReqLabelSize(m_Text, m_Font, m_ParentHandle);
+    SIZE reqSize = Win32Utilities::calcReqLabelSize(m_Text, m_Font, m_ParentHandle);
 
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));

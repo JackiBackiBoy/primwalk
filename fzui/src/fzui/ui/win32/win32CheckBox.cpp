@@ -3,7 +3,7 @@
 
 namespace fz {
   CREATESTRUCT Win32CheckBox::getCreateStruct() {
-    SIZE reqSize = calcReqCheckBoxSize(m_Text, m_Font, m_ParentHandle);
+    SIZE reqSize = Win32Utilities::calcReqCheckBoxSize(m_Text, m_Font, m_ParentHandle);
 
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));

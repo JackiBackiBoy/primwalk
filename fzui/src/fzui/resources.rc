@@ -38,6 +38,7 @@ BEGIN
   IDS_WINDOW_MATCHES_COLUMN "Matches"
 END
 
-IDI_APP_ICON_SMALL ICON "fzcoach.ico"
+IDI_APP_ICON_16 ICON "assets/icons/fzcoach16x16.ico"
+IDI_APP_ICON ICON "fzcoach.ico"
 IDF_WINDOW_FONT FONT "assets/fonts/segoeui.ttf"
 

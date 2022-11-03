@@ -14,8 +14,6 @@
 #include "fzui/core/window.hpp"
 #include "fzui/ai/auctionBot.hpp"
 
-static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-
 extern fz::Window* targetApp();
 
 // Main thread (window thread)

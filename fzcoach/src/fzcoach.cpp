@@ -5,14 +5,15 @@ class FZCoach : public fz::Window {
   private:
     fz::Win32Button* botStartButton;
     fz::Win32Button* botStopButton;
+    fz::Win32Button* fileButton;
+
+    fz::Win32MenuItem* fileMenu;
+    fz::Win32MenuItem* viewMenu;
 
   public:
     FZCoach() : fz::Window::Window(L"Forza Coach (Beta)", 720, 360) {};
 
     void onCreate(HWND hWnd) override {
-      // Window settings
-      setDarkMode(true);
-
       // Create main window on main thread
       static HWND hForzaHandle = FindWindow(NULL, L"Forza Horizon 5");
 
@@ -20,35 +21,34 @@ class FZCoach : public fz::Window {
         SetForegroundWindow(hForzaHandle);
       }
 
+      fz::WindowInfo windowInfo = fz::WindowInfo::DefaultDark;
+      setWindowInfo(windowInfo);
+
       // Menu area
-      fz::Win32MenuBar menuBar = {};
-
-        fz::Win32MenuItem fileMenu = { L"File" };
-        fz::Win32MenuItem newItem = { L"New", &fileMenu }; // top level drop down
-
-        fz::Win32MenuItem viewMenu = { L"View" };
-        //fz::Win32MenuItem newviewItem = { L"New", &viewMenu }; // top level drop down
-
-      menuBar.addItem(&fileMenu);
-      menuBar.addItem(&viewMenu);
+      fileMenu = new fz::Win32MenuItem(L"File");
+      viewMenu = new fz::Win32MenuItem(L"View");
 
       // Bot control area
-      fz::Win32Label auctionBotTitle = { L"Forza Coach - Auction Bot", 20, 10, hWnd, "Segoe UI", 32, FW_BOLD };
-      fz::Win32HorzLine botTitleLine = { 20, 45, 600, hWnd };
+      fz::Win32Label auctionBotTitle = { L"Forza Coach - Auction Bot", 20, 30, hWnd, "Segoe UI", 32, FW_BOLD };
+      fz::Win32HorzLine botTitleLine = { 20, 65, 600, hWnd };
 
-      botStartButton = new fz::Win32Button(L"Start", 20, 60, 100, 50, hWnd);
+      botStartButton = new fz::Win32Button(L"Start", 20, 80, 100, 50, hWnd);
       botStartButton->setOnClick([]() -> void { startAuctionBot(hForzaHandle, true); });
 
-      botStopButton = new fz::Win32Button(L"Stop", 140, 60, 100, 50, hWnd);
+      botStopButton = new fz::Win32Button(L"Stop", 140, 80, 100, 50, hWnd);
       botStopButton->setOnClick([]() -> void { stopAuctionBot(); });
 
       // Bot settings area
-      fz::Win32Label botSettingsTitle = { L"Bot settings", 20, 140, hWnd, "Segoe UI", 24, FW_BOLD };
-      fz::Win32HorzLine botSettingsTitleLine = { 20, 170, 600, hWnd };
-      fz::Win32CheckBox livePreviewCheck = { L"Live Preview", 20, 180, hWnd };
-      fz::Win32CheckBox overDriveModeCheck = { L"Overdrive Mode", 180, 180, hWnd };
+      fz::Win32Label botSettingsTitle = { L"Bot settings", 20, 160, hWnd, "Segoe UI", 24, FW_BOLD };
+      fz::Win32HorzLine botSettingsTitleLine = { 20, 190, 600, hWnd };
+      fz::Win32CheckBox livePreviewCheck = { L"Live Preview", 20, 200, hWnd };
+      fz::Win32CheckBox overDriveModeCheck = { L"Overdrive Mode", 200, 180, hWnd };
 
-      addMenuBar(&menuBar);
+      // Menu area
+      addMenuItem(fileMenu);
+      addMenuItem(viewMenu);
+
+      // UI elements
       addUiElement(&auctionBotTitle);
       addUiElement(&botTitleLine);
       addUiElement(botStartButton);

@@ -6,9 +6,14 @@
 namespace fz {
   class FZ_API UiStyle {
     public:
-      // General
+      // ------ General ------
+      // Client Area
       static constexpr Color darkBackground = { 39, 39, 39 };
       static constexpr Color lightBackground = { 255, 255, 255 };
+
+      // Caption area (non-client)
+      static constexpr Color darkCaptionColor = { 60, 60, 60 };
+      static constexpr int defaultMenuHeight = 22;
 
       // ------ Buttons ------
       static constexpr Color darkButtonDefaultColor = { 57, 57, 57 };
