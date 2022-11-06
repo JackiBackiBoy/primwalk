@@ -10,15 +10,14 @@
 namespace fz {
   class FZ_API Win32UiElement {
     public:
-      Win32UiElement(const std::wstring& text, const int& x, const int& y,
-          HWND hWnd, const std::string& fontName, const int& fontSize,
-          const int& fontFlags);
+      Win32UiElement();
       virtual ~Win32UiElement() = default;
 
       inline HFONT getFont() const { return m_Font; }
       void setFont();
 
-      // Event functions
+      // Setters
+      void setPosition(const int& x, const int& y);
       void setOnClick(std::function<void()> onClick);
 
       virtual void onClick() final { m_OnClick(); }
@@ -32,7 +31,5 @@ namespace fz {
       std::function<void()> m_OnClick;
       HWND m_ParentHandle;
       HFONT m_Font;
-
-    private:
   };
 }

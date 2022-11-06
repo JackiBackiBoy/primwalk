@@ -10,10 +10,7 @@
 namespace fz {
   class FZ_API Win32Button : public Win32UiElement {
     public:
-      Win32Button(const std::wstring& text, const int& x, const int& y,
-          const int& width, const int& height, HWND hWnd,
-          const std::string& fontName = "Segoe UI", const int& fontSize = 16,
-          const int& fontFlags = 0);
+      Win32Button();
 
       // Getters
       inline int getWidth() const { return m_Width; }
@@ -28,7 +25,10 @@ namespace fz {
       // Setters
       void setBackgroundColor(const Color& color);
       void setBorderColor(const Color& color);
+      void setText(const std::wstring& text);
       void setTextColor(const Color& color);
+      void setWidth(const int& width);
+      void setHeight(const int& height);
 
       CREATESTRUCT getCreateStruct();
 

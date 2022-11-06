@@ -2,10 +2,14 @@
 #include "fzui/managers/fontManager.hpp"
 
 namespace fz {
-  Win32UiElement::Win32UiElement(const std::wstring& text, const int& x, const int& y,
-      HWND hWnd, const std::string& fontName, const int& fontSize, const int& fontFlags)
-    : m_Text{text}, m_X(x), m_Y(y), m_OnClick{[]() -> void {}}, m_ParentHandle{hWnd} {
-      m_Font = FontManager::getInstance().getFont(fontName, fontSize, fontFlags);
+  Win32UiElement::Win32UiElement()
+    : m_OnClick{[]() -> void {}} {
+      m_Font = FontManager::getInstance().getFont("Segoe Ui", 16, FW_NORMAL);
+  }
+
+  void Win32UiElement::setPosition(const int& x, const int& y) {
+    m_X = x;
+    m_Y = y;
   }
 
   void Win32UiElement::setOnClick(std::function<void()> onClick) {

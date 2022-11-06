@@ -18,16 +18,21 @@
 #include <windowsx.h>
 
 namespace fz {
-  Window::Window(const std::wstring& name, const int& width, const int& height) {
+  Window::Window(const std::wstring& name, const int& width, const int& height, Window* parent) {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
 
     m_Name = name;
     m_Width = width;
     m_Height = height;
+    m_Parent = parent;
   }
 
-  Window::~Window() {}
+  Window::~Window() {
+    for (auto it = m_UiElements.begin(); it != m_UiElements.end(); it++) {
+      delete it->second;
+    }
+  }
 
   int Window::run(HINSTANCE hInstance) {
     init(hInstance);
@@ -48,15 +53,39 @@ namespace fz {
     m_WindowInfo = windowInfo;
   }
 
+  void Window::setPosition(const int& x, const int& y) {
+    m_PositionX = x;
+    m_PositionY = y;
+  }
+
+  void Window::setBackground(const Color& color) {
+    m_BackgroundColor = color;
+  }
+
+  int Window::getHeight() const {
+    return m_Height;
+  }
+
+  WindowInfo Window::getWindowInfo() const {
+    return m_WindowInfo;
+  }
+
+  HWND Window::getWindowHandle() const {
+    return m_Handle;
+  }
+
+  HBRUSH Window::getBackgroundBrush() const {
+    return m_BackgroundBrush;
+  }
+
   int Window::init(HINSTANCE hInstance) {
     m_Instance = hInstance;
 
-    Color backgroundColor = UiStyle::darkBackground;
-    backgroundBrush = CreateSolidBrush(RGB(backgroundColor.r, backgroundColor.g, backgroundColor.b));
+    m_BackgroundBrush = CreateSolidBrush(Win32Utilities::getColorRef(m_BackgroundColor));
 
     m_Icon = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
-    HCURSOR cursor = LoadCursor(NULL, IDC_ARROW);
+
     // Setup window class attributes.
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
@@ -64,8 +93,8 @@ namespace fz {
     wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
     wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
     wcex.lpszClassName = m_Name.c_str(); // Window class name
-    wcex.hbrBackground = backgroundBrush;  // Window background brush color.
-    wcex.hCursor = cursor;    // Window cursor
+    wcex.hbrBackground = m_BackgroundBrush;  // Window background brush color.
+    wcex.hCursor = LoadIcon(NULL, IDC_ARROW);    // Window cursor
     wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
     wcex.hInstance = m_Instance; // The application instance.
     wcex.hIcon = m_Icon;      // Application icon.
@@ -82,17 +111,19 @@ namespace fz {
     ZeroMemory(&cs, sizeof(cs));
 
     // Calculate required coordinate for centered window position
-    int centerX = GetSystemMetrics(SM_CXSCREEN) / 2 - m_Width / 2;
-    int centerY = GetSystemMetrics(SM_CYSCREEN) / 2 - m_Height / 2;
+    if (m_PositionX == FZUI_DONTCARE && m_PositionY == FZUI_DONTCARE) {
+      m_PositionX = GetSystemMetrics(SM_CXSCREEN) / 2 - m_Width / 2;
+      m_PositionY = GetSystemMetrics(SM_CYSCREEN) / 2 - m_Height / 2;
+    }
 
-    cs.x = centerX; // Window X position
-    cs.y = centerY; // Window Y position
+    cs.x = m_PositionX; // Window X position
+    cs.y = m_PositionY; // Window Y position
     cs.cx = m_Width;  // Window width
     cs.cy = m_Height;  // Window height
     cs.hInstance = m_Instance; // Window instance.
     cs.lpszClass = wcex.lpszClassName;    // Window class name
     cs.lpszName = m_Name.c_str();  // Window title
-    cs.style = WS_OVERLAPPEDWINDOW;   // Window style
+    cs.style = m_Parent == nullptr ? WS_OVERLAPPEDWINDOW : WS_VISIBLE | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_DISABLED; // Window style
     cs.dwExStyle = 0;
     cs.hMenu = NULL;
     cs.lpCreateParams = this;
@@ -107,7 +138,7 @@ namespace fz {
       cs.y,
       cs.cx,
       cs.cy,
-      cs.hwndParent,
+      m_Parent == nullptr ? NULL : m_Parent->getWindowHandle(),
       cs.hMenu,
       cs.hInstance,
       this);
@@ -115,45 +146,48 @@ namespace fz {
     // Validate window.
     if (!m_Handle) { return 0; }
 
+    // Initialize all sub-windows
+    for (auto child : m_SubWindows) {
+      child->init(m_Instance);
+    }
+
     return 1;
   }
 
   void Window::onCreate(HWND hWnd) {
     m_Handle = hWnd;
-  }
 
-  void Window::addUiElement(Win32UiElement* element) {
-    // Create ui element from creation structure
-    CREATESTRUCT cs = element->getCreateStruct();
+    // Create all the UI elements
+    for (auto& it : m_UiElements) {
+      CREATESTRUCT cs = it.second->getCreateStruct();
 
-    HWND elementHandle = CreateWindowEx(
-      cs.dwExStyle,
-      cs.lpszClass,
-      cs.lpszName,  // Styles 
-      cs.style,
-      cs.x,
-      cs.y,
-      cs.cx,
-      cs.cy,
-      cs.hwndParent,
-      (HMENU)(size_t)m_LastID,
-      cs.hInstance, 
-      cs.lpCreateParams);
+      HWND elementHandle = CreateWindowEx(
+        cs.dwExStyle,
+        cs.lpszClass,
+        cs.lpszName,  // Styles 
+        cs.style,
+        cs.x,
+        cs.y,
+        cs.cx,
+        cs.cy,
+        m_Handle,
+        (HMENU)(size_t)it.first,
+        m_Instance, 
+        cs.lpCreateParams);
 
-    std::cout << m_LastID << std::endl;
-    m_UiHandles.insert({ m_LastID, elementHandle });
-    m_UiElements.insert({ m_LastID, element });
-    m_LastID++;
+      std::cout << it.first << std::endl;
+      m_UiHandles.insert({ it.first, elementHandle });
 
-    // Button specific
-    if (cs.style & BS_OWNERDRAW) {
-      SetWindowLongPtr(elementHandle, GWLP_USERDATA, false); // hover
-      SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
+      // Button specific
+      if (cs.style & BS_OWNERDRAW) {
+        SetWindowLongPtr(elementHandle, GWLP_USERDATA, false); // hover
+        SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, it.first, (DWORD_PTR)m_Handle);
+      }
+
+      // Set control font
+      // TODO: Investigate usage of LPARAM as opposed to WPARAM
+      SendMessage(elementHandle, WM_SETFONT, (LPARAM)it.second->getFont(), TRUE);
     }
-
-    // Set control font
-    // TODO: Investigate usage of LPARAM as opposed to WPARAM
-    SendMessage(elementHandle, WM_SETFONT, (LPARAM)element->getFont(), TRUE);
   }
 
   void Window::addMenuItem(Win32MenuItem* menuItem) {
@@ -178,7 +212,7 @@ namespace fz {
         std::cout << "ERROR: Could not create child window!" << std::endl;
       }
 
-      // Setup window initialization attributes.
+      // Setup window initialization attributes
       CREATESTRUCT cs;
       ZeroMemory(&cs, sizeof(cs));
 
@@ -196,7 +230,7 @@ namespace fz {
       cs.hMenu = NULL;
       cs.lpCreateParams = this;
 
-      // Create the window.
+      // Create the window
       m_MenuHandle = CreateWindowEx(
         cs.dwExStyle,
         cs.lpszClass,
@@ -212,7 +246,7 @@ namespace fz {
         this);
 
       // Validate window.
-      if (!m_Handle) { std::cout << "ERROR: Could not validate child window!" << std::endl; }
+      if (!m_MenuHandle) { std::cout << "ERROR: Could not validate child window!" << std::endl; }
     }
 
     // Resize menubar accordingly
@@ -224,8 +258,8 @@ namespace fz {
     SetWindowPos(m_MenuHandle, 0, 0, 0, width + buttonSize.cx, height, SWP_NOMOVE | SWP_NOZORDER);
 
     // New menu item pointer
-    Win32Button itemButton = Win32Button(menuItem->getText().c_str(), width, 0, buttonSize.cx, UiStyle::defaultMenuHeight, m_MenuHandle);
-    CREATESTRUCT cs = itemButton.getCreateStruct();
+    //Win32Button itemButton = Win32Button(menuItem->getText().c_str(), width, 0, buttonSize.cx, UiStyle::defaultMenuHeight, m_MenuHandle);
+    CREATESTRUCT cs = menuItem->getCreateStruct();
 
     HWND itemHandle = CreateWindowEx(
       cs.dwExStyle,
@@ -243,7 +277,6 @@ namespace fz {
 
     std::cout << m_LastID << std::endl;
     m_UiHandles.insert({ m_LastID, itemHandle });
-    //m_UiElements.insert({ m_LastID, element });
     m_LastID++;
 
     // Button specific
@@ -255,6 +288,15 @@ namespace fz {
     // Set control font
     // TODO: Investigate usage of LPARAM as opposed to WPARAM
     SendMessage(itemHandle, WM_SETFONT, (LPARAM)FontManager::getInstance().getFont("Segoe UI", 16, FW_NORMAL), TRUE);
+  }
+
+  void Window::addSubWindow(Window* subWindow) {
+    subWindow->m_Parent = this;
+    m_SubWindows.push_back(subWindow);
+  }
+
+  bool Window::hasParent() const {
+    return m_Parent != nullptr;
   }
 
   LRESULT Window::TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData) {
@@ -307,7 +349,7 @@ namespace fz {
     // Determine if the point is at the top or bottom of the window.
     if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 29)
     {
-        fOnResizeBorder = (ptMouse.y == rcWindow.top);
+        fOnResizeBorder = (ptMouse.y <= rcWindow.top + 8);
         uRow = 0;
     }
     else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom)
@@ -346,30 +388,30 @@ namespace fz {
     //WindowProperties windowProperties = window->getProperties();
 
     if (message == WM_CREATE) {
-      //DwmSetWindowAttribute(hWnd, 
       // Set window pointer on create
       CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
       Window* window = reinterpret_cast<Window*>(pCreate->lpCreateParams);
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
       window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-      window->Window::onCreate(hWnd); // base class
-      window->onCreate(hWnd); // derived class
+      window->onCreate(hWnd);
 
-      SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->backgroundBrush);
+      SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->getBackgroundBrush());
 
-      RECT rcClient;
-      GetWindowRect(hWnd, &rcClient);
+      if (!window->hasParent()) {
+        RECT rcClient;
+        GetWindowRect(hWnd, &rcClient);
 
-      // Inform the application of the frame change
-      SetWindowPos(hWnd, 
-                   NULL, 
-                   rcClient.left, rcClient.top,
-                   rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
-                   SWP_FRAMECHANGED);
+        // Inform the application of the frame change
+        SetWindowPos(hWnd, 
+                     NULL, 
+                     rcClient.left, rcClient.top,
+                     rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
+                     SWP_FRAMECHANGED);
 
-      ShowWindow(hWnd, SW_SHOWDEFAULT);
-      UpdateWindow(hWnd);
+        ShowWindow(hWnd, SW_SHOWDEFAULT);
+        UpdateWindow(hWnd);
+      }
     }
     else {
       bool wasHandled = false;
@@ -429,7 +471,7 @@ namespace fz {
         }
         case WM_CTLCOLORBTN:
         {
-          return (INT_PTR)window->backgroundBrush;
+          return (INT_PTR)window->getBackgroundBrush();
           break;
         }
         case WM_DRAWITEM:
@@ -519,58 +561,49 @@ namespace fz {
           result = TRUE;
           break;
         }
-        case WM_MEASUREITEM:
-        {
-          LPMEASUREITEMSTRUCT measureStruct = (LPMEASUREITEMSTRUCT)lParam;
-
-          // Measure menu item
-          std::cout << "measure item" << std::endl;
-          measureStruct->itemWidth = 200;
-          measureStruct->itemHeight = 20;
-
-          wasHandled = true;
-          result = TRUE;
-          break;
-        }
         case WM_PAINT:
         {
-          PAINTSTRUCT ps;
-          HDC hdc = BeginPaint(hWnd, &ps);
-          RECT rcClient;
-          GetClientRect(hWnd, &rcClient);
+          if (!window->hasParent()) { // check if window is top most
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
 
-          int width = rcClient.right - rcClient.left;
-          int height = rcClient.bottom - rcClient.top;
 
-          rcClient.bottom += 29 - height;
+            RECT rcClient;
+            GetClientRect(hWnd, &rcClient);
 
-          // ------ Caption area ------
-          HBRUSH captionBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkCaptionColor));
-          HGDIOBJ oldBrush = SelectObject(hdc, captionBrush);
-          FillRect(hdc, &rcClient, captionBrush);
+            int width = rcClient.right - rcClient.left;
+            int height = rcClient.bottom - rcClient.top;
 
-          // Application icon
-          HICON appIcon = (HICON)LoadImage(NULL, L"assets/icons/fzcoach16x16.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
-          DrawIconEx(hdc, 9, 6, appIcon, 16, 16, 0, NULL, DI_NORMAL);
+            rcClient.bottom += window->getWindowInfo().titleBarHeight - height;
 
-          // Application title
-          HFONT buttonFont = FontManager::getInstance().getFont("Segoe UI", 17, FW_NORMAL);
+            // ------ Caption area ------
+            HBRUSH captionBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkCaptionColor));
+            HGDIOBJ oldBrush = SelectObject(hdc, captionBrush);
+            FillRect(hdc, &rcClient, captionBrush);
 
-          HFONT oldFont = (HFONT)SelectObject(hdc, buttonFont);
-          SIZE titleDim;
-          GetTextExtentPoint32(hdc, L"Forza Coach", 11, &titleDim);
-          int titleX = width / 2 - titleDim.cx / 2;
+            // Application icon
+            HICON appIcon = (HICON)LoadImage(NULL, L"assets/icons/fzcoach16x16.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+            DrawIconEx(hdc, 9, 6, appIcon, 16, 16, 0, NULL, DI_NORMAL);
 
-          SetTextColor(hdc, RGB(204, 204, 204));
-          SetBkMode(hdc, TRANSPARENT);
-          TextOut(hdc, titleX, 29 / 2 - titleDim.cy / 2, L"Forza Coach", 11);
+            // Application title
+            HFONT buttonFont = FontManager::getInstance().getFont("Segoe UI", 17, FW_NORMAL);
 
-          EndPaint(hWnd, &ps);
+            HFONT oldFont = (HFONT)SelectObject(hdc, buttonFont);
+            SIZE titleDim;
+            GetTextExtentPoint32(hdc, L"Forza Coach", 11, &titleDim);
+            int titleX = width / 2 - titleDim.cx / 2;
 
-          // Cleanup
-          SelectObject(hdc, oldBrush);
-          DeleteObject(captionBrush);
-          DestroyIcon(appIcon);
+            SetTextColor(hdc, RGB(204, 204, 204));
+            SetBkMode(hdc, TRANSPARENT);
+            TextOut(hdc, titleX, 29 / 2 - titleDim.cy / 2, L"Forza Coach", 11);
+
+            EndPaint(hWnd, &ps);
+
+            // Cleanup
+            SelectObject(hdc, oldBrush);
+            DeleteObject(captionBrush);
+            DestroyIcon(appIcon);
+          }
 
           break;
         }

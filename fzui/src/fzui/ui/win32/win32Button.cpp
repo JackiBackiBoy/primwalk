@@ -3,12 +3,7 @@
 #include "fzui/ui/uiStyle.hpp"
 
 namespace fz {
-  Win32Button::Win32Button(const std::wstring& text, const int& x, const int& y,
-      const int& width, const int& height, HWND hWnd,
-      const std::string& fontName, const int& fontSize, const int& fontFlags)
-        : Win32UiElement(text, x, y, hWnd, fontName, fontSize, fontFlags),
-        m_Width{width}, m_Height(height) {
-
+  Win32Button::Win32Button() : Win32UiElement() {
       m_BorderRadius = 0;
       m_BorderThickness = 0;
 
@@ -29,9 +24,7 @@ namespace fz {
     cs.y = m_Y; // Y position
     cs.cx = m_Width; // Width
     cs.cy = m_Height; // Height
-    cs.hwndParent = m_ParentHandle;
     cs.hMenu = NULL; // Leave ID undefined
-    cs.hInstance = (HINSTANCE)GetWindowLongPtr(m_ParentHandle, GWLP_HINSTANCE);
     cs.lpCreateParams = NULL;
 
     return cs;
@@ -46,7 +39,19 @@ namespace fz {
     m_BorderColor = color;
   }
 
+  void Win32Button::setText(const std::wstring& text) {
+    m_Text = text;
+  }
+
   void Win32Button::setTextColor(const Color& color) {
     m_TextColor = color;
+  }
+
+  void Win32Button::setWidth(const int& width) {
+    m_Width = width;
+  }
+
+  void Win32Button::setHeight(const int& height) {
+    m_Height = height;
   }
 }

@@ -22,7 +22,5 @@ namespace fz {
       HWND m_Handle;
       HWND m_Parent;
       std::vector<Win32MenuItem*> m_Children;
-
-      friend class Win32MenuBar;
   };
 }

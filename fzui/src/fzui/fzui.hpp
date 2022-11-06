@@ -1,10 +1,9 @@
 #pragma once
 
 // Core
+#include "fzui/core/application.hpp"
 #include "fzui/core/core.hpp"
-#include "fzui/main.hpp"
 #include "fzui/core/window.hpp"
-
 
 // Managers
 #include "fzui/managers/fontManager.hpp"

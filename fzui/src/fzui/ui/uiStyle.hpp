@@ -1,11 +1,16 @@
 #pragma once
 
+// std
+#include <limits.h>
+
 // FZUI
 #include "fzui/core/core.hpp"
 #include "fzui/color.hpp"
 
 namespace fz {
   class FZ_API UiStyle {
+    #define FZUI_DONTCARE INT_MAX
+
     public:
       // ------ General ------
       // Client area
