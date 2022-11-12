@@ -16,6 +16,7 @@
 #include "fzui/ui/win32/win32Button.hpp"
 #include "fzui/ui/win32/win32CheckBox.hpp"
 #include "fzui/ui/win32/win32HorzLine.hpp"
+#include "fzui/ui/win32/win32IconButton.hpp"
 #include "fzui/ui/win32/win32Label.hpp"
 #include "fzui/ui/win32/win32MenuItem.hpp"
 #endif

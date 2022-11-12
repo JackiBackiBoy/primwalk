@@ -5,6 +5,9 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+// std
+#include <iostream>
+
 // Windows
 #include <sdkddkver.h>
 #include <windows.h>
@@ -30,26 +33,23 @@ int main() {
   fz::WindowInfo windowInfo = fz::WindowInfo::DefaultDark;
   fzMain->setWindowInfo(windowInfo);
   
-  // Bot start button
-  fz::Win32Button* botStartButton = fzMain->addElement<fz::Win32Button>();
-  botStartButton->setText(L"Start");
-  botStartButton->setPosition(60, 80);
-  botStartButton->setWidth(100);
-  botStartButton->setHeight(50);
-  botStartButton->setTextColor({ 255, 255, 255 });
-
-  // Bot stop button
-  fz::Win32Button* botStopButton = fzMain->addElement<fz::Win32Button>();
-  botStopButton->setText(L"Stop");
-  botStopButton->setPosition(180, 80);
-  botStopButton->setWidth(100);
-  botStopButton->setHeight(50);
-  botStopButton->setTextColor({ 255, 255, 255 });
-
   // ------ Side Bar Window ------
-  fz::Window* fzSideBar = new fz::Window(L"FZUI.SideBar", 47, 500);
+  fz::Window* fzSideBar = new fz::Window(L"FZUI.SideBar", 47, fzMain->getHeight() - windowInfo.titleBarHeight);
   fzSideBar->setPosition(0, windowInfo.titleBarHeight);
   fzSideBar->setBackground({ 51, 51, 51 });
+
+  fz::Win32IconButton* settingsButton = fzSideBar->addElement<fz::Win32IconButton>();
+  settingsButton->setText(L"");
+  settingsButton->setWidth(24);
+  settingsButton->setHeight(24);
+  settingsButton->setPosition(fzSideBar->getWidth() / 2 - settingsButton->getWidth() / 2, fzSideBar->getHeight() - 2 * settingsButton->getHeight());
+  settingsButton->setTextColor({ 255, 255, 255 });
+  settingsButton->setIcon(L"assets/icons/settings24x24.ico");
+
+  fzMain->setOnResize([fzSideBar, fzMain, windowInfo, settingsButton]() {
+      fzSideBar->setHeight(fzMain->getHeight() - windowInfo.titleBarHeight);
+      settingsButton->setPosition(settingsButton->getPositionX(), fzSideBar->getHeight() - 2 * settingsButton->getHeight());
+  });
 
   //fz::Win32Button* settingsButton = fzSideBar->addElement<fz::Win32Button>();
   //settingsButton->setText(L"SO");

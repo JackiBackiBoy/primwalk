@@ -1,6 +1,7 @@
 #pragma once
 
 // std
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,15 +32,19 @@ namespace fz {
       // Getters
       inline Win32UiElement* getUiElement(const int& id) { return m_UiElements[id]; }
       inline HWND getUiHandle(const int& id) { return m_UiHandles[id]; }
+      int getWidth() const;
       int getHeight() const;
       WindowInfo getWindowInfo() const;
       HWND getWindowHandle() const;
+      Color getBackgroundColor() const;
       HBRUSH getBackgroundBrush() const;
 
       // Setters
       void setWindowInfo(const WindowInfo& windowInfo);
       void setPosition(const int& x, const int& y);
       void setBackground(const Color& color);
+      void setHeight(const int& height);
+      void setOnResize(std::function<void()> onResize);
 
       template <typename T>
       T* addElement() {
@@ -76,6 +81,7 @@ namespace fz {
       WindowInfo m_WindowInfo = {};
       Color m_BackgroundColor = UiStyle::darkBackground;
       HBRUSH m_BackgroundBrush = NULL;
+      std::function<void()> m_OnResize = []() {};
 
       std::unordered_map<int, HWND> m_UiHandles;
       std::unordered_map<int, Win32UiElement*> m_UiElements;

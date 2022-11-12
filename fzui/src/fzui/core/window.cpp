@@ -9,6 +9,7 @@
 #include "fzui/ui/uiStyle.hpp"
 #include "fzui/ui/win32/win32Utilities.hpp"
 #include "fzui/ui/win32/win32Button.hpp"
+#include "fzui/ui/win32/win32IconButton.hpp"
 #include "fzui/ui/win32/win32HoverFlags.hpp"
 
 // Windows
@@ -49,6 +50,7 @@ namespace fz {
     return (int)msg.wParam;
   }
 
+  // Setters
   void Window::setWindowInfo(const WindowInfo& windowInfo) {
     m_WindowInfo = windowInfo;
   }
@@ -62,6 +64,19 @@ namespace fz {
     m_BackgroundColor = color;
   }
 
+  void Window::setHeight(const int& height) {
+    m_Height = height;
+    SetWindowPos(m_Handle, NULL, 0, 0, m_Width, m_Height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOREDRAW);
+  }
+
+  void Window::setOnResize(std::function<void()> onResize) {
+    m_OnResize = onResize;
+  }
+
+  int Window::getWidth() const {
+    return m_Width;
+  }
+
   int Window::getHeight() const {
     return m_Height;
   }
@@ -72,6 +87,10 @@ namespace fz {
 
   HWND Window::getWindowHandle() const {
     return m_Handle;
+  }
+
+  Color Window::getBackgroundColor() const {
+    return m_BackgroundColor;
   }
 
   HBRUSH Window::getBackgroundBrush() const {
@@ -119,7 +138,7 @@ namespace fz {
     cs.x = m_PositionX; // Window X position
     cs.y = m_PositionY; // Window Y position
     cs.cx = m_Width;  // Window width
-    cs.cy = m_Height;  // Window height
+    cs.cy = m_Height + (m_Parent == nullptr ? 2 : 0);  // Window height
     cs.hInstance = m_Instance; // Window instance.
     cs.lpszClass = wcex.lpszClassName;    // Window class name
     cs.lpszName = m_Name.c_str();  // Window title
@@ -174,6 +193,8 @@ namespace fz {
         (HMENU)(size_t)it.first,
         m_Instance, 
         cs.lpCreateParams);
+
+      it.second->m_Handle = elementHandle;
 
       std::cout << it.first << std::endl;
       m_UiHandles.insert({ it.first, elementHandle });
@@ -396,7 +417,7 @@ namespace fz {
 
       window->onCreate(hWnd);
 
-      SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->getBackgroundBrush());
+      //SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->getBackgroundBrush());
 
       if (!window->hasParent()) {
         RECT rcClient;
@@ -412,6 +433,9 @@ namespace fz {
         ShowWindow(hWnd, SW_SHOWDEFAULT);
         UpdateWindow(hWnd);
       }
+      else {
+        SetWindowPos(hWnd, NULL, window->m_PositionX, window->m_PositionY, window->m_Width, window->m_Height, SWP_NOZORDER | SWP_NOREDRAW);
+      }
     }
     else {
       bool wasHandled = false;
@@ -425,7 +449,7 @@ namespace fz {
         }
         case WM_NCCALCSIZE:
         {
-          if (wParam == TRUE) {
+          if (wParam == TRUE && !window->hasParent()) {
             // ------ Hack to remove the title bar (non-client) area ------
             // In order to hide the standard title bar we must change
             // the NCCALCSIZE_PARAMS, which dictates the title bar area.
@@ -443,7 +467,7 @@ namespace fz {
             int top = instance.getWindowsVersionString() == "Windows 11" ? 1 : 0;
 
             LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
-              ncParams->rgrc[0].top += top;
+              ncParams->rgrc[0].top += 1;
               ncParams->rgrc[0].left += 0;
               ncParams->rgrc[0].bottom -= 0;
               ncParams->rgrc[0].right -= 0;
@@ -479,64 +503,93 @@ namespace fz {
           LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
 
           // Button Owner Drawing
+          std::string typeString = ((Win32UiElement*)window->getUiElement(pDIS->CtlID))->getTypeString();
+
           if (pDIS->CtlType == ODT_BUTTON) {
-            Win32Button* button = (Win32Button*)window->getUiElement(pDIS->CtlID);
-            bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
-            bool hasBorder = button->getBorderThickness() > 0;
+            if (typeString == "Win32Button") {
+              Win32Button* button = (Win32Button*)window->getUiElement(pDIS->CtlID);
 
-            // Border pen
-            HPEN borderPen = NULL;
-            HGDIOBJ oldPen = NULL;
+              bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+              bool hasBorder = button->getBorderThickness() > 0;
 
-            if (hasBorder) {
-              borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getBorderColor()));
+              // Border pen
+              HPEN borderPen = NULL;
+              HGDIOBJ oldPen = NULL;
+
+              if (hasBorder) {
+                borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getBorderColor()));
+              }
+              else {
+                borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getDefaultColor()));
+              }
+
+              oldPen = SelectObject(pDIS->hDC, borderPen);
+
+              HBRUSH buttonBrush;
+              HGDIOBJ oldBrush;
+
+              if (hovering) {
+                buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getHoverColor()));
+              }
+              else {
+                buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getDefaultColor()));
+              }
+
+              oldBrush = SelectObject(pDIS->hDC, buttonBrush);
+
+              // Rounded button
+              int borderDim = button->getBorderRadius() * 2; // width of ellipse
+              RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top,
+                  pDIS->rcItem.right, pDIS->rcItem.bottom, borderDim, borderDim);
+
+              // Calculate button dimensions
+              int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
+              int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
+
+              WCHAR staticText[128];
+              int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
+              HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
+
+              SIZE buttonDim;
+              HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
+              GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
+
+              SetTextColor(pDIS->hDC, RGB(255, 255, 255));
+              SetBkMode(pDIS->hDC, TRANSPARENT);
+              TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
+
+              // Cleanup
+              SelectObject(pDIS->hDC, oldBrush);
+              DeleteObject(buttonBrush);
+
+              if (oldPen != NULL && borderPen != NULL) {
+                SelectObject(pDIS->hDC, oldPen);
+                DeleteObject(borderPen);
+              }
             }
-            else {
-              borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getDefaultColor()));
-            }
+            else if (typeString == "Win32IconButton") {
+              Win32IconButton* button = (Win32IconButton*)window->getUiElement(pDIS->CtlID);
 
-            oldPen = SelectObject(pDIS->hDC, borderPen);
+              // Retrieve and draw icon
+              HICON icon = button->getIcon();
+              ICONINFOEX iconInfo;
+              GetIconInfoEx(icon, &iconInfo);
 
-            HBRUSH buttonBrush;
-            HGDIOBJ oldBrush;
+              // Draw the icon into a temporary device context
+              HDC hdcImage = CreateCompatibleDC(pDIS->hDC);
+              HBITMAP bmp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
+              HBITMAP old = (HBITMAP)SelectObject(hdcImage, bmp);
 
-            if (hovering) {
-              buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getHoverColor()));
-            }
-            else {
-              buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getDefaultColor()));
-            }
+              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, window->m_BackgroundBrush, DI_NORMAL);
 
-            oldBrush = SelectObject(pDIS->hDC, buttonBrush);
+              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcImage, 0, 0, SRCCOPY);
 
-            // Rounded button
-            int borderDim = button->getBorderRadius() * 2; // width of ellipse
-            RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top,
-                pDIS->rcItem.right, pDIS->rcItem.bottom, borderDim, borderDim);
-
-            // Calculate button dimensions
-            int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-            int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-            WCHAR staticText[128];
-            int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-            HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-            SIZE buttonDim;
-            HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-            GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-            SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-            SetBkMode(pDIS->hDC, TRANSPARENT);
-            TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-            //Clean up
-            SelectObject(pDIS->hDC, oldBrush);
-            DeleteObject(buttonBrush);
-
-            if (oldPen != NULL && borderPen != NULL) {
-              SelectObject(pDIS->hDC, oldPen);
-              DeleteObject(borderPen);
+              // Cleanup
+              SelectObject(hdcImage, old);  // put the old bmp back in
+              DeleteDC(hdcImage);  // kill the DC we created
+              DeleteObject(bmp);  // kill the bitmap we created
+              DeleteObject(old);
+              //DrawIconEx(pDIS->hDC, 0, 0, icon, button->getWidth(), button->getHeight(), 0, window->m_BackgroundBrush, DI_NORMAL | DI_MASK);
             }
           }
           else {
@@ -607,9 +660,17 @@ namespace fz {
 
           break;
         }
-        case WM_SIZE:
-          BufferedPaintStopAllAnimations(hWnd);
+        case WM_SIZING:
+        {
+          RECT rc;
+          GetClientRect(hWnd, &rc);
+
+          window->m_Width = rc.right - rc.left;
+          window->m_Height = rc.bottom - rc.top;
+          window->m_OnResize();
+
           break;
+        }
         case WM_DESTROY:
         {
           window->onDestroy();

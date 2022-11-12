@@ -19,4 +19,8 @@ namespace fz {
 
     return cs;
   }
+
+  std::string Win32HorzLine::getTypeString() const {
+    return "Win32HorzLine";
+  }
 }

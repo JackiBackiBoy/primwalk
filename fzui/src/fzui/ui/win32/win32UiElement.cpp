@@ -7,6 +7,12 @@ namespace fz {
       m_Font = FontManager::getInstance().getFont("Segoe Ui", 16, FW_NORMAL);
   }
 
+  // Getters
+  int Win32UiElement::getPositionX() const {
+    return m_X;
+  }
+
+  // Setters
   void Win32UiElement::setPosition(const int& x, const int& y) {
     m_X = x;
     m_Y = y;

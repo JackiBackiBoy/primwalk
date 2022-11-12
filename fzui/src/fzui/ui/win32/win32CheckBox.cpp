@@ -22,4 +22,8 @@ namespace fz {
 
     return cs;
   }
+
+  std::string Win32CheckBox::getTypeString() const {
+    return "Win32CheckBox";
+  }
 }

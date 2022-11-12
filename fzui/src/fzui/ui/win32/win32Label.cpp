@@ -22,4 +22,8 @@ namespace fz {
 
     return cs;
   }
+
+  std::string Win32Label::getTypeString() const {
+    return "Win32Label";
+  }
 }

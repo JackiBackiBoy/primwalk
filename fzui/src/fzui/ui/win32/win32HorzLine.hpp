@@ -11,7 +11,8 @@ namespace fz {
     public:
       Win32HorzLine() : Win32UiElement() {};
 
-      CREATESTRUCT getCreateStruct();
+      CREATESTRUCT getCreateStruct() override;
+      std::string getTypeString() const override;
 
     private:
       int m_Width;

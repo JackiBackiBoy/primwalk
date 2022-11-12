@@ -13,6 +13,7 @@ namespace fz {
       m_TextColor = UiStyle::darkButtonTextColor;
     }
 
+  // Getters
   CREATESTRUCT Win32Button::getCreateStruct() {
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));
@@ -28,6 +29,10 @@ namespace fz {
     cs.lpCreateParams = NULL;
 
     return cs;
+  }
+
+  std::string Win32Button::getTypeString() const {
+    return "Win32Button";
   }
 
   // Setters
