@@ -142,7 +142,7 @@ namespace fz {
     cs.hInstance = m_Instance; // Window instance.
     cs.lpszClass = wcex.lpszClassName;    // Window class name
     cs.lpszName = m_Name.c_str();  // Window title
-    cs.style = m_Parent == nullptr ? WS_OVERLAPPEDWINDOW : WS_VISIBLE | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_DISABLED; // Window style
+    cs.style = m_Parent == nullptr ? WS_OVERLAPPEDWINDOW : WS_VISIBLE | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; // Window style
     cs.dwExStyle = 0;
     cs.hMenu = NULL;
     cs.lpCreateParams = this;
@@ -196,11 +196,12 @@ namespace fz {
 
       it.second->m_Handle = elementHandle;
 
-      std::cout << it.first << std::endl;
+      std::cout << "ID: " << it.first << std::endl;
       m_UiHandles.insert({ it.first, elementHandle });
 
       // Button specific
       if (cs.style & BS_OWNERDRAW) {
+        std::cout << it.second->getTypeString() << std::endl;
         SetWindowLongPtr(elementHandle, GWLP_USERDATA, false); // hover
         SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, it.first, (DWORD_PTR)m_Handle);
       }
@@ -570,26 +571,70 @@ namespace fz {
             else if (typeString == "Win32IconButton") {
               Win32IconButton* button = (Win32IconButton*)window->getUiElement(pDIS->CtlID);
 
-              // Retrieve and draw icon
+              // Retrieve icon info
               HICON icon = button->getIcon();
-              ICONINFOEX iconInfo;
-              GetIconInfoEx(icon, &iconInfo);
 
               // Draw the icon into a temporary device context
               HDC hdcImage = CreateCompatibleDC(pDIS->hDC);
               HBITMAP bmp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
               HBITMAP old = (HBITMAP)SelectObject(hdcImage, bmp);
+              
+              HDC hdcInvImage = CreateCompatibleDC(pDIS->hDC);
+              HBITMAP bmp2 = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
+              HBITMAP old2 = (HBITMAP)SelectObject(hdcInvImage, bmp2);
 
-              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, window->m_BackgroundBrush, DI_NORMAL);
+              HDC hdcTemp = CreateCompatibleDC(pDIS->hDC);
+              HBITMAP bmpTemp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
+              HBITMAP oldTemp = (HBITMAP)SelectObject(hdcTemp, bmpTemp);
+
+              HBRUSH iconColor = NULL;
+              bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
+
+              if (hovering) {
+                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255, 0, 0 }));
+              }
+              else {
+                iconColor = CreateSolidBrush(Win32Utilities::getColorRef(button->getDefaultColor()));
+              }
+
+              // Compute inverse color
+              uint8_t invR = 255 - window->m_BackgroundColor.r;
+              uint8_t invG = 255 - window->m_BackgroundColor.g;
+              uint8_t invB = 255 - window->m_BackgroundColor.b;
+
+              HBRUSH iconBackground = CreateSolidBrush(Win32Utilities::getColorRef({ invR, invG, invB }));
+
+              // Default icon (white on black)
+              // We then perform a logic AND operation on all color bits
+              // in order to exclusively change the icon color
+              FillRect(hdcTemp, &pDIS->rcItem, iconColor);
+              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
+              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCAND);
+
+              // Inverted icon (black on white)
+              FillRect(hdcInvImage, &pDIS->rcItem, iconBackground);
+              DrawIconEx(hdcInvImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
+              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, NOTSRCCOPY);
+
+              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, SRCPAINT);
 
               BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcImage, 0, 0, SRCCOPY);
 
               // Cleanup
-              SelectObject(hdcImage, old);  // put the old bmp back in
-              DeleteDC(hdcImage);  // kill the DC we created
               DeleteObject(bmp);  // kill the bitmap we created
               DeleteObject(old);
-              //DrawIconEx(pDIS->hDC, 0, 0, icon, button->getWidth(), button->getHeight(), 0, window->m_BackgroundBrush, DI_NORMAL | DI_MASK);
+              DeleteDC(hdcImage);  // kill the DC we created
+
+              DeleteObject(bmp2);  // kill the bitmap we created
+              DeleteObject(old2);
+              DeleteDC(hdcInvImage);  // kill the DC we created
+
+              DeleteObject(bmpTemp);  // kill the bitmap we created
+              DeleteObject(oldTemp);
+              DeleteDC(hdcTemp);  // kill the DC we created
+
+              DeleteObject(iconColor);
+              DeleteObject(iconBackground);
             }
           }
           else {

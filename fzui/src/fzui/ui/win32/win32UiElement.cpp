@@ -12,6 +12,10 @@ namespace fz {
     return m_X;
   }
 
+  std::wstring Win32UiElement::getText() const {
+    return m_Text;
+  }
+
   // Setters
   void Win32UiElement::setPosition(const int& x, const int& y) {
     m_X = x;

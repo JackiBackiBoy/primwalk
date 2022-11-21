@@ -7,7 +7,7 @@ namespace fz {
       m_BorderRadius = 0;
       m_BorderThickness = 0;
 
-      m_DefaultColor = UiStyle::darkButtonDefaultColor;
+      m_DefaultColor = { 255, 0, 0 };
       m_HoverColor = UiStyle::darkButtonHoverColor;
       m_BorderColor = UiStyle::darkButtonDefaultColor;
       m_TextColor = UiStyle::darkButtonTextColor;

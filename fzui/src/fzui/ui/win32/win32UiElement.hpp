@@ -15,6 +15,7 @@ namespace fz {
 
       inline HFONT getFont() const { return m_Font; }
       void setFont();
+      std::wstring getText() const;
 
       // Getters
       virtual CREATESTRUCT getCreateStruct() = 0;

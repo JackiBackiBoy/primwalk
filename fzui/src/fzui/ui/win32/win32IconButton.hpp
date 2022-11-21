@@ -17,15 +17,14 @@ namespace fz {
       inline int getBorderThickness() const { return m_BorderThickness; }
       inline int getBorderRadius() const { return m_BorderRadius; }
 
-      inline Color getDefaultColor() const { return m_DefaultColor; };
-      inline Color getHoverColor() const { return m_HoverColor; }
-      inline Color getBorderColor() const { return m_BorderColor; }
+      Color getDefaultColor() const;
+      Color getHoverColor() const;
+      Color getBorderColor() const;
 
       // Setters
-      void setBackgroundColor(const Color& color);
       void setBorderColor(const Color& color);
-      void setText(const std::wstring& text);
-      void setTextColor(const Color& color);
+      void setDefaultColor(const Color& color);
+      void setHoverColor(const Color& color);
       void setWidth(const int& width);
       void setHeight(const int& height);
       void setIcon(const std::wstring& path);

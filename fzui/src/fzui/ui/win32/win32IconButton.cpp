@@ -12,7 +12,7 @@ namespace fz {
     m_BorderRadius = 0;
     m_BorderThickness = 0;
 
-    m_DefaultColor = UiStyle::darkButtonDefaultColor;
+    m_DefaultColor = { 255, 0, 0 };
     m_HoverColor = UiStyle::darkButtonHoverColor;
     m_BorderColor = UiStyle::darkButtonDefaultColor;
     m_TextColor = UiStyle::darkButtonTextColor;
@@ -48,6 +48,18 @@ namespace fz {
     return m_Height;
   }
 
+  Color Win32IconButton::getDefaultColor() const {
+    return m_DefaultColor;
+  };
+
+  Color Win32IconButton::getHoverColor() const {
+    return m_HoverColor;
+  }
+
+  Color Win32IconButton::getBorderColor() const {
+    return m_BorderColor;
+  }
+
   HICON Win32IconButton::getIcon() const {
     return m_Icon;
   }
@@ -57,20 +69,16 @@ namespace fz {
   }
 
   // Setters
-  void Win32IconButton::setBackgroundColor(const Color& color) {
-    m_DefaultColor = color;
-  }
-
   void Win32IconButton::setBorderColor(const Color& color) {
     m_BorderColor = color;
   }
 
-  void Win32IconButton::setText(const std::wstring& text) {
-    m_Text = text;
+  void Win32IconButton::setDefaultColor(const Color& color) {
+    m_DefaultColor = color;
   }
 
-  void Win32IconButton::setTextColor(const Color& color) {
-    m_TextColor = color;
+  void Win32IconButton::setHoverColor(const Color& color) {
+    m_HoverColor = color;
   }
 
   void Win32IconButton::setWidth(const int& width) {

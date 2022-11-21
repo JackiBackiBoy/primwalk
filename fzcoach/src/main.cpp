@@ -39,11 +39,11 @@ int main() {
   fzSideBar->setBackground({ 51, 51, 51 });
 
   fz::Win32IconButton* settingsButton = fzSideBar->addElement<fz::Win32IconButton>();
-  settingsButton->setText(L"");
   settingsButton->setWidth(24);
   settingsButton->setHeight(24);
   settingsButton->setPosition(fzSideBar->getWidth() / 2 - settingsButton->getWidth() / 2, fzSideBar->getHeight() - 2 * settingsButton->getHeight());
-  settingsButton->setTextColor({ 255, 255, 255 });
+  settingsButton->setDefaultColor({ 255, 255, 255 });
+  settingsButton->setHoverColor({ 10, 164, 164 });
   settingsButton->setIcon(L"assets/icons/settings24x24.ico");
 
   fzMain->setOnResize([fzSideBar, fzMain, windowInfo, settingsButton]() {
