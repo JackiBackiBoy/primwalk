@@ -583,6 +583,10 @@ namespace fz {
               HBITMAP bmp2 = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
               HBITMAP old2 = (HBITMAP)SelectObject(hdcInvImage, bmp2);
 
+              HDC hdcMask = CreateCompatibleDC(pDIS->hDC);
+              HBITMAP bmpMask = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
+              HBITMAP oldMask = (HBITMAP)SelectObject(hdcMask, bmpMask);
+              
               HDC hdcTemp = CreateCompatibleDC(pDIS->hDC);
               HBITMAP bmpTemp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
               HBITMAP oldTemp = (HBITMAP)SelectObject(hdcTemp, bmpTemp);
@@ -591,34 +595,55 @@ namespace fz {
               bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
 
               if (hovering) {
-                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255, 0, 0 }));
+                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255 - 255, 255 - 0, 255 - 0 }));
               }
               else {
-                iconColor = CreateSolidBrush(Win32Utilities::getColorRef(button->getDefaultColor()));
+                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255 - 255, 255 - 0, 255 - 0 }));
               }
 
               // Compute inverse color
+              window->m_BackgroundColor = { 51, 51, 51 };
               uint8_t invR = 255 - window->m_BackgroundColor.r;
               uint8_t invG = 255 - window->m_BackgroundColor.g;
               uint8_t invB = 255 - window->m_BackgroundColor.b;
 
               HBRUSH iconBackground = CreateSolidBrush(Win32Utilities::getColorRef({ invR, invG, invB }));
+              HBRUSH whiteBrush = CreateSolidBrush(Win32Utilities::getColorRef({ 255, 255, 255 }));
 
-              // Default icon (white on black)
-              // We then perform a logic AND operation on all color bits
-              // in order to exclusively change the icon color
-              FillRect(hdcTemp, &pDIS->rcItem, iconColor);
-              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
-              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCAND);
+              // Firstly we must blend the desired color with the icon image.
+              // This is done through the use of per-pixel color multiplication.
 
               // Inverted icon (black on white)
-              FillRect(hdcInvImage, &pDIS->rcItem, iconBackground);
-              DrawIconEx(hdcInvImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
+              FillRect(hdcTemp, &pDIS->rcItem, iconBackground);
+              DrawIconEx(hdcMask, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_MASK);
+              BitBlt(hdcMask, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCPAINT);
+              BitBlt(hdcMask, 0, 0, button->getWidth(), button->getHeight(), hdcMask, 0, 0, NOTSRCCOPY);
+
+
+              FillRect(hdcTemp, &pDIS->rcItem, iconColor);
+              //FillRect(hdcImage, &pDIS->rcItem, iconBackground);
+              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcMask, 0, 0, SRCCOPY);
+              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
+
+              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcImage, 0, 0, NOTSRCCOPY);
+
+              BLENDFUNCTION blendFunc;
+              blendFunc.BlendOp = AC_SRC_OVER;
+              blendFunc.BlendFlags = 0;
+              blendFunc.SourceConstantAlpha = 255;
+              blendFunc.AlphaFormat = AC_SRC_ALPHA;
+
+              AlphaBlend(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, button->getWidth(), button->getHeight(), blendFunc);
+              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), pDIS->hDC, 0, 0, NOTSRCCOPY);
+
+              //FillRect(hdcInvImage, &pDIS->rcItem, iconBackground);
+              FillRect(hdcTemp, &pDIS->rcItem, iconBackground);
+              DrawIconEx(hdcInvImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_MASK);
+              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, NOTSRCCOPY);
+              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCPAINT);
               BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, NOTSRCCOPY);
 
-              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, SRCPAINT);
-
-              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcImage, 0, 0, SRCCOPY);
+              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, SRCPAINT);
 
               // Cleanup
               DeleteObject(bmp);  // kill the bitmap we created
@@ -629,12 +654,17 @@ namespace fz {
               DeleteObject(old2);
               DeleteDC(hdcInvImage);  // kill the DC we created
 
+              DeleteObject(bmpMask);  // kill the bitmap we created
+              DeleteObject(oldMask);
+              DeleteDC(hdcMask);  // kill the DC we created
+              
               DeleteObject(bmpTemp);  // kill the bitmap we created
               DeleteObject(oldTemp);
               DeleteDC(hdcTemp);  // kill the DC we created
 
               DeleteObject(iconColor);
               DeleteObject(iconBackground);
+              DeleteObject(whiteBrush);
             }
           }
           else {
