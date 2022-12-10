@@ -1,22 +1,35 @@
 // std
 #include <cassert>
 #include <iostream>
+#include <chrono>
+#include <cmath>
 
 // FZUI
 #include "fzui/core/window.hpp"
 #include "fzui/resource.hpp"
-#include "fzui/managers/fontManager.hpp"
-#include "fzui/ui/uiStyle.hpp"
-#include "fzui/ui/win32/win32Utilities.hpp"
-#include "fzui/ui/win32/win32Button.hpp"
-#include "fzui/ui/win32/win32IconButton.hpp"
-#include "fzui/ui/win32/win32HoverFlags.hpp"
+#include "fzui/win32/win32Utilities.hpp"
+#include "fzui/rendering/vertexArray.hpp"
+#include "fzui/rendering/vertexBuffer.hpp"
+#include "fzui/rendering/bufferLayout.hpp"
 
 // Windows
 #include <uxtheme.h>
 #include <olectl.h>
 #include <dwmapi.h>
 #include <windowsx.h>
+
+// Vendor
+#include <glad/glad.h>
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB 0X2092
+#define WGL_CONTEXT_FLAGS_ARB 0X2094
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
+#define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
+typedef HGLRC(WINAPI* PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShareContext, const int* attribList);
+typedef const char* (WINAPI* PFNWGLGETEXTENSIONSSTRINGEXTPROC)(void);
+typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
+typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
   Window::Window(const std::wstring& name, const int& width, const int& height, Window* parent) {
@@ -26,23 +39,110 @@ namespace fz {
     m_Name = name;
     m_Width = width;
     m_Height = height;
-    m_Parent = parent;
   }
 
   Window::~Window() {
-    for (auto it = m_UiElements.begin(); it != m_UiElements.end(); it++) {
-      delete it->second;
-    }
   }
 
   int Window::run(HINSTANCE hInstance) {
     init(hInstance);
 
-    // Message loop
+    // Shows window
+    ShowWindow(m_Handle, SW_SHOW);
+    UpdateWindow(m_Handle);
+    HDC hdc = GetDC(m_Handle);
+
+    // Application loop
+    float dt = 0.0f;
+    auto currentTime = std::chrono::high_resolution_clock::now();
+
+    // Testing
+    std::vector<float> vertices = {
+      -0.5f, -0.5f, 0.0f,
+       0.5f, -0.5f, 0.0f,
+       0.0f,  0.5f, 0.0f
+    };
+
+    BufferLayout bufferLayout;
+    bufferLayout.addAttribute<float>("Position", 3);
+
+    VertexBuffer vertexBuffer(vertices, GL_STATIC_DRAW);
+    VertexArray vertexArray(bufferLayout, vertexBuffer);
+
+    const char *vertexShaderSource = "#version 330 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+
+    const char *fragmentShaderSource = "#version 330 core\n"
+    "out vec4 FragColor;\n"
+    "void main()\n"
+    "{\n"
+    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+    "}\0";
+
+    unsigned int vertexShader;
+    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+
+    unsigned int fragmentShader;
+    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+
+    unsigned int shaderProgram;
+    shaderProgram = glCreateProgram();
+
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    glUseProgram(shaderProgram);
+
     MSG msg;
-    while(GetMessage(&msg, NULL, 0, 0)) {
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
+    while(true) {
+      if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        if (msg.message == WM_QUIT) {
+          break;
+        }
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+
+      auto newTime = std::chrono::high_resolution_clock::now();
+      float dt = std::chrono::duration<float, std::chrono::seconds::period>(
+          newTime - currentTime).count();
+      currentTime = newTime;
+
+      // Calculate new window dimensions if resized
+      RECT clientRect;
+      GetClientRect(m_Handle, &clientRect);
+      int clientWidth = clientRect.right - clientRect.left;
+      int clientHeight = clientRect.bottom - clientRect.top;
+      float aspect = (float)clientWidth / (float)clientHeight;
+
+      // OnRender
+      static float el = 0.0f;
+      el += dt;
+      float c = (sin(el) + 1.0f) / 2.0f;
+      glViewport(0, 0, clientWidth, clientHeight);
+      glClearColor(c, c, c, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      onRender();
+      glUseProgram(shaderProgram);
+      vertexArray.bind();
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        
+      SwapBuffers(hdc);
     }
 
     UnregisterClass(m_Name.c_str(), m_Instance);
@@ -51,57 +151,10 @@ namespace fz {
   }
 
   // Setters
-  void Window::setWindowInfo(const WindowInfo& windowInfo) {
-    m_WindowInfo = windowInfo;
-  }
-
-  void Window::setPosition(const int& x, const int& y) {
-    m_PositionX = x;
-    m_PositionY = y;
-  }
-
-  void Window::setBackground(const Color& color) {
-    m_BackgroundColor = color;
-  }
-
-  void Window::setHeight(const int& height) {
-    m_Height = height;
-    SetWindowPos(m_Handle, NULL, 0, 0, m_Width, m_Height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOREDRAW);
-  }
-
-  void Window::setOnResize(std::function<void()> onResize) {
-    m_OnResize = onResize;
-  }
-
-  int Window::getWidth() const {
-    return m_Width;
-  }
-
-  int Window::getHeight() const {
-    return m_Height;
-  }
-
-  WindowInfo Window::getWindowInfo() const {
-    return m_WindowInfo;
-  }
-
-  HWND Window::getWindowHandle() const {
-    return m_Handle;
-  }
-
-  Color Window::getBackgroundColor() const {
-    return m_BackgroundColor;
-  }
-
-  HBRUSH Window::getBackgroundBrush() const {
-    return m_BackgroundBrush;
-  }
 
   int Window::init(HINSTANCE hInstance) {
     m_Instance = hInstance;
-
-    m_BackgroundBrush = CreateSolidBrush(Win32Utilities::getColorRef(m_BackgroundColor));
-
+    m_BackgroundBrush = CreateSolidBrush(Win32Utilities::getColorRef({ 30, 30, 30 }));
     m_Icon = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
 
@@ -129,20 +182,14 @@ namespace fz {
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));
 
-    // Calculate required coordinate for centered window position
-    if (m_PositionX == FZUI_DONTCARE && m_PositionY == FZUI_DONTCARE) {
-      m_PositionX = GetSystemMetrics(SM_CXSCREEN) / 2 - m_Width / 2;
-      m_PositionY = GetSystemMetrics(SM_CYSCREEN) / 2 - m_Height / 2;
-    }
-
-    cs.x = m_PositionX; // Window X position
-    cs.y = m_PositionY; // Window Y position
+    cs.x = CW_USEDEFAULT; // Window X position
+    cs.y = CW_USEDEFAULT; // Window Y position
     cs.cx = m_Width;  // Window width
-    cs.cy = m_Height + (m_Parent == nullptr ? 2 : 0);  // Window height
+    cs.cy = m_Height;  // Window height
     cs.hInstance = m_Instance; // Window instance.
-    cs.lpszClass = wcex.lpszClassName;    // Window class name
-    cs.lpszName = m_Name.c_str();  // Window title
-    cs.style = m_Parent == nullptr ? WS_OVERLAPPEDWINDOW : WS_VISIBLE | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; // Window style
+    cs.lpszClass = wcex.lpszClassName; // Window class name
+    cs.lpszName = m_Name.c_str(); // Window title
+    cs.style = WS_OVERLAPPEDWINDOW; // Window style
     cs.dwExStyle = 0;
     cs.hMenu = NULL;
     cs.lpCreateParams = this;
@@ -157,7 +204,7 @@ namespace fz {
       cs.y,
       cs.cx,
       cs.cy,
-      m_Parent == nullptr ? NULL : m_Parent->getWindowHandle(),
+      NULL,
       cs.hMenu,
       cs.hInstance,
       this);
@@ -165,192 +212,82 @@ namespace fz {
     // Validate window.
     if (!m_Handle) { return 0; }
 
-    // Initialize all sub-windows
-    for (auto child : m_SubWindows) {
-      child->init(m_Instance);
-    }
+    createGraphicsContext();
 
     return 1;
   }
 
+  void Window::createGraphicsContext() {
+    HDC hdc = GetDC(m_Handle);
+
+    PIXELFORMATDESCRIPTOR pfd;
+    memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
+
+    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    pfd.cDepthBits = 32;
+    pfd.cStencilBits = 8;
+
+    int pixelFormat = ChoosePixelFormat(hdc, &pfd);
+    SetPixelFormat(hdc, pixelFormat, &pfd);
+
+    // Set OpenGL rendering context
+    HGLRC tempRC = wglCreateContext(hdc);
+    wglMakeCurrent(hdc, tempRC);
+
+    PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
+    wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+
+    // OpenGL version information
+    const int attribList[] = {
+      WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+      WGL_CONTEXT_MINOR_VERSION_ARB, 6,
+      WGL_CONTEXT_FLAGS_ARB, 0,
+      WGL_CONTEXT_PROFILE_MASK_ARB,
+      WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
+    };
+
+    HGLRC hglrc = wglCreateContextAttribsARB(hdc, 0, attribList);
+    wglMakeCurrent(NULL, NULL);
+    wglDeleteContext(tempRC);
+    wglMakeCurrent(hdc, hglrc);
+
+    if (!gladLoadGL())
+    {
+      printf("Could not initialize GLAD \n");
+    }
+    else {
+      printf("OpenGL version: %i.%i\n", GLVersion.major, GLVersion.minor);
+    }
+
+    PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+    bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0;
+    //https://www.khronos.org/opengl/wiki/Swap_Interval
+    int vsync = 0;
+
+    if (swapControlSupported) {
+    PFNWGLSWAPINTERVALEXTPROC wglSwapInternalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+    PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+
+    if (wglSwapInternalEXT(1)) {
+      printf("VSync enabled \n");
+    }
+    else {
+      printf("Could not enable VSynch");
+    }
+    }
+    else {
+      printf("WGL_EXT_swap_control not supported \n");
+    }
+  }
+
   void Window::onCreate(HWND hWnd) {
-    m_Handle = hWnd;
-
-    // Create all the UI elements
-    for (auto& it : m_UiElements) {
-      CREATESTRUCT cs = it.second->getCreateStruct();
-
-      HWND elementHandle = CreateWindowEx(
-        cs.dwExStyle,
-        cs.lpszClass,
-        cs.lpszName,  // Styles 
-        cs.style,
-        cs.x,
-        cs.y,
-        cs.cx,
-        cs.cy,
-        m_Handle,
-        (HMENU)(size_t)it.first,
-        m_Instance, 
-        cs.lpCreateParams);
-
-      it.second->m_Handle = elementHandle;
-
-      std::cout << "ID: " << it.first << std::endl;
-      m_UiHandles.insert({ it.first, elementHandle });
-
-      // Button specific
-      if (cs.style & BS_OWNERDRAW) {
-        std::cout << it.second->getTypeString() << std::endl;
-        SetWindowLongPtr(elementHandle, GWLP_USERDATA, false); // hover
-        SetWindowSubclass(elementHandle, (SUBCLASSPROC)TrackerProc, it.first, (DWORD_PTR)m_Handle);
-      }
-
-      // Set control font
-      // TODO: Investigate usage of LPARAM as opposed to WPARAM
-      SendMessage(elementHandle, WM_SETFONT, (LPARAM)it.second->getFont(), TRUE);
-    }
   }
 
-  void Window::addMenuItem(Win32MenuItem* menuItem) {
-    SIZE buttonSize = Win32Utilities::calcReqButtonSize(menuItem->getText(), 8, 8, FontManager::getInstance().getFont("Segoe UI", 16, FW_NORMAL), m_MenuHandle);
-
-    if (m_MenuHandle == NULL) {
-      WNDCLASSEX wcex;
-      ZeroMemory(&wcex, sizeof(wcex));
-
-      wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
-      wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
-      wcex.lpszClassName = L"FZUI.MenuBar"; // Window class name
-      wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);  // Window background brush color.
-      wcex.hCursor = LoadCursor(NULL, IDC_ARROW);    // Window cursor
-      wcex.lpfnWndProc = MenuProc;    // Window procedure associated to this window class.
-      wcex.hInstance = m_Instance; // The application instance.
-      wcex.hIcon = NULL;      // Application icon.
-      wcex.hIconSm = NULL; // Application small icon.
-
-      // Register window and ensure registration success.
-      if (!RegisterClassEx(&wcex)) {
-        std::cout << "ERROR: Could not create child window!" << std::endl;
-      }
-
-      // Setup window initialization attributes
-      CREATESTRUCT cs;
-      ZeroMemory(&cs, sizeof(cs));
-
-      // Calculate required coordinate for centered window position
-      cs.x = 35; // Window X position
-      cs.y = m_WindowInfo.titleBarHeight / 2 - UiStyle::defaultMenuHeight / 2; // Window Y position
-      cs.cx = buttonSize.cx;  // Window width
-      cs.cy = UiStyle::defaultMenuHeight;  // Window height
-      cs.hwndParent = m_Handle;
-      cs.hInstance = m_Instance; // Window instance.
-      cs.lpszClass = wcex.lpszClassName;    // Window class name
-      cs.lpszName = L"";  // Window title
-      cs.style = WS_VISIBLE | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;   // Window style
-      cs.dwExStyle = 0;
-      cs.hMenu = NULL;
-      cs.lpCreateParams = this;
-
-      // Create the window
-      m_MenuHandle = CreateWindowEx(
-        cs.dwExStyle,
-        cs.lpszClass,
-        cs.lpszName,
-        cs.style,
-        cs.x,
-        cs.y,
-        0,
-        cs.cy,
-        cs.hwndParent,
-        cs.hMenu,
-        cs.hInstance,
-        this);
-
-      // Validate window.
-      if (!m_MenuHandle) { std::cout << "ERROR: Could not validate child window!" << std::endl; }
-    }
-
-    // Resize menubar accordingly
-    RECT rc;
-    GetWindowRect(m_MenuHandle, &rc);
-    int width = rc.right - rc.left;
-    int height = rc.bottom - rc.top;
-
-    SetWindowPos(m_MenuHandle, 0, 0, 0, width + buttonSize.cx, height, SWP_NOMOVE | SWP_NOZORDER);
-
-    // New menu item pointer
-    //Win32Button itemButton = Win32Button(menuItem->getText().c_str(), width, 0, buttonSize.cx, UiStyle::defaultMenuHeight, m_MenuHandle);
-    CREATESTRUCT cs = menuItem->getCreateStruct();
-
-    HWND itemHandle = CreateWindowEx(
-      cs.dwExStyle,
-      cs.lpszClass,
-      cs.lpszName,  // Styles 
-      cs.style,
-      width,
-      0,
-      buttonSize.cx,
-      UiStyle::defaultMenuHeight,
-      m_MenuHandle,
-      (HMENU)(size_t)m_LastID,
-      m_Instance, 
-      cs.lpCreateParams);
-
-    std::cout << m_LastID << std::endl;
-    m_UiHandles.insert({ m_LastID, itemHandle });
-    m_LastID++;
-
-    // Button specific
-    if (cs.style & BS_OWNERDRAW) {
-      SetWindowLongPtr(itemHandle, GWLP_USERDATA, false); // hover
-      SetWindowSubclass(itemHandle, (SUBCLASSPROC)TrackerProc, m_LastID - 1, (DWORD_PTR)m_Handle);
-    }
-
-    // Set control font
-    // TODO: Investigate usage of LPARAM as opposed to WPARAM
-    SendMessage(itemHandle, WM_SETFONT, (LPARAM)FontManager::getInstance().getFont("Segoe UI", 16, FW_NORMAL), TRUE);
-  }
-
-  void Window::addSubWindow(Window* subWindow) {
-    subWindow->m_Parent = this;
-    m_SubWindows.push_back(subWindow);
-  }
-
-  bool Window::hasParent() const {
-    return m_Parent != nullptr;
-  }
-
-  LRESULT Window::TrackerProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubClass, DWORD_PTR dwRefData) {
-    static bool isHovered = false;
-
-    if (message == WM_MOUSEMOVE) { // Mouse is over the button
-      if (!(bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
-        TRACKMOUSEEVENT ev = {};
-        ev.cbSize = sizeof(TRACKMOUSEEVENT);
-        ev.dwFlags = TME_HOVER | TME_LEAVE;
-        ev.hwndTrack = hWnd;
-        ev.dwHoverTime = 1;
-        TrackMouseEvent(&ev);
-
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
-      }
-    }
-    else if (message == WM_MOUSEHOVER) {
-      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)true); // hover flag
-      InvalidateRect(hWnd, NULL, false);
-    }
-    else if (message == WM_MOUSELEAVE) { // Mouse left the control area
-      if ((bool)GetWindowLongPtr(hWnd, GWLP_USERDATA)) {
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)false); // hover flag
-        InvalidateRect(hWnd, NULL, false);
-      }
-    }
-    else if (message == WM_ERASEBKGND) {
-      return 1;
-    }
-
-    return DefSubclassProc(hWnd, message, wParam, lParam);
+  void Window::onRender() {
   }
 
   // Hit test the frame for resizing and moving.
@@ -371,39 +308,36 @@ namespace fz {
     // Determine if the point is at the top or bottom of the window.
     if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 29)
     {
-        fOnResizeBorder = (ptMouse.y <= rcWindow.top + 8);
-        uRow = 0;
+      fOnResizeBorder = (ptMouse.y <= rcWindow.top + 8);
+      uRow = 0;
     }
     else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom)
     {
-        uRow = 2;
+      uRow = 2;
     }
 
     // Determine if the point is at the left or right of the window.
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.left + 10)
     {
-        uCol = 0; // left side
+      uCol = 0; // left side
     }
     else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right)
     {
-        uCol = 2; // right side
+      uCol = 2; // right side
     }
 
     // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
     LRESULT hitTests[3][3] = 
     {
-        { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
-        { HTLEFT,       HTNOWHERE,     HTRIGHT },
-        { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
+      { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
+      { HTLEFT,       HTNOWHERE,     HTRIGHT },
+      { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
     };
 
     return hitTests[uRow][uCol];
 }
 
   LRESULT Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    static HBRUSH btnDefBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkButtonDefaultColor));
-    static HBRUSH btnHovBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkButtonHoverColor));
-
     LRESULT result = 0;
     Window* window = nullptr;
     window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
@@ -418,25 +352,18 @@ namespace fz {
 
       window->onCreate(hWnd);
 
-      //SetClassLongPtr(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)window->getBackgroundBrush());
+      RECT rcClient;
+      GetWindowRect(hWnd, &rcClient);
 
-      if (!window->hasParent()) {
-        RECT rcClient;
-        GetWindowRect(hWnd, &rcClient);
+      // Inform the application of the frame change
+      SetWindowPos(hWnd, 
+                   NULL, 
+                   rcClient.left, rcClient.top,
+                   rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
+                   SWP_FRAMECHANGED);
 
-        // Inform the application of the frame change
-        SetWindowPos(hWnd, 
-                     NULL, 
-                     rcClient.left, rcClient.top,
-                     rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
-                     SWP_FRAMECHANGED);
-
-        ShowWindow(hWnd, SW_SHOWDEFAULT);
-        UpdateWindow(hWnd);
-      }
-      else {
-        SetWindowPos(hWnd, NULL, window->m_PositionX, window->m_PositionY, window->m_Width, window->m_Height, SWP_NOZORDER | SWP_NOREDRAW);
-      }
+      ShowWindow(hWnd, SW_SHOWDEFAULT);
+      UpdateWindow(hWnd);
     }
     else {
       bool wasHandled = false;
@@ -450,7 +377,7 @@ namespace fz {
         }
         case WM_NCCALCSIZE:
         {
-          if (wParam == TRUE && !window->hasParent()) {
+          if (wParam == TRUE) {
             // ------ Hack to remove the title bar (non-client) area ------
             // In order to hide the standard title bar we must change
             // the NCCALCSIZE_PARAMS, which dictates the title bar area.
@@ -468,7 +395,7 @@ namespace fz {
             int top = instance.getWindowsVersionString() == "Windows 11" ? 1 : 0;
 
             LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
-              ncParams->rgrc[0].top += 1;
+              ncParams->rgrc[0].top += top;
               ncParams->rgrc[0].left += 0;
               ncParams->rgrc[0].bottom -= 0;
               ncParams->rgrc[0].right -= 0;
@@ -477,272 +404,6 @@ namespace fz {
             wasHandled = true;
             result = 0;
           }
-
-          break;
-        }
-        case WM_COMMAND:
-        {
-          switch (HIWORD(wParam)) {
-            case BN_CLICKED:
-            {
-              int id = LOWORD(wParam);
-              window->getUiElement(id)->onClick();
-
-              break;
-            }
-          }
-
-          break;
-        }
-        case WM_CTLCOLORBTN:
-        {
-          return (INT_PTR)window->getBackgroundBrush();
-          break;
-        }
-        case WM_DRAWITEM:
-        {
-          LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
-
-          // Button Owner Drawing
-          std::string typeString = ((Win32UiElement*)window->getUiElement(pDIS->CtlID))->getTypeString();
-
-          if (pDIS->CtlType == ODT_BUTTON) {
-            if (typeString == "Win32Button") {
-              Win32Button* button = (Win32Button*)window->getUiElement(pDIS->CtlID);
-
-              bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
-              bool hasBorder = button->getBorderThickness() > 0;
-
-              // Border pen
-              HPEN borderPen = NULL;
-              HGDIOBJ oldPen = NULL;
-
-              if (hasBorder) {
-                borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getBorderColor()));
-              }
-              else {
-                borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(button->getDefaultColor()));
-              }
-
-              oldPen = SelectObject(pDIS->hDC, borderPen);
-
-              HBRUSH buttonBrush;
-              HGDIOBJ oldBrush;
-
-              if (hovering) {
-                buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getHoverColor()));
-              }
-              else {
-                buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(button->getDefaultColor()));
-              }
-
-              oldBrush = SelectObject(pDIS->hDC, buttonBrush);
-
-              // Rounded button
-              int borderDim = button->getBorderRadius() * 2; // width of ellipse
-              RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top,
-                  pDIS->rcItem.right, pDIS->rcItem.bottom, borderDim, borderDim);
-
-              // Calculate button dimensions
-              int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-              int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-              WCHAR staticText[128];
-              int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-              HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-              SIZE buttonDim;
-              HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-              GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-              SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-              SetBkMode(pDIS->hDC, TRANSPARENT);
-              TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-              // Cleanup
-              SelectObject(pDIS->hDC, oldBrush);
-              DeleteObject(buttonBrush);
-
-              if (oldPen != NULL && borderPen != NULL) {
-                SelectObject(pDIS->hDC, oldPen);
-                DeleteObject(borderPen);
-              }
-            }
-            else if (typeString == "Win32IconButton") {
-              Win32IconButton* button = (Win32IconButton*)window->getUiElement(pDIS->CtlID);
-
-              // Retrieve icon info
-              HICON icon = button->getIcon();
-
-              // Draw the icon into a temporary device context
-              HDC hdcImage = CreateCompatibleDC(pDIS->hDC);
-              HBITMAP bmp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
-              HBITMAP old = (HBITMAP)SelectObject(hdcImage, bmp);
-              
-              HDC hdcInvImage = CreateCompatibleDC(pDIS->hDC);
-              HBITMAP bmp2 = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
-              HBITMAP old2 = (HBITMAP)SelectObject(hdcInvImage, bmp2);
-
-              HDC hdcMask = CreateCompatibleDC(pDIS->hDC);
-              HBITMAP bmpMask = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
-              HBITMAP oldMask = (HBITMAP)SelectObject(hdcMask, bmpMask);
-              
-              HDC hdcTemp = CreateCompatibleDC(pDIS->hDC);
-              HBITMAP bmpTemp = CreateCompatibleBitmap(pDIS->hDC, button->getWidth(), button->getHeight());
-              HBITMAP oldTemp = (HBITMAP)SelectObject(hdcTemp, bmpTemp);
-
-              HBRUSH iconColor = NULL;
-              bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
-
-              if (hovering) {
-                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255 - 255, 255 - 0, 255 - 0 }));
-              }
-              else {
-                iconColor = CreateSolidBrush(Win32Utilities::getColorRef({ 255 - 255, 255 - 0, 255 - 0 }));
-              }
-
-              // Compute inverse color
-              window->m_BackgroundColor = { 51, 51, 51 };
-              uint8_t invR = 255 - window->m_BackgroundColor.r;
-              uint8_t invG = 255 - window->m_BackgroundColor.g;
-              uint8_t invB = 255 - window->m_BackgroundColor.b;
-
-              HBRUSH iconBackground = CreateSolidBrush(Win32Utilities::getColorRef({ invR, invG, invB }));
-              HBRUSH whiteBrush = CreateSolidBrush(Win32Utilities::getColorRef({ 255, 255, 255 }));
-
-              // Firstly we must blend the desired color with the icon image.
-              // This is done through the use of per-pixel color multiplication.
-
-              // Inverted icon (black on white)
-              FillRect(hdcTemp, &pDIS->rcItem, iconBackground);
-              DrawIconEx(hdcMask, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_MASK);
-              BitBlt(hdcMask, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCPAINT);
-              BitBlt(hdcMask, 0, 0, button->getWidth(), button->getHeight(), hdcMask, 0, 0, NOTSRCCOPY);
-
-
-              FillRect(hdcTemp, &pDIS->rcItem, iconColor);
-              //FillRect(hdcImage, &pDIS->rcItem, iconBackground);
-              BitBlt(hdcImage, 0, 0, button->getWidth(), button->getHeight(), hdcMask, 0, 0, SRCCOPY);
-              DrawIconEx(hdcImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_NORMAL);
-
-              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcImage, 0, 0, NOTSRCCOPY);
-
-              BLENDFUNCTION blendFunc;
-              blendFunc.BlendOp = AC_SRC_OVER;
-              blendFunc.BlendFlags = 0;
-              blendFunc.SourceConstantAlpha = 255;
-              blendFunc.AlphaFormat = AC_SRC_ALPHA;
-
-              AlphaBlend(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, button->getWidth(), button->getHeight(), blendFunc);
-              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), pDIS->hDC, 0, 0, NOTSRCCOPY);
-
-              //FillRect(hdcInvImage, &pDIS->rcItem, iconBackground);
-              FillRect(hdcTemp, &pDIS->rcItem, iconBackground);
-              DrawIconEx(hdcInvImage, 0, 0, icon, button->getWidth(), button->getHeight(), 0, NULL, DI_MASK);
-              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, NOTSRCCOPY);
-              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcTemp, 0, 0, SRCPAINT);
-              BitBlt(hdcInvImage, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, NOTSRCCOPY);
-
-              BitBlt(pDIS->hDC, 0, 0, button->getWidth(), button->getHeight(), hdcInvImage, 0, 0, SRCPAINT);
-
-              // Cleanup
-              DeleteObject(bmp);  // kill the bitmap we created
-              DeleteObject(old);
-              DeleteDC(hdcImage);  // kill the DC we created
-
-              DeleteObject(bmp2);  // kill the bitmap we created
-              DeleteObject(old2);
-              DeleteDC(hdcInvImage);  // kill the DC we created
-
-              DeleteObject(bmpMask);  // kill the bitmap we created
-              DeleteObject(oldMask);
-              DeleteDC(hdcMask);  // kill the DC we created
-              
-              DeleteObject(bmpTemp);  // kill the bitmap we created
-              DeleteObject(oldTemp);
-              DeleteDC(hdcTemp);  // kill the DC we created
-
-              DeleteObject(iconColor);
-              DeleteObject(iconBackground);
-              DeleteObject(whiteBrush);
-            }
-          }
-          else {
-            // Calculate button dimensions
-            int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-            int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-            WCHAR staticText[128];
-            int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-            HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-            SIZE buttonDim;
-            HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-            GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-            SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-            SetBkMode(pDIS->hDC, TRANSPARENT);
-            TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-          }
-
-          wasHandled = true;
-          result = TRUE;
-          break;
-        }
-        case WM_PAINT:
-        {
-          if (!window->hasParent()) { // check if window is top most
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-
-
-            RECT rcClient;
-            GetClientRect(hWnd, &rcClient);
-
-            int width = rcClient.right - rcClient.left;
-            int height = rcClient.bottom - rcClient.top;
-
-            rcClient.bottom += window->getWindowInfo().titleBarHeight - height;
-
-            // ------ Caption area ------
-            HBRUSH captionBrush = CreateSolidBrush(Win32Utilities::getColorRef(UiStyle::darkCaptionColor));
-            HGDIOBJ oldBrush = SelectObject(hdc, captionBrush);
-            FillRect(hdc, &rcClient, captionBrush);
-
-            // Application icon
-            HICON appIcon = (HICON)LoadImage(NULL, L"assets/icons/fzcoach16x16.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
-            DrawIconEx(hdc, 9, 6, appIcon, 16, 16, 0, NULL, DI_NORMAL);
-
-            // Application title
-            HFONT buttonFont = FontManager::getInstance().getFont("Segoe UI", 17, FW_NORMAL);
-
-            HFONT oldFont = (HFONT)SelectObject(hdc, buttonFont);
-            SIZE titleDim;
-            GetTextExtentPoint32(hdc, L"Forza Coach", 11, &titleDim);
-            int titleX = width / 2 - titleDim.cx / 2;
-
-            SetTextColor(hdc, RGB(204, 204, 204));
-            SetBkMode(hdc, TRANSPARENT);
-            TextOut(hdc, titleX, 29 / 2 - titleDim.cy / 2, L"Forza Coach", 11);
-
-            EndPaint(hWnd, &ps);
-
-            // Cleanup
-            SelectObject(hdc, oldBrush);
-            DeleteObject(captionBrush);
-            DestroyIcon(appIcon);
-          }
-
-          break;
-        }
-        case WM_SIZING:
-        {
-          RECT rc;
-          GetClientRect(hWnd, &rc);
-
-          window->m_Width = rc.right - rc.left;
-          window->m_Height = rc.bottom - rc.top;
-          window->m_OnResize();
 
           break;
         }
@@ -764,85 +425,5 @@ namespace fz {
     }
 
     return result;
-  }
-
-  LRESULT Window::MenuProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    if (message == WM_DRAWITEM) {
-      LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
-
-      // Button Owner Drawing
-      if (pDIS->CtlType == ODT_BUTTON) {
-        //Win32Button* button = (Win32Button*)window->getUiElement(pDIS->CtlID);
-        bool hovering = (bool)GetWindowLongPtr(pDIS->hwndItem, GWLP_USERDATA);
-        bool hasBorder = false;
-
-        Color buttonColor = hovering ? UiStyle::darkButtonHoverColor : UiStyle::darkCaptionColor;
-
-        // Border pen
-        HPEN borderPen = NULL;
-        HGDIOBJ oldPen = NULL;
-
-        borderPen = CreatePen(PS_INSIDEFRAME, 1, Win32Utilities::getColorRef(buttonColor));
-        oldPen = SelectObject(pDIS->hDC, borderPen);
-
-        HBRUSH buttonBrush;
-        HGDIOBJ oldBrush;
-
-        buttonBrush = CreateSolidBrush(Win32Utilities::getColorRef(buttonColor));
-
-        oldBrush = SelectObject(pDIS->hDC, buttonBrush);
-
-        // Rounded button
-        int borderDim = 0; // width of ellipse
-        RoundRect(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top,
-            pDIS->rcItem.right, pDIS->rcItem.bottom, borderDim, borderDim);
-
-        // Calculate button dimensions
-        int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-        int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-        WCHAR staticText[128];
-        int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-        HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-        SIZE buttonDim;
-        HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-        GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-        SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-        SetBkMode(pDIS->hDC, TRANSPARENT);
-        TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-
-        //Clean up
-        SelectObject(pDIS->hDC, oldBrush);
-        DeleteObject(buttonBrush);
-
-        if (oldPen != NULL && borderPen != NULL) {
-          SelectObject(pDIS->hDC, oldPen);
-          DeleteObject(borderPen);
-        }
-      }
-      else {
-        // Calculate button dimensions
-        int buttonWidth = pDIS->rcItem.right - pDIS->rcItem.left;
-        int buttonHeight = pDIS->rcItem.bottom - pDIS->rcItem.top;
-
-        WCHAR staticText[128];
-        int len = SendMessage(pDIS->hwndItem, WM_GETTEXT, ARRAYSIZE(staticText), (LPARAM)staticText);
-        HFONT buttonFont = (HFONT)SendMessage(pDIS->hwndItem, WM_GETFONT, 0, 0);
-
-        SIZE buttonDim;
-        HFONT oldFont = (HFONT)SelectObject(pDIS->hDC, buttonFont);
-        GetTextExtentPoint32(pDIS->hDC, staticText, len, &buttonDim);
-
-        SetTextColor(pDIS->hDC, RGB(255, 255, 255));
-        SetBkMode(pDIS->hDC, TRANSPARENT);
-        TextOut(pDIS->hDC, buttonWidth / 2 - buttonDim.cx / 2, buttonHeight / 2 - buttonDim.cy / 2, staticText, len);
-      }
-
-      return TRUE;
-    }
-
-    return DefWindowProc(hWnd, message, wParam, lParam);
   }
 }

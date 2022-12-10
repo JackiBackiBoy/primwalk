@@ -30,7 +30,7 @@ if (WIN32)
 endif()
 
 # Retrieve all source and header files
-file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp ${SOURCE_DIR}/*.c)
 file(GLOB_RECURSE HEADER_FILES ${SOURCE_DIR}/*.hpp)
 
 find_package(OpenGL REQUIRED)
