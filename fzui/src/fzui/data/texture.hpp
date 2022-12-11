@@ -13,5 +13,10 @@ namespace fz {
     public:
       Texture(const std::string& path);
       ~Texture() {};
+
+      void bind() const;
+
+    private:
+      unsigned int m_ID;
   };
 }

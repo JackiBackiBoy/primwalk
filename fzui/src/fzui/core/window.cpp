@@ -10,7 +10,10 @@
 #include "fzui/win32/win32Utilities.hpp"
 #include "fzui/rendering/vertexArray.hpp"
 #include "fzui/rendering/vertexBuffer.hpp"
+#include "fzui/rendering/indexBuffer.hpp"
 #include "fzui/rendering/bufferLayout.hpp"
+#include "fzui/data/shader.hpp"
+#include "fzui/data/texture.hpp"
 
 // Windows
 #include <uxtheme.h>
@@ -20,6 +23,7 @@
 
 // Vendor
 #include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB 0X2092
@@ -58,52 +62,40 @@ namespace fz {
 
     // Testing
     std::vector<float> vertices = {
-      -0.5f, -0.5f, 0.0f,
-       0.5f, -0.5f, 0.0f,
-       0.0f,  0.5f, 0.0f
+      // positions         tex-coords
+      -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
+       0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+       0.5f,  0.5f, 0.0f,  1.0f, 1.0f,
+      -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
+    };
+
+    std::vector<unsigned int> indices = {
+      0, 1, 2, 0, 2, 3
+    };
+
+    float texCoords[] = {
+      0.0f, 0.0f,  // lower-left corner  
+      1.0f, 0.0f,  // lower-right corner
+      0.5f, 1.0f   // top-center corner
     };
 
     BufferLayout bufferLayout;
     bufferLayout.addAttribute<float>("Position", 3);
+    bufferLayout.addAttribute<float>("TexCoord", 2);
 
     VertexBuffer vertexBuffer(vertices, GL_STATIC_DRAW);
-    VertexArray vertexArray(bufferLayout, vertexBuffer);
+    IndexBuffer indexBuffer(indices, GL_STATIC_DRAW);
+    VertexArray vertexArray(bufferLayout, vertexBuffer, indexBuffer);
 
-    const char *vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
+    // Shaders
+    Shader shader;
+    shader.loadShader(ShaderType::Vertex, "assets/shaders/uiShader.vert");
+    shader.loadShader(ShaderType::Fragment, "assets/shaders/uiShader.frag");
+    shader.compileShaders();
+    shader.bind();
 
-    const char *fragmentShaderSource = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\0";
-
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    unsigned int shaderProgram;
-    shaderProgram = glCreateProgram();
-
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    glUseProgram(shaderProgram);
+    Texture tex("assets/textures/fzcoach.png");
+    glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
 
     MSG msg;
     while(true) {
@@ -120,6 +112,7 @@ namespace fz {
       float dt = std::chrono::duration<float, std::chrono::seconds::period>(
           newTime - currentTime).count();
       currentTime = newTime;
+      //std::cout << "Frame time: " << dt << std::endl;
 
       // Calculate new window dimensions if resized
       RECT clientRect;
@@ -127,19 +120,19 @@ namespace fz {
       int clientWidth = clientRect.right - clientRect.left;
       int clientHeight = clientRect.bottom - clientRect.top;
       float aspect = (float)clientWidth / (float)clientHeight;
+      projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
 
       // OnRender
-      static float el = 0.0f;
-      el += dt;
-      float c = (sin(el) + 1.0f) / 2.0f;
+      float c = 0.1f;
       glViewport(0, 0, clientWidth, clientHeight);
       glClearColor(c, c, c, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
 
       onRender();
-      glUseProgram(shaderProgram);
+      shader.bind();
+      tex.bind();
       vertexArray.bind();
-      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, (void*)0);
 
         
       SwapBuffers(hdc);
