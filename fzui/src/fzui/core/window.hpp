@@ -8,6 +8,9 @@
 
 // FZUI
 #include "fzui/core/core.hpp"
+#include "fzui/ui/uiElement.hpp"
+#include "fzui/rendering/renderer2d.hpp"
+#include "fzui/data/shader.hpp"
 
 // Windows
 #include <windows.h>
@@ -25,12 +28,19 @@ namespace fz {
       virtual void onResize() {};
       virtual void onRender();
       virtual void onDestroy() {};
+
     private:
       int init(HINSTANCE hInstance);
       void createGraphicsContext();
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+      // Rendering
+      Renderer2D* m_Renderer2D = nullptr;
+
+      Shader shader;
+      HDC m_HDC = NULL;
+      std::vector<UIElement> m_UIElements;
       int m_Vsync = 0;
       HBRUSH m_BackgroundBrush = NULL;
       std::wstring m_Name = L"";

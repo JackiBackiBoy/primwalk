@@ -61,7 +61,7 @@ target_compile_definitions(${NAME} PRIVATE
   GLM_FORCE_RADIANS
 )
 
-target_include_directories(${NAME} PRIVATE
+target_include_directories(${NAME} PUBLIC
   ${GLAD_INCLUDE_DIR}
   ${GLM_INCLUDE_DIR}
 )

@@ -9,8 +9,11 @@
 #include <glad/glad.h>
 
 namespace fz {
-  Texture::Texture(const std::string& path) {
+  Texture::Texture() {
     stbi_set_flip_vertically_on_load(true);
+  }
+
+  void Texture::loadFromFile(const std::string& path) {
     std::string truePath = BASE_DIR + path;
 
     // Load file from path
@@ -25,7 +28,7 @@ namespace fz {
     }
 
     // Generate texture
-    glGenTextures(1, &m_ID);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_ID);
 
     // Binds texture object as the currently bound texture object
     glBindTexture(GL_TEXTURE_2D, m_ID);
@@ -37,6 +40,7 @@ namespace fz {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // Fill the texture with the pixel data
+    // TODO: Let the pixel format be dynamic in the future
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -45,5 +49,9 @@ namespace fz {
 
   void Texture::bind() const {
     glBindTexture(GL_TEXTURE_2D, m_ID);
+  }
+
+  unsigned int Texture::getID() const {
+    return m_ID;
   }
 }

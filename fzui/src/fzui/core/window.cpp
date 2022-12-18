@@ -12,7 +12,6 @@
 #include "fzui/rendering/vertexBuffer.hpp"
 #include "fzui/rendering/indexBuffer.hpp"
 #include "fzui/rendering/bufferLayout.hpp"
-#include "fzui/data/shader.hpp"
 #include "fzui/data/texture.hpp"
 
 // Windows
@@ -43,59 +42,34 @@ namespace fz {
     m_Name = name;
     m_Width = width;
     m_Height = height;
+    m_UIElements.push_back({});
   }
 
   Window::~Window() {
+    delete m_Renderer2D;
   }
 
   int Window::run(HINSTANCE hInstance) {
     init(hInstance);
 
-    // Shows window
-    ShowWindow(m_Handle, SW_SHOW);
-    UpdateWindow(m_Handle);
-    HDC hdc = GetDC(m_Handle);
+    bool firstPaint = true;
+    //HDC hdc = GetDC(m_Handle);
 
     // Application loop
-    float dt = 0.0f;
+    static float dt = 0.0f;
     auto currentTime = std::chrono::high_resolution_clock::now();
 
-    // Testing
-    std::vector<float> vertices = {
-      // positions         tex-coords
-      -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
-       0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
-       0.5f,  0.5f, 0.0f,  1.0f, 1.0f,
-      -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
-    };
-
-    std::vector<unsigned int> indices = {
-      0, 1, 2, 0, 2, 3
-    };
-
-    float texCoords[] = {
-      0.0f, 0.0f,  // lower-left corner  
-      1.0f, 0.0f,  // lower-right corner
-      0.5f, 1.0f   // top-center corner
-    };
-
-    BufferLayout bufferLayout;
-    bufferLayout.addAttribute<float>("Position", 3);
-    bufferLayout.addAttribute<float>("TexCoord", 2);
-
-    VertexBuffer vertexBuffer(vertices, GL_STATIC_DRAW);
-    IndexBuffer indexBuffer(indices, GL_STATIC_DRAW);
-    VertexArray vertexArray(bufferLayout, vertexBuffer, indexBuffer);
-
     // Shaders
-    Shader shader;
     shader.loadShader(ShaderType::Vertex, "assets/shaders/uiShader.vert");
     shader.loadShader(ShaderType::Fragment, "assets/shaders/uiShader.frag");
     shader.compileShaders();
     shader.bind();
+    auto loc = glGetUniformLocation(shader.getID(), "u_Textures");
+    int samplers[2] = { 0, 1 };
+    glUniform1iv(loc, 2, samplers);
 
-    Texture tex("assets/textures/fzcoach.png");
     glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
+    shader.setUniformMat4("projMat", projMat);
 
     MSG msg;
     while(true) {
@@ -108,34 +82,20 @@ namespace fz {
         DispatchMessage(&msg);
       }
 
+      // TODO: Make frame timing consistent when resizing window
       auto newTime = std::chrono::high_resolution_clock::now();
       float dt = std::chrono::duration<float, std::chrono::seconds::period>(
           newTime - currentTime).count();
       currentTime = newTime;
-      //std::cout << "Frame time: " << dt << std::endl;
 
-      // Calculate new window dimensions if resized
-      RECT clientRect;
-      GetClientRect(m_Handle, &clientRect);
-      int clientWidth = clientRect.right - clientRect.left;
-      int clientHeight = clientRect.bottom - clientRect.top;
-      float aspect = (float)clientWidth / (float)clientHeight;
-      projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
+      onRender();        
 
-      // OnRender
-      float c = 0.1f;
-      glViewport(0, 0, clientWidth, clientHeight);
-      glClearColor(c, c, c, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      onRender();
-      shader.bind();
-      tex.bind();
-      vertexArray.bind();
-      glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, (void*)0);
-
-        
-      SwapBuffers(hdc);
+      if (firstPaint) {
+        // Shows window
+        ShowWindow(m_Handle, SW_SHOW);
+        UpdateWindow(m_Handle);
+        firstPaint = false;
+      }
     }
 
     UnregisterClass(m_Name.c_str(), m_Instance);
@@ -156,7 +116,7 @@ namespace fz {
     ZeroMemory(&wcex, sizeof(wcex));
 
     wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
-    wcex.style = CS_HREDRAW | CS_VREDRAW;   // Window class styles
+    wcex.style = CS_OWNDC;   // Window class styles
     wcex.lpszClassName = m_Name.c_str(); // Window class name
     wcex.hbrBackground = m_BackgroundBrush;  // Window background brush color.
     wcex.hCursor = LoadIcon(NULL, IDC_ARROW);    // Window cursor
@@ -207,11 +167,14 @@ namespace fz {
 
     createGraphicsContext();
 
+    // Create the renderer once OpenGL is loaded
+    m_Renderer2D = new Renderer2D();
+
     return 1;
   }
 
   void Window::createGraphicsContext() {
-    HDC hdc = GetDC(m_Handle);
+    m_HDC = GetDC(m_Handle);
 
     PIXELFORMATDESCRIPTOR pfd;
     memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
@@ -224,12 +187,12 @@ namespace fz {
     pfd.cDepthBits = 32;
     pfd.cStencilBits = 8;
 
-    int pixelFormat = ChoosePixelFormat(hdc, &pfd);
-    SetPixelFormat(hdc, pixelFormat, &pfd);
+    int pixelFormat = ChoosePixelFormat(m_HDC, &pfd);
+    SetPixelFormat(m_HDC, pixelFormat, &pfd);
 
     // Set OpenGL rendering context
-    HGLRC tempRC = wglCreateContext(hdc);
-    wglMakeCurrent(hdc, tempRC);
+    HGLRC tempRC = wglCreateContext(m_HDC);
+    wglMakeCurrent(m_HDC, tempRC);
 
     PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
     wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
@@ -243,10 +206,10 @@ namespace fz {
       WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
     };
 
-    HGLRC hglrc = wglCreateContextAttribsARB(hdc, 0, attribList);
+    HGLRC hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
     wglMakeCurrent(NULL, NULL);
     wglDeleteContext(tempRC);
-    wglMakeCurrent(hdc, hglrc);
+    wglMakeCurrent(m_HDC, hglrc);
 
     if (!gladLoadGL())
     {
@@ -269,7 +232,7 @@ namespace fz {
       printf("VSync enabled \n");
     }
     else {
-      printf("Could not enable VSynch");
+      printf("Could not enable VSync");
     }
     }
     else {
@@ -281,6 +244,28 @@ namespace fz {
   }
 
   void Window::onRender() {
+    // Calculate new window dimensions if resized
+    RECT clientRect;
+    GetClientRect(m_Handle, &clientRect);
+    m_Width = clientRect.right - clientRect.left;
+    m_Height = clientRect.bottom - clientRect.top;
+    float aspect = (float)m_Width / (float)m_Height;
+    glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
+
+    glViewport(0, 0, m_Width, m_Height);
+
+    shader.bind();
+    shader.setUniformMat4("projMat", projMat);
+    
+    m_Renderer2D->begin();
+
+    // Render UI elements
+    for (auto& element : m_UIElements) {
+      element.draw(m_Renderer2D);
+    }
+
+    m_Renderer2D->end();
+    SwapBuffers(m_HDC);
   }
 
   // Hit test the frame for resizing and moving.
@@ -355,13 +340,19 @@ namespace fz {
                    rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
                    SWP_FRAMECHANGED);
 
-      ShowWindow(hWnd, SW_SHOWDEFAULT);
-      UpdateWindow(hWnd);
+      //ShowWindow(hWnd, SW_SHOWDEFAULT);
+      //UpdateWindow(hWnd);
     }
     else {
       bool wasHandled = false;
 
       switch (message) {
+        case WM_ERASEBKGND:
+        {
+          result = 0;
+          wasHandled = true;
+          break;
+        }
         case WM_NCHITTEST:
         {
           result = HitTestNCA(hWnd, wParam, lParam);
@@ -398,6 +389,11 @@ namespace fz {
             result = 0;
           }
 
+          break;
+        }
+        case WM_SIZING:
+        {
+          window->onRender();
           break;
         }
         case WM_DESTROY:
