@@ -1,2 +1,2 @@
 # FZ Coach
-Customizable and cross-platform device input manager with automation capabilities.
+Customizable and cross-platform UI library built in C++ and OpenGL.
