@@ -15,7 +15,6 @@
 
 // FZUI
 #include "fzui/core/window.hpp"
-#include "fzui/ai/auctionBot.hpp"
 #include "fzui/fzui.hpp"
 
 int main() {
@@ -30,37 +29,6 @@ int main() {
 
   // ------ Main Window ------
   fz::Window* fzMain = new fz::Window(L"Forza Coach (Beta)", 720, 360);
-  fz::WindowInfo windowInfo = fz::WindowInfo::DefaultDark;
-  fzMain->setWindowInfo(windowInfo);
-  
-  // ------ Side Bar Window ------
-  fz::Window* fzSideBar = new fz::Window(L"FZUI.SideBar", 47, fzMain->getHeight() - windowInfo.titleBarHeight);
-  fzSideBar->setPosition(0, windowInfo.titleBarHeight);
-  fzSideBar->setBackground({ 51, 51, 51 });
-
-  fz::Win32IconButton* settingsButton = fzSideBar->addElement<fz::Win32IconButton>();
-  settingsButton->setWidth(24);
-  settingsButton->setHeight(24);
-  settingsButton->setPosition(fzSideBar->getWidth() / 2 - settingsButton->getWidth() / 2, fzSideBar->getHeight() - 2 * settingsButton->getHeight());
-  settingsButton->setDefaultColor({ 255, 255, 255 });
-  settingsButton->setHoverColor({ 10, 164, 164 });
-  settingsButton->setIcon(L"assets/icons/settings24x24.ico");
-
-  fzMain->setOnResize([fzSideBar, fzMain, windowInfo, settingsButton]() {
-      fzSideBar->setHeight(fzMain->getHeight() - windowInfo.titleBarHeight);
-      settingsButton->setPosition(settingsButton->getPositionX(), fzSideBar->getHeight() - 2 * settingsButton->getHeight());
-  });
-
-  //fz::Win32Button* settingsButton = fzSideBar->addElement<fz::Win32Button>();
-  //settingsButton->setText(L"SO");
-  //settingsButton->setPosition(0, 0);
-  //settingsButton->setWidth(80);
-  //settingsButton->setHeight(50);
-  //settingsButton->setTextColor({ 255, 255, 255 });
-
-  fzMain->addSubWindow(fzSideBar);
-
-  // TODO: Pass application instead
   HINSTANCE hInstance = GetModuleHandle(0);
   fzMain->run(hInstance);
 

@@ -21,6 +21,19 @@ include_directories(
   ${SOURCE_DIR}
 )
 
+# 2. GLM
+find_path(GLM_INCLUDE_DIR vendor/glm ${CMAKE_HOME_DIRECTORY})
+
+if((NOT GLM_INCLUDE_DIR) OR (NOT EXISTS ${GLM_INCLUDE_DIR}))
+  message(STATUS "Unable to find GLM. Installing it now.")
+  execute_process(COMMAND git submodule update --init -- vendor/glm
+                    WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY})
+  
+  set(GLM_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glm)
+else()
+  set(GLM_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glm)
+endif()
+
 # Settings
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -30,7 +43,7 @@ if (WIN32)
 endif()
 
 # Retrieve all source and header files
-file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp ${SOURCE_DIR}/*.c)
 file(GLOB_RECURSE HEADER_FILES ${SOURCE_DIR}/*.hpp)
 
 find_package(OpenGL REQUIRED)
@@ -44,10 +57,13 @@ set_target_properties(${NAME} PROPERTIES IMPORT_PREFIX "")
 target_compile_features(${NAME} PUBLIC cxx_std_17)
 target_compile_definitions(${NAME} PRIVATE
   FZ_BUILD_LIB
+  BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
+  GLM_FORCE_RADIANS
 )
 
-target_include_directories(${NAME} PRIVATE
+target_include_directories(${NAME} PUBLIC
   ${GLAD_INCLUDE_DIR}
+  ${GLM_INCLUDE_DIR}
 )
 
 target_link_libraries(${NAME} PUBLIC

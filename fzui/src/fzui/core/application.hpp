@@ -7,7 +7,6 @@
 // FZUI
 #include "fzui/core/core.hpp"
 #include "fzui/core/window.hpp"
-#include "fzui/ui/windowInfo.hpp"
 
 namespace fz {
 
@@ -21,10 +20,6 @@ namespace fz {
       Application& operator=(Application&&) = delete;
 
       static Application& Instance();
-
-      Window* addWindow(const std::wstring& title,
-          const WindowInfo& info = WindowInfo::DefaultDark);
-
       void setMainWindow(Window* window);
 
     private:
