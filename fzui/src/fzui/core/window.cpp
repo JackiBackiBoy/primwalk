@@ -42,7 +42,6 @@ namespace fz {
     m_Name = name;
     m_Width = width;
     m_Height = height;
-    m_UIElements.push_back({});
   }
 
   Window::~Window() {
@@ -65,8 +64,8 @@ namespace fz {
     shader.compileShaders();
     shader.bind();
     auto loc = glGetUniformLocation(shader.getID(), "u_Textures");
-    int samplers[2] = { 0, 1 };
-    glUniform1iv(loc, 2, samplers);
+    int samplers[3] = { 0, 1, 2 };
+    glUniform1iv(loc, 3, samplers);
 
     glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
     shader.setUniformMat4("projMat", projMat);
@@ -264,6 +263,13 @@ namespace fz {
       element.draw(m_Renderer2D);
     }
 
+    // Caption bar area
+    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, Color::normalize({ 60, 60, 60 }), 0);
+    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, Color::normalize({ 51, 51, 51 }), 0);
+    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, Color::normalize({ 255, 255, 255 }), 1);
+
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, Color::normalize({ 203, 203, 203 }));
+
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
   }
@@ -272,7 +278,7 @@ namespace fz {
   LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
   {
     // Get the point coordinates for the hit test.
-    POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+    POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
     // Get the window rectangle.
     RECT rcWindow;

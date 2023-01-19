@@ -3,8 +3,8 @@
 
 namespace fz {
   VertexArray::VertexArray(const BufferLayout& layout, const VertexBuffer& vbo,
-      const IndexBuffer& ebo) :
-    m_BufferLayout(layout), m_VBO(vbo), m_EBO(ebo) {
+      const IndexBuffer& ibo) :
+    m_BufferLayout(layout), m_VBO(vbo), m_IBO(ibo) {
       //m_VBO.unbind();
       //unbind();
   };
@@ -22,9 +22,9 @@ namespace fz {
     glCreateVertexArrays(1, &m_ID);
     bind();
 
-    // Create VBO and EBO
+    // Create VBO and IBO
     m_VBO.create();
-    m_EBO.create();
+    m_IBO.create();
 
     std::vector<BufferAttribute> attributes = m_BufferLayout.getAttributes();
     int offset = 0;

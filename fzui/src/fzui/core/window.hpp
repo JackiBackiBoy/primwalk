@@ -40,7 +40,6 @@ namespace fz {
 
       Shader shader;
       HDC m_HDC = NULL;
-      std::vector<UIElement> m_UIElements;
       int m_Vsync = 0;
       HBRUSH m_BackgroundBrush = NULL;
       std::wstring m_Name = L"";
@@ -51,5 +50,6 @@ namespace fz {
       HWND m_MenuHandle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
+      std::vector<UIElement> m_UIElements;
   };
 }

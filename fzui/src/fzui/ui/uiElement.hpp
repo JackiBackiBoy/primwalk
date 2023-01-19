@@ -4,15 +4,18 @@
 #include "fzui/core/core.hpp"
 #include "fzui/rendering/renderer2d.hpp"
 
+// vendor
+#include <glm/glm.hpp>
+
 namespace fz {
   class FZ_API UIElement {
     public:
-      UIElement() {};
+      UIElement(const glm::vec2& pos) : m_Position(pos) {};
       ~UIElement() {};
 
-      virtual void draw(Renderer2D* renderer);
+      virtual void draw(Renderer2D* renderer) = 0;
 
-    private:
-
+    protected:
+      glm::vec2 m_Position;
   };
 }

@@ -17,6 +17,7 @@ namespace fz {
   void IndexBuffer::create() {
     glCreateBuffers(1, &m_ID);
     bind();
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * m_Indices.size(), m_Indices.data(), m_Usage);
+    // TODO: Fix dynamic storage data
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * 1024, nullptr, m_Usage);
   }
 }

@@ -27,6 +27,26 @@ namespace fz {
       std::cout << "ERROR: Could not load texture at: " << truePath << std::endl;
     }
 
+    create(width, height, pixels);
+    stbi_image_free(pixels);
+  }
+
+  void Texture::bind() const {
+    glBindTexture(GL_TEXTURE_2D, m_ID);
+  }
+
+  unsigned int Texture::getID() const {
+    return m_ID;
+  }
+
+  unsigned int Texture::getWidth() const {
+    return m_Width;
+  }
+
+  void Texture::create(const int& width, const int& height, unsigned char* pixels) {
+    m_Width = width;
+    m_Height = height;
+
     // Generate texture
     glCreateTextures(GL_TEXTURE_2D, 1, &m_ID);
 
@@ -43,15 +63,12 @@ namespace fz {
     // TODO: Let the pixel format be dynamic in the future
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glGenerateMipmap(GL_TEXTURE_2D);
-
-    stbi_image_free(pixels);
   }
 
-  void Texture::bind() const {
-    glBindTexture(GL_TEXTURE_2D, m_ID);
-  }
+  Texture* Texture::create(const std::string& path) {
+    Texture* texture = new Texture();
+    texture->loadFromFile(path);
 
-  unsigned int Texture::getID() const {
-    return m_ID;
+    return texture;
   }
 }
