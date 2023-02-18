@@ -29,6 +29,7 @@ int main() {
 
   // ------ Main Window ------
   fz::Window* fzMain = new fz::Window(L"Forza Coach (Beta)", 720, 360);
+
   HINSTANCE hInstance = GetModuleHandle(0);
   fzMain->run(hInstance);
 

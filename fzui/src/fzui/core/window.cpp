@@ -13,6 +13,7 @@
 #include "fzui/rendering/indexBuffer.hpp"
 #include "fzui/rendering/bufferLayout.hpp"
 #include "fzui/data/texture.hpp"
+#include "fzui/ui/uiButton.hpp"
 
 // Windows
 #include <uxtheme.h>
@@ -240,6 +241,9 @@ namespace fz {
   }
 
   void Window::onCreate(HWND hWnd) {
+    UIButton* button = new UIButton("Ok", { 50, 50 }, 100, 50);
+    
+    m_UIElements.push_back(button);
   }
 
   void Window::onRender() {
@@ -259,8 +263,8 @@ namespace fz {
     m_Renderer2D->begin();
 
     // Render UI elements
-    for (auto& element : m_UIElements) {
-      element.draw(m_Renderer2D);
+    for (UIElement* element : m_UIElements) {
+      element->draw(m_Renderer2D);
     }
 
     // Caption bar area

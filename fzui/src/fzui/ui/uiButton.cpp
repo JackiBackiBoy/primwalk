@@ -8,6 +8,9 @@ namespace fz {
   }
 
   void UIButton::draw(Renderer2D* renderer) {
-    //renderer->drawRect(m_Width, m_Height, m_Position, 
+    // Calculate center text position
+
+    renderer->drawRect(m_Width, m_Height, m_Position, { 1.0f, 1.0f, 0.0f }, 0);
+    renderer->drawText(m_Text, m_Position, 15, { 0.0f, 0.0f, 0.0f });
   }
 }

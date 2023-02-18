@@ -50,6 +50,6 @@ namespace fz {
       HWND m_MenuHandle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
-      std::vector<UIElement> m_UIElements;
+      std::vector<UIElement*> m_UIElements;
   };
 }

@@ -93,9 +93,8 @@ namespace fz {
 
     std::sort(points.begin(), points.end(), [center](glm::vec2 u, glm::vec2 v) {
       glm::vec2 uDir = u - center;
-      uDir.y = -uDir.y; // flip sign due to screen space coordinates
-
       glm::vec2 vDir = v - center;
+      uDir.y = -uDir.y; // flip sign due to screen space coordinates
       vDir.y = -vDir.y; // flip sign due to screen space coordinates
 
       // Compute angle between center point and point u
@@ -110,8 +109,7 @@ namespace fz {
         return true;
       }
 
-      // If uAngle is not less than vAngle, we must then sort by lowest distance
-      // if it turns out that the two angles are equal
+      // If uAngle is not less than vAngle, we must then sort by lowest length
       if (uAngle == vAngle && glm::length(uDir) < glm::length(vDir)) {
         return true;
       }
