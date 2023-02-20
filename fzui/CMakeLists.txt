@@ -1,7 +1,15 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# Platform specifics
+if (WIN32)
+  set(PLATFORM "windows")
+elseif(APPLE)
+  set(PLATFORM "macos")
+endif()
+
 set(NAME fzui)
-set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
+set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src/${PLATFORM}) 
+set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include) 
 set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)
 
 # Binary output directories
@@ -19,6 +27,7 @@ project(${NAME})
 
 include_directories(
   ${SOURCE_DIR}
+  ${INCLUDE_DIR}
 )
 
 # 2. GLM
@@ -44,7 +53,7 @@ endif()
 
 # Retrieve all source and header files
 file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp ${SOURCE_DIR}/*.c)
-file(GLOB_RECURSE HEADER_FILES ${SOURCE_DIR}/*.hpp)
+file(GLOB_RECURSE HEADER_FILES ${INCLUDE_DIR}/*.hpp)
 
 find_package(OpenGL REQUIRED)
 
