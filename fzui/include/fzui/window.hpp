@@ -1,8 +1,19 @@
-#ifndef WINDOW_BASE_HEADER
-#define WINDOW_BASE_HEADER
+#ifndef FZ_WINDOW_BASE_HEADER
+#define FZ_WINDOW_BASE_HEADER
 
-#ifdef WIN32
-  #include "fzui/windows/core/window.hpp"
-#endif
+#include "fzui/core.hpp"
 
+// Platform specific implementations
+#include "fzui/windows/core/window_win32.hpp"
+
+
+namespace fz {
+  class FZ_API WindowBase {
+    public:
+      WindowBase() {}
+      virtual ~WindowBase() {}
+  };
+
+  typedef WindowWin32 Window;
+}
 #endif

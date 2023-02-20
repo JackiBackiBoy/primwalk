@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FZ_WIN32_WINDOW_HEADER
+#define FZ_WIN32_WINDOW_HEADER
 
 // std
 #include <functional>
@@ -16,10 +17,10 @@
 #include <windows.h>
 
 namespace fz {
-  class FZ_API Window {
+  class FZ_API WindowWin32 {
     public:
-      Window(const std::wstring& name, const int& width, const int& height, Window* parent = nullptr);
-      ~Window();
+      WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent = nullptr);
+      ~WindowWin32();
 
       int run();
 
@@ -53,3 +54,4 @@ namespace fz {
       std::vector<UIElement*> m_UIElements;
   };
 }
+#endif

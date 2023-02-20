@@ -5,7 +5,7 @@
 #include <cmath>
 
 // FZUI
-#include "fzui/windows/core/window.hpp"
+#include "fzui/windows/core/window_win32.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
 #include "fzui/windows/rendering/vertexArray.hpp"
@@ -37,7 +37,7 @@ typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
 typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
-  Window::Window(const std::wstring& name, const int& width, const int& height, Window* parent) {
+  WindowWin32::WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent) {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
 
@@ -46,11 +46,11 @@ namespace fz {
     m_Height = height;
   }
 
-  Window::~Window() {
+  WindowWin32::~WindowWin32() {
     delete m_Renderer2D;
   }
 
-  int Window::run() {
+  int WindowWin32::run() {
     init();
 
     bool firstPaint = true;
@@ -106,7 +106,7 @@ namespace fz {
 
   // Setters
 
-  int Window::init() {
+  int WindowWin32::init() {
     INITCOMMONCONTROLSEX icc;
 
     // Initialise common controls.
@@ -181,7 +181,7 @@ namespace fz {
     return 1;
   }
 
-  void Window::createGraphicsContext() {
+  void WindowWin32::createGraphicsContext() {
     m_HDC = GetDC(m_Handle);
 
     PIXELFORMATDESCRIPTOR pfd;
@@ -248,13 +248,13 @@ namespace fz {
     }
   }
 
-  void Window::onCreate(HWND hWnd) {
+  void WindowWin32::onCreate(HWND hWnd) {
     UIButton* button = new UIButton("Ok", { 50, 50 }, 100, 50);
     
     m_UIElements.push_back(button);
   }
 
-  void Window::onRender() {
+  void WindowWin32::onRender() {
     // Calculate new window dimensions if resized
     RECT clientRect;
     GetClientRect(m_Handle, &clientRect);
@@ -333,18 +333,18 @@ namespace fz {
     return hitTests[uRow][uCol];
 }
 
-  LRESULT Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+  LRESULT WindowWin32::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
-    Window* window = nullptr;
-    window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    WindowWin32* window = nullptr;
+    window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
     //WindowProperties windowProperties = window->getProperties();
 
     if (message == WM_CREATE) {
       // Set window pointer on create
       CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-      Window* window = reinterpret_cast<Window*>(pCreate->lpCreateParams);
+      WindowWin32* window = reinterpret_cast<WindowWin32*>(pCreate->lpCreateParams);
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
-      window = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+      window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
       window->onCreate(hWnd);
 

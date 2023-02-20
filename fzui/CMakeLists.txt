@@ -8,7 +8,7 @@ elseif(APPLE)
 endif()
 
 set(NAME fzui)
-set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src/${PLATFORM}) 
+set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
 set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include) 
 set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)
 

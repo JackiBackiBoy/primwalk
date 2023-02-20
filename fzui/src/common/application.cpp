@@ -1,4 +1,4 @@
-#include "fzui/windows/core/application.hpp"
+#include "fzui/application.hpp"
 
 namespace fz {
   Application& Application::Instance() {
@@ -6,7 +6,7 @@ namespace fz {
     return instance;
   }
 
-  void Application::setMainWindow(Window* window) {
+  void Application::setMainWindow(WindowWin32* window) {
     m_MainWindow = window;
   }
 }

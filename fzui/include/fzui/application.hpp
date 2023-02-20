@@ -6,7 +6,7 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/windows/core/window.hpp"
+#include "fzui/window.hpp"
 
 namespace fz {
 
@@ -20,13 +20,13 @@ namespace fz {
       Application& operator=(Application&&) = delete;
 
       static Application& Instance();
-      void setMainWindow(Window* window);
+      void setMainWindow(WindowWin32* window);
 
     private:
       Application() {};
       ~Application() {};
 
-      std::unordered_map<std::wstring, Window*> m_Windows;
-      Window* m_MainWindow = nullptr;
+      std::unordered_map<std::wstring, WindowWin32*> m_Windows;
+      WindowWin32* m_MainWindow = nullptr;
   };
 }
