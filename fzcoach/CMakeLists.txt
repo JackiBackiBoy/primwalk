@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# Platform specifics
+if (WIN32)
+  set(PLATFORM "windows")
+  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
+elseif(APPLE)
+  set(PLATFORM "macos")
+endif()
+
 set(NAME fzcoach)
 set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
 set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)

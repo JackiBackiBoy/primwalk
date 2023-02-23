@@ -17,10 +17,10 @@
 #include <windows.h>
 
 namespace fz {
-  class FZ_API WindowWin32 {
+  class FZ_API WindowWin32 : public WindowBase {
     public:
       WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent = nullptr);
-      ~WindowWin32();
+      virtual ~WindowWin32();
 
       int run();
 

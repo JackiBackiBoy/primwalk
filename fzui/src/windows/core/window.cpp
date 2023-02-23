@@ -5,7 +5,7 @@
 #include <cmath>
 
 // FZUI
-#include "fzui/windows/core/window_win32.hpp"
+#include "fzui/window.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
 #include "fzui/windows/rendering/vertexArray.hpp"
@@ -37,7 +37,8 @@ typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
 typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
-  WindowWin32::WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent) {
+  WindowWin32::WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent)
+    : WindowBase() {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
 

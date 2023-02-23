@@ -20,13 +20,13 @@ namespace fz {
       Application& operator=(Application&&) = delete;
 
       static Application& Instance();
-      void setMainWindow(WindowWin32* window);
+      void setMainWindow(Window* window);
 
     private:
       Application() {};
       ~Application() {};
 
-      std::unordered_map<std::wstring, WindowWin32*> m_Windows;
-      WindowWin32* m_MainWindow = nullptr;
+      std::unordered_map<std::wstring, Window*> m_Windows;
+      Window* m_MainWindow = nullptr;
   };
 }

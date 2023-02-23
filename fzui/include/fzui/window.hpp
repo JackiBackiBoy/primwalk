@@ -3,17 +3,23 @@
 
 #include "fzui/core.hpp"
 
-// Platform specific implementations
-#include "fzui/windows/core/window_win32.hpp"
-
-
 namespace fz {
+  class FZ_API WindowBase;
+
   class FZ_API WindowBase {
     public:
       WindowBase() {}
       virtual ~WindowBase() {}
   };
-
-  typedef WindowWin32 Window;
 }
+
+// Platform specific implementation
+#if defined(FZ_WIN32)
+  #include "fzui/windows/core/window_win32.hpp"
+  namespace fz {
+    typedef WindowWin32 Window;
+  }
+#elif defined(FZ_MACOS)
+#endif
+
 #endif

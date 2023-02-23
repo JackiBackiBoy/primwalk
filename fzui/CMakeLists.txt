@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20.0)
 # Platform specifics
 if (WIN32)
   set(PLATFORM "windows")
+  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
 elseif(APPLE)
   set(PLATFORM "macos")
 endif()
@@ -46,10 +47,6 @@ endif()
 # Settings
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-if (WIN32)
-  add_definitions(-DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
-endif()
 
 # Retrieve all source and header files
 file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp ${SOURCE_DIR}/*.c)

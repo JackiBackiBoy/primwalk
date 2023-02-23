@@ -1,3 +1,4 @@
+// FZUI
 #include "fzui/application.hpp"
 
 namespace fz {
@@ -6,7 +7,7 @@ namespace fz {
     return instance;
   }
 
-  void Application::setMainWindow(WindowWin32* window) {
+  void Application::setMainWindow(Window* window) {
     m_MainWindow = window;
   }
 }
