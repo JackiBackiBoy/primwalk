@@ -75,7 +75,7 @@ namespace fz {
 
   // Draw functions
   void Renderer2D::drawRect(const int& width, const int& height,
-                            const glm::vec2& pos, const glm::vec3& color,
+                            const glm::vec2& pos, const Color& color,
                             const unsigned int& texID) {
     drawQuad({ pos.x, pos.y }, { pos.x, pos.y + height },
              { pos.x + width, pos.y + height }, { pos.x + width, pos.y },
@@ -84,7 +84,7 @@ namespace fz {
 
   void Renderer2D::drawQuad(const glm::vec2& a, const glm::vec2& b,
                             const glm::vec2& c, const glm::vec2& d,
-                            const glm::vec3& color, const unsigned int& texID) {
+                            const Color& color, const unsigned int& texID) {
     std::array<glm::vec2, 4> points = { a, b, c, d };
 
     // 1. Estimate center point as the mean of the points
@@ -118,10 +118,10 @@ namespace fz {
     });
 
     // TODO: Use memcpy instead on predefined array size
-    m_Vertices.push_back({ { points[0].x, points[0].y, 0.0f }, { 1.0f, 1.0f }, (float)texID, color });
-    m_Vertices.push_back({ { points[1].x, points[1].y, 0.0f }, { 0.0f, 1.0f }, (float)texID, color });
-    m_Vertices.push_back({ { points[2].x, points[2].y, 0.0f }, { 0.0f, 0.0f }, (float)texID, color });
-    m_Vertices.push_back({ { points[3].x, points[3].y, 0.0f }, { 1.0f, 0.0f }, (float)texID, color });
+    m_Vertices.push_back({ { points[0].x, points[0].y, 0.0f }, { 1.0f, 1.0f }, (float)texID, Color::normalize(color) });
+    m_Vertices.push_back({ { points[1].x, points[1].y, 0.0f }, { 0.0f, 1.0f }, (float)texID, Color::normalize(color) });
+    m_Vertices.push_back({ { points[2].x, points[2].y, 0.0f }, { 0.0f, 0.0f }, (float)texID, Color::normalize(color) });
+    m_Vertices.push_back({ { points[3].x, points[3].y, 0.0f }, { 1.0f, 0.0f }, (float)texID, Color::normalize(color) });
 
     // TODO: Dynamic indices
     unsigned int indexOffset = (m_Indices.size() / 6) * 4;
@@ -134,7 +134,7 @@ namespace fz {
   }
 
   void Renderer2D::drawText(const std::string& text, const glm::vec2& pos,
-                            const float& fontSize, const glm::vec3& color) {
+                            const float& fontSize, const Color& color) {
     // TODO: For now, the fontsize parameter only dictates the height, fix it
     // to use point size (pt) instead
     glm::vec2 cursorPos = pos;
@@ -151,10 +151,10 @@ namespace fz {
         charPos.y = cursorPos.y + fontChar.yOffset * scaling - m_Font->getLowestOffsetY() * scaling;
 
         // TODO: Use memcpy instead on predefined array size
-        m_Vertices.push_back({ { charPos.x + fontChar.sizeX * scaling, charPos.y, 0.0f }, { fontChar.xRightTexCoord, fontChar.yTopTexCoord }, (float)2, color });
-        m_Vertices.push_back({ { charPos.x, charPos.y, 0.0f }, { fontChar.xLeftTexCoord,  fontChar.yTopTexCoord }, (float)2, color });
-        m_Vertices.push_back({ { charPos.x, charPos.y + fontChar.sizeY * scaling, 0.0f }, { fontChar.xLeftTexCoord,  fontChar.yBottomTexCoord }, (float)2, color });
-        m_Vertices.push_back({ { charPos.x + fontChar.sizeX * scaling, charPos.y + fontChar.sizeY * scaling, 0.0f }, { fontChar.xRightTexCoord, fontChar.yBottomTexCoord }, (float)2, color });
+        m_Vertices.push_back({ { charPos.x + fontChar.sizeX * scaling, charPos.y, 0.0f }, { fontChar.xRightTexCoord, fontChar.yTopTexCoord }, (float)2, Color::normalize(color) });
+        m_Vertices.push_back({ { charPos.x, charPos.y, 0.0f }, { fontChar.xLeftTexCoord,  fontChar.yTopTexCoord }, (float)2, Color::normalize(color) });
+        m_Vertices.push_back({ { charPos.x, charPos.y + fontChar.sizeY * scaling, 0.0f }, { fontChar.xLeftTexCoord,  fontChar.yBottomTexCoord }, (float)2, Color::normalize(color) });
+        m_Vertices.push_back({ { charPos.x + fontChar.sizeX * scaling, charPos.y + fontChar.sizeY * scaling, 0.0f }, { fontChar.xRightTexCoord, fontChar.yBottomTexCoord }, (float)2, Color::normalize(color)});
 
         // TODO: Dynamic indices
         unsigned int indexOffset = (m_Indices.size() / 6) * 4;

@@ -14,6 +14,7 @@
 #include "fzui/windows/rendering/bufferLayout.hpp"
 #include "fzui/windows/data/texture.hpp"
 #include "fzui/windows/ui/uiButton.hpp"
+#include "fzui/mouse.hpp"
 
 // Windows
 #include <sdkddkver.h>
@@ -45,6 +46,8 @@ namespace fz {
     m_Name = name;
     m_Width = width;
     m_Height = height;
+
+    init();
   }
 
   WindowWin32::~WindowWin32() {
@@ -52,8 +55,6 @@ namespace fz {
   }
 
   int WindowWin32::run() {
-    init();
-
     bool firstPaint = true;
     //HDC hdc = GetDC(m_Handle);
 
@@ -90,6 +91,7 @@ namespace fz {
           newTime - currentTime).count();
       currentTime = newTime;
 
+      onUpdate();
       onRender();        
 
       if (firstPaint) {
@@ -105,7 +107,10 @@ namespace fz {
     return (int)msg.wParam;
   }
 
-  // Setters
+  // UI
+  void WindowWin32::addElement(UIElement* elem) {
+    m_UIElements.push_back(elem);
+  }
 
   int WindowWin32::init() {
     INITCOMMONCONTROLSEX icc;
@@ -255,6 +260,21 @@ namespace fz {
     m_UIElements.push_back(button);
   }
 
+  void WindowWin32::onUpdate() {
+
+    // Get relative mouse position
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(m_Handle, &p);
+
+    Mouse& mouse = Mouse::Instance();
+    mouse.m_RelativePos = { (float)p.x, (float)p.y };
+
+    for (UIElement* element : m_UIElements) {
+      element->update(0.0f); // TODO: Pass delta time instead
+    }
+  }
+
   void WindowWin32::onRender() {
     // Calculate new window dimensions if resized
     RECT clientRect;
@@ -277,11 +297,15 @@ namespace fz {
     }
 
     // Caption bar area
-    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, Color::normalize({ 60, 60, 60 }), 0);
-    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, Color::normalize({ 51, 51, 51 }), 0);
-    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, Color::normalize({ 255, 255, 255 }), 1);
+    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, { 60, 60, 60 }, 0);
+    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 }, 0);
+    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, 1);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, Color::normalize({ 203, 203, 203 }));
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 203, 203, 203 });
+
+    glm::vec2 mousePos = Mouse::Instance().getRelativePos();
+    std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
+    m_Renderer2D->drawText(s, { 100, 100 }, 15, Color::White);
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
@@ -290,35 +314,35 @@ namespace fz {
   // Hit test the frame for resizing and moving.
   LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
   {
-    // Get the point coordinates for the hit test.
+    // Get the point coordinates for the hit test
     POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
     // Get the window rectangle.
     RECT rcWindow;
     GetWindowRect(hWnd, &rcWindow);
 
-    // Determine if the hit test is for resizing. Default middle (1,1).
+    // Determine if the hit test is for resizing. Default middle (1,1)
     USHORT uRow = 1;
     USHORT uCol = 1;
     bool fOnResizeBorder = false;
 
-    // Determine if the point is at the top or bottom of the window.
+    // Determine if the point is at the top or bottom of the window
     if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 29)
     {
       fOnResizeBorder = (ptMouse.y <= rcWindow.top + 8);
       uRow = 0;
     }
-    else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom)
+    else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom - 10)
     {
       uRow = 2;
     }
 
-    // Determine if the point is at the left or right of the window.
+    // Determine if the point is on the left or right side of the window
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.left + 10)
     {
       uCol = 0; // left side
     }
-    else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right)
+    else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - 10)
     {
       uCol = 2; // right side
     }

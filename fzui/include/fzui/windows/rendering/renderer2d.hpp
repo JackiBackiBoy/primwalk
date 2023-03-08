@@ -14,6 +14,7 @@
 #include "fzui/windows/data/fonts/fontCharacter.hpp"
 #include "fzui/windows/data/fonts/fontFace.hpp"
 #include "fzui/windows/data/texture.hpp"
+#include "fzui/windows/color.hpp"
 
 namespace fz {
   class FZ_API Renderer2D {
@@ -27,13 +28,13 @@ namespace fz {
 
       // Draw functions
       void drawRect(const int& width, const int& height,
-                    const glm::vec2& pos, const glm::vec3& color,
+                    const glm::vec2& pos, const Color& color,
                     const unsigned int& texID);
       void drawQuad(const glm::vec2& a, const glm::vec2& b,
                     const glm::vec2& c, const glm::vec2& d,
-                    const glm::vec3& color, const unsigned int& texID);
+                    const Color& color, const unsigned int& texID);
       void drawText(const std::string& text, const glm::vec2& pos,
-                    const float& fontSize, const glm::vec3& color);
+                    const float& fontSize, const Color& color);
 
     private:
       std::vector<Vertex> m_Vertices;

@@ -16,5 +16,8 @@ namespace fz {
     uint8_t b;
 
     static glm::vec3 normalize(const Color& color);
+
+    // Constants
+    static const Color White;
   };
 }

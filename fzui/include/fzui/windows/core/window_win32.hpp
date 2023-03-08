@@ -27,8 +27,12 @@ namespace fz {
       // Event functions
       virtual void onCreate(HWND hWnd);
       virtual void onResize() {};
-      virtual void onRender();
+      virtual void onUpdate() override;
+      virtual void onRender() override;
       virtual void onDestroy() {};
+
+      // UI
+      virtual void addElement(UIElement* elem);
 
     private:
       int init();

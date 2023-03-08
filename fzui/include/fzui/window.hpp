@@ -10,6 +10,10 @@ namespace fz {
     public:
       WindowBase() {}
       virtual ~WindowBase() {}
+
+      // Event functions
+      virtual void onUpdate() {};
+      virtual void onRender() {};
   };
 }
 
