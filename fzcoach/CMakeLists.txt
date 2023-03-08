@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+# Platform specifics
+if (WIN32)
+  set(PLATFORM "windows")
+  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
+elseif(APPLE)
+  set(PLATFORM "macos")
+endif()
+
 set(NAME fzcoach)
 set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
 set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/include)
@@ -52,7 +60,7 @@ add_executable(${NAME} ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCE_FILE})
 target_compile_features(${NAME} PUBLIC cxx_std_17)
 
 target_include_directories(${NAME} PRIVATE
-  ${CMAKE_HOME_DIRECTORY}/fzui/src
+  ${CMAKE_HOME_DIRECTORY}/fzui/include
   ${GLAD_INCLUDE_DIR}
 )
 
