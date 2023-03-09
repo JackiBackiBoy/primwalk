@@ -39,9 +39,13 @@ namespace fz {
       void createGraphicsContext();
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+      static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
+      Texture m_MinmizeIcon;
+      Texture m_MaximizeIcon;
+      Texture m_CloseIcon;
 
       Shader shader;
       HDC m_HDC = NULL;
@@ -55,6 +59,7 @@ namespace fz {
       HWND m_MenuHandle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
+      bool m_MaximizeButtonDown = false;
       std::vector<UIElement*> m_UIElements;
   };
 }

@@ -68,11 +68,17 @@ namespace fz {
     shader.compileShaders();
     shader.bind();
     auto loc = glGetUniformLocation(shader.getID(), "u_Textures");
-    int samplers[3] = { 0, 1, 2 };
-    glUniform1iv(loc, 3, samplers);
+    int samplers[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    glUniform1iv(loc, 16, samplers);
 
     glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
     shader.setUniformMat4("projMat", projMat);
+
+    // onCreate
+    m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
+    m_MinmizeIcon.loadFromFile("assets/icons/minimize.png");
+    m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
+    m_CloseIcon.loadFromFile("assets/icons/close.png");
 
     MSG msg;
     while(true) {
@@ -92,7 +98,7 @@ namespace fz {
       currentTime = newTime;
 
       onUpdate();
-      onRender();        
+      onRender();
 
       if (firstPaint) {
         // Shows window
@@ -283,7 +289,6 @@ namespace fz {
     m_Height = clientRect.bottom - clientRect.top;
     float aspect = (float)m_Width / (float)m_Height;
     glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
-
     glViewport(0, 0, m_Width, m_Height);
 
     shader.bind();
@@ -296,23 +301,28 @@ namespace fz {
       element->draw(m_Renderer2D);
     }
 
-    // Caption bar area
-    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, { 60, 60, 60 }, 0);
-    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 }, 0);
-    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, 1);
+    // ------ Caption bar area ------
+    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, { 60, 60, 60 });
+    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 });
+    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, &m_WindowIcon);
+
+    // Window minmize, maximize and close buttons
+    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, &m_MinmizeIcon);
+    m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
+    m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
     m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 203, 203, 203 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
-    m_Renderer2D->drawText(s, { 100, 100 }, 15, Color::White);
+    m_Renderer2D->drawText(s, { 100, 100 }, 25, Color::White);
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
   }
 
   // Hit test the frame for resizing and moving.
-  LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
+  LRESULT WindowWin32::HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
   {
     // Get the point coordinates for the hit test
     POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
@@ -345,6 +355,17 @@ namespace fz {
     else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - 10)
     {
       uCol = 2; // right side
+    }
+
+    // Maximize button
+    if (uRow == 0 && ptMouse.x >= rcWindow.right - 60 && ptMouse.x < rcWindow.right - 30) {
+      return HTMAXBUTTON;
+    }
+
+    if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.right &&
+        ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.bottom &&
+        uRow == 1 && uCol == 1) {
+          return HTCLIENT;
     }
 
     // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
@@ -404,39 +425,63 @@ namespace fz {
         }
         case WM_NCCALCSIZE:
         {
-          if (wParam == TRUE) {
-            // ------ Hack to remove the title bar (non-client) area ------
-            // In order to hide the standard title bar we must change
-            // the NCCALCSIZE_PARAMS, which dictates the title bar area.
-            //
-            // In Windows 10 we can set the top component to '0', which
-            // in effect hides the default title bar.
-            // However, for unknown reasons this does not work in
-            // Windows 11, instead we are required to set the top
-            // component to '1' in order to get the same effect.
-            //
-            // Thus, we must first check the Windows version before
-            // altering the NCCALCSIZE_PARAMS structure.
+          const int cxBorder = 1;
+          const int cyBorder = 1;
+          InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
 
-            Win32Utilities& instance = Win32Utilities::Instance();
-            int top = instance.getWindowsVersionString() == "Windows 11" ? 1 : 0;
+          return 0;
+          break;
+        }
+        case WM_NCLBUTTONDOWN:
+        {
+          LRESULT result = 0;
 
-            LPNCCALCSIZE_PARAMS ncParams = (LPNCCALCSIZE_PARAMS) lParam;
-              ncParams->rgrc[0].top += top;
-              ncParams->rgrc[0].left += 0;
-              ncParams->rgrc[0].bottom -= 0;
-              ncParams->rgrc[0].right -= 0;
-              return 0;
-
-            wasHandled = true;
-            result = 0;
+          if (wParam == HTMAXBUTTON) {
+            window->m_MaximizeButtonDown = true;
+            return 0;
           }
+
+          window->m_MaximizeButtonDown = false;
+
+          break;
+        }
+        case WM_NCLBUTTONUP:
+        {
+          LRESULT result = 0;
+          bool down = window->m_MaximizeButtonDown;
+          
+
+          if (wParam == HTMINBUTTON) {
+            ShowWindow(hWnd, SW_MINIMIZE);
+          }
+          else if (wParam == HTMAXBUTTON && window->m_MaximizeButtonDown) {
+            window->m_MaximizeButtonDown = false;
+            WINDOWPLACEMENT wp;
+            GetWindowPlacement(hWnd, &wp);
+            ShowWindow(hWnd, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+          }
+          else if (wParam == HTCLOSE) {
+            SendMessage(hWnd, WM_DESTROY, 0, 0);
+          }
+          else {
+            result = DefWindowProc(hWnd, message, wParam, lParam);
+          }
+
+          return result;
 
           break;
         }
         case WM_SIZING:
         {
           window->onRender();
+          break;
+        }
+        case WM_SETCURSOR:
+        {
+          if (LOWORD(lParam) == HTCLIENT) {
+            SetCursor(LoadCursor(NULL, IDC_ARROW));
+            return TRUE;
+          }
           break;
         }
         case WM_DESTROY:

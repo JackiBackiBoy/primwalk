@@ -12,7 +12,7 @@ int main() {
   fz::Window* fzMain = new fz::Window(L"Forza Coach (Beta)", 720, 360);
 
   // On start
-  fz::UIButton* button = new fz::UIButton("Let's go!", { 400, 30 }, 100, 50);
+  fz::UIButton* button = new fz::UIButton("OpenGL test!", { 400, 30 }, 100, 50);
 
   fzMain->addElement(button);
 

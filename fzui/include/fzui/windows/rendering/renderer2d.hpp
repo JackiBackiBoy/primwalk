@@ -29,16 +29,18 @@ namespace fz {
       // Draw functions
       void drawRect(const int& width, const int& height,
                     const glm::vec2& pos, const Color& color,
-                    const unsigned int& texID);
+                    Texture* texture = nullptr);
       void drawQuad(const glm::vec2& a, const glm::vec2& b,
                     const glm::vec2& c, const glm::vec2& d,
-                    const Color& color, const unsigned int& texID);
+                    const Color& color, Texture* texture = nullptr);
       void drawText(const std::string& text, const glm::vec2& pos,
                     const float& fontSize, const Color& color);
 
     private:
       std::vector<Vertex> m_Vertices;
       std::vector<unsigned int> m_Indices;
+      std::unordered_map<unsigned int, unsigned int> m_TextureUnits;
+      unsigned int m_NumTextures;
       std::unique_ptr<VertexBuffer> m_VBO;
       std::unique_ptr<IndexBuffer> m_IBO;
       std::unique_ptr<VertexArray> m_VAO;

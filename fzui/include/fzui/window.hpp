@@ -2,6 +2,7 @@
 #define FZ_WINDOW_BASE_HEADER
 
 #include "fzui/core.hpp"
+#include "fzui/windows/data/texture.hpp"
 
 namespace fz {
   class FZ_API WindowBase;
@@ -14,6 +15,9 @@ namespace fz {
       // Event functions
       virtual void onUpdate() {};
       virtual void onRender() {};
+
+    protected:
+      Texture m_WindowIcon;
   };
 }
 
