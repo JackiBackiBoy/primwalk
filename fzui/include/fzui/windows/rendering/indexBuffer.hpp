@@ -13,7 +13,7 @@ namespace fz {
   class FZ_API IndexBuffer {
     public:
       IndexBuffer(const std::vector<unsigned int>& indices, const int& usage);
-      ~IndexBuffer() {};
+      ~IndexBuffer();
 
       void bind();
       void unbind();
@@ -22,7 +22,7 @@ namespace fz {
     private:
       unsigned int m_ID = 0;
       std::vector<unsigned int> m_Indices;
-      int m_Usage;
+      int m_Usage = GL_DYNAMIC_DRAW;
 
       friend class VertexArray;
   };

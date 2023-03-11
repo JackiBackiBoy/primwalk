@@ -2,12 +2,16 @@
 #include "fzui/windows/rendering/vertexArray.hpp"
 
 namespace fz {
-  VertexArray::VertexArray(const BufferLayout& layout, const VertexBuffer& vbo,
-      const IndexBuffer& ibo) :
+  VertexArray::VertexArray(BufferLayout& layout, VertexBuffer* vbo,
+      IndexBuffer* ibo) :
     m_BufferLayout(layout), m_VBO(vbo), m_IBO(ibo) {
       //m_VBO.unbind();
       //unbind();
   };
+
+  VertexArray::~VertexArray() {
+    glDeleteVertexArrays(1, &m_ID);
+  }
 
   void VertexArray::bind() {
     glBindVertexArray(m_ID);
@@ -19,12 +23,13 @@ namespace fz {
 
   void VertexArray::create() {
     // Create VAO
-    glCreateVertexArrays(1, &m_ID);
+    glGenVertexArrays(1, &m_ID);
+
     bind();
 
     // Create VBO and IBO
-    m_VBO.create();
-    m_IBO.create();
+    m_VBO->create();
+    m_IBO->create();
 
     std::vector<BufferAttribute> attributes = m_BufferLayout.getAttributes();
     int offset = 0;
@@ -37,5 +42,8 @@ namespace fz {
 
       offset += attributes[i].byteSize;
     }
+
+    m_VBO->unbind();
+    unbind();
   }
 }

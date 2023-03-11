@@ -9,9 +9,8 @@
 namespace fz {
   class FZ_API VertexArray {
     public:
-      VertexArray(const BufferLayout& layout, const VertexBuffer& vbo,
-          const IndexBuffer& ibo);
-      ~VertexArray() {};
+      VertexArray(BufferLayout& layout, VertexBuffer* vbo, IndexBuffer* ibo);
+      ~VertexArray();
 
       void bind();
       void unbind();
@@ -20,7 +19,7 @@ namespace fz {
     private:
       unsigned int m_ID = 0;
       BufferLayout m_BufferLayout;
-      VertexBuffer m_VBO;
-      IndexBuffer m_IBO;
+      VertexBuffer* m_VBO = nullptr;
+      IndexBuffer* m_IBO = nullptr;
   };
 }

@@ -11,7 +11,6 @@
 #include "fzui/core.hpp"
 #include "fzui/windows/ui/uiElement.hpp"
 #include "fzui/windows/rendering/renderer2d.hpp"
-#include "fzui/windows/data/shader.hpp"
 
 // Windows
 #include <windows.h>
@@ -43,11 +42,10 @@ namespace fz {
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
-      Texture m_MinmizeIcon;
-      Texture m_MaximizeIcon;
-      Texture m_CloseIcon;
+      Texture m_MinmizeIcon{};
+      Texture m_MaximizeIcon{};
+      Texture m_CloseIcon{};
 
-      Shader shader;
       HDC m_HDC = NULL;
       int m_Vsync = 0;
       HBRUSH m_BackgroundBrush = NULL;

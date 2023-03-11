@@ -11,10 +11,10 @@
 
 namespace fz {
   struct FZ_API BufferAttribute {
-    std::string name;
-    unsigned int glType;
-    unsigned int count;
-    unsigned int byteSize;
+    std::string name = "";
+    unsigned int glType = 0;
+    unsigned int count = 0;
+    unsigned int byteSize = 0;
   };
 
   class FZ_API BufferLayout {
@@ -43,7 +43,7 @@ namespace fz {
 
     private:
       int m_Stride = 0;
-      std::vector<BufferAttribute> m_Attributes;
+      std::vector<BufferAttribute> m_Attributes = std::vector<BufferAttribute>();
 
       static std::unordered_map<std::type_index, unsigned int> glTypes;
   };

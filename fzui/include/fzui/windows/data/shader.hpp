@@ -38,7 +38,7 @@ namespace fz {
       unsigned int getID() const;
 
     private:
-      unsigned int m_ID;
+      unsigned int m_ID = 0;
       std::string parseShader(const std::string& path);
       std::unordered_map<ShaderType, int> m_ShaderIDs;
   };

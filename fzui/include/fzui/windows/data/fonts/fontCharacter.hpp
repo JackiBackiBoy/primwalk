@@ -5,15 +5,22 @@
 
 namespace fz {
   struct FZ_API FontCharacter {
-    int id = 0;
-    double sizeX = 0.0;
-    double sizeY = 0.0;
-    double xOffset = 0.0;
-    double yOffset = 0.0;
-    double xAdvance = 0.0;
-    double xLeftTexCoord = 0.0;
-    double yBottomTexCoord = 0.0;
-    double xRightTexCoord = 0.0;
-    double yTopTexCoord = 0.0;
+	  int width = 0;
+	  int height = 0;
+	  int bearingX = 0;
+	  int bearingY = 0;
+	  unsigned int advanceOffset = 0;
   };
+
+	struct FZ_API GlyphData {
+		unsigned int width = 0;
+		unsigned int height = 0;
+		int bearingX = 0;
+		int bearingY = 0;
+		unsigned int advanceX = 0;
+		float texLeftX = 0.0f;
+		float texTopY = 0.0f;
+		float texRightX = 0.0f;
+		float texBottomY = 0.0f;
+	};
 }

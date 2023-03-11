@@ -6,7 +6,7 @@ namespace fz {
   UIButton::UIButton(const std::string& text, const glm::vec2& pos,
                      const int& width, const int& height) :
     UIElement(pos), m_Text(text), m_Width(width), m_Height(height) {
-      m_TextColor = Color::White;
+      m_TextColor = { 255, 255, 255 };
       m_BackgroundColor = { 255, 255, 255 };
       m_HoverColor = { 200, 200, 200 };
       m_DisplayColor = m_BackgroundColor;
@@ -27,7 +27,7 @@ namespace fz {
   }
 
   void UIButton::draw(Renderer2D* renderer) {
-    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor, 0);
+    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor);
     renderer->drawText(m_Text, m_Position, 15, { 0, 0, 0 });
   }
 

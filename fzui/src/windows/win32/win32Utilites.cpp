@@ -6,25 +6,6 @@ namespace fz {
     return instance;
   }
 
-  std::string Win32Utilities::getWindowsVersionString() {
-    // Acquire Windows version information if not already done
-    if (m_WindowsVersionString == "") {
-      NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
-
-      OSVERSIONINFOEXW osInfo;
-
-      *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandle(L"ntdll"), "RtlGetVersion");
-      if (NULL != RtlGetVersion) {
-        osInfo.dwOSVersionInfoSize = sizeof(osInfo);
-        RtlGetVersion(&osInfo);
-      }
-
-      m_WindowsVersionString = osInfo.dwBuildNumber >= 22000 ? "Windows 11" : "Windows 10";
-    }
-
-    return m_WindowsVersionString;
-  }
-
   SIZE Win32Utilities::calcReqCheckBoxSize(const std::wstring& text, HFONT font, HWND hWnd) {
     HDC hdc = GetDC(hWnd);
 
