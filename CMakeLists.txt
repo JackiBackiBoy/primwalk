@@ -7,5 +7,6 @@ endif()
 
 project(fz)
 
+add_subdirectory(vendor/freetype)
 add_subdirectory(fzui)
 add_subdirectory(fzcoach)

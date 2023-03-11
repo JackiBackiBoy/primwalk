@@ -26,7 +26,6 @@ namespace fz {
       Application() {};
       ~Application() {};
 
-      std::unordered_map<std::wstring, Window*> m_Windows;
       Window* m_MainWindow = nullptr;
   };
 }

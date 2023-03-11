@@ -62,17 +62,7 @@ namespace fz {
     static float dt = 0.0f;
     auto currentTime = std::chrono::high_resolution_clock::now();
 
-    // Shaders
-    shader.loadShader(ShaderType::Vertex, "assets/shaders/uiShader.vert");
-    shader.loadShader(ShaderType::Fragment, "assets/shaders/uiShader.frag");
-    shader.compileShaders();
-    shader.bind();
-    auto loc = glGetUniformLocation(shader.getID(), "u_Textures");
-    int samplers[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-    glUniform1iv(loc, 16, samplers);
-
-    glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
-    shader.setUniformMat4("projMat", projMat);
+    
 
     // onCreate
     m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
@@ -119,7 +109,7 @@ namespace fz {
   }
 
   int WindowWin32::init() {
-    INITCOMMONCONTROLSEX icc;
+    INITCOMMONCONTROLSEX icc{};
 
     // Initialise common controls.
     icc.dwSize = sizeof(icc);
@@ -288,12 +278,10 @@ namespace fz {
     m_Width = clientRect.right - clientRect.left;
     m_Height = clientRect.bottom - clientRect.top;
     float aspect = (float)m_Width / (float)m_Height;
-    glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
-    glViewport(0, 0, m_Width, m_Height);
 
-    shader.bind();
-    shader.setUniformMat4("projMat", projMat);
-    
+    // TODO: Remove this call if possible
+    m_Renderer2D->setViewport(m_Width, m_Height);
+
     m_Renderer2D->begin();
 
     // Render UI elements
@@ -312,10 +300,14 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
     m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 203, 203, 203 });
+    m_Renderer2D->drawText("Forza Coach (Beta)", { 0, 0 }, 15, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
-    m_Renderer2D->drawText(s, { 100, 100 }, 25, Color::White);
+
+    static float time = 0.0f;
+    time += 0.01f;
+    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 15, { 255, 255, 255 });
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
@@ -456,7 +448,7 @@ namespace fz {
           }
           else if (wParam == HTMAXBUTTON && window->m_MaximizeButtonDown) {
             window->m_MaximizeButtonDown = false;
-            WINDOWPLACEMENT wp;
+            WINDOWPLACEMENT wp{};
             GetWindowPlacement(hWnd, &wp);
             ShowWindow(hWnd, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
           }

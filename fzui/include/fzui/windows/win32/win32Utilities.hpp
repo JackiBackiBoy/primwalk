@@ -17,8 +17,6 @@ namespace fz {
 
       static Win32Utilities& Instance();
 
-      std::string getWindowsVersionString();
-
       static SIZE calcReqCheckBoxSize(const std::wstring& text, HFONT font, HWND hWnd);
       static SIZE calcReqLabelSize(const std::wstring& text, HFONT font, HWND hWnd);
       static SIZE calcReqButtonSize(const std::wstring& text, const int& marginX,
@@ -30,7 +28,5 @@ namespace fz {
     private:
       Win32Utilities() {};
       ~Win32Utilities() {};
-
-      std::string m_WindowsVersionString = "";
   };
 }

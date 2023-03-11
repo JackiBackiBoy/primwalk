@@ -44,6 +44,20 @@ else()
   set(GLM_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glm)
 endif()
 
+# 3. FreeType
+find_path(FREETYPE_INCLUDE_DIR vendor/freetype ${CMAKE_HOME_DIRECTORY})
+
+if((NOT FREETYPE_INCLUDE_DIR) OR (NOT EXISTS ${FREETYPE_INCLUDE_DIR}))
+  message(STATUS "Unable to find FreeType. Installing it now.")
+  execute_process(COMMAND git submodule update --init -- vendor/freetype
+                    WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY})
+  
+  set(FREETYPE_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/freetype/include)
+else()
+  set(FREETYPE_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/freetype/include)
+endif()
+set(FREETYPE_LIBRARIES ${CMAKE_HOME_DIRECTORY}/build/vendor/freetype)
+
 # Settings
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -70,6 +84,11 @@ target_compile_definitions(${NAME} PRIVATE
 target_include_directories(${NAME} PUBLIC
   ${GLAD_INCLUDE_DIR}
   ${GLM_INCLUDE_DIR}
+  ${FREETYPE_INCLUDE_DIR}
+)
+
+target_link_directories(${NAME} PUBLIC
+  ${FREETYPE_LIBRARIES}
 )
 
 target_link_libraries(${NAME} PUBLIC
@@ -78,4 +97,5 @@ target_link_libraries(${NAME} PUBLIC
   msimg32.lib
   Dwmapi.lib
   UxTheme
+  freetype
 )

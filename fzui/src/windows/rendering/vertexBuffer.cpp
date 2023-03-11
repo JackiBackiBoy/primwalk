@@ -6,6 +6,10 @@ namespace fz {
     m_Vertices(vertices), m_Usage(usage) {
   }
 
+  VertexBuffer::~VertexBuffer() {
+    glDeleteBuffers(1, &m_ID);
+  }
+
   void VertexBuffer::bind() {
     glBindBuffer(GL_ARRAY_BUFFER, m_ID);
   }
@@ -15,7 +19,7 @@ namespace fz {
   }
 
   void VertexBuffer::create() {
-    glCreateBuffers(1, &m_ID);
+    glGenBuffers(1, &m_ID);
     bind();
     // TODO: Define max number of vertices (512 for now) to be dynamic
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 512, nullptr, m_Usage);

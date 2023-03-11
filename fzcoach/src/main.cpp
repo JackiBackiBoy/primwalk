@@ -9,10 +9,10 @@ int main() {
   fz::Application& app = fz::Application::Instance(); // acquire app instance
 
   // ------ Main Window ------
-  fz::Window* fzMain = new fz::Window(L"Forza Coach (Beta)", 720, 360);
+  fz::Window* fzMain = new fz::Window(L"Forza Coach (Beta)", 1080, 720);
 
   // On start
-  fz::UIButton* button = new fz::UIButton("OpenGL test!", { 400, 30 }, 100, 50);
+  fz::UIButton* button = new fz::UIButton("OpenGL test 2!", { 400, 30 }, 100, 50);
 
   fzMain->addElement(button);
 

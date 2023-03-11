@@ -14,7 +14,7 @@ namespace fz {
   class FZ_API VertexBuffer {
     public:
       VertexBuffer(const std::vector<Vertex>& vertices, const int& usage);
-      ~VertexBuffer() {};
+      ~VertexBuffer();
 
       void bind();
       void unbind();
