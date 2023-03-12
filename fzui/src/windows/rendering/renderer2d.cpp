@@ -107,7 +107,6 @@ namespace fz {
     shader.setUniformMat4("projMat", projMat);
 
     glBindTextureUnit(0, whiteTex.getID());
-    // glBindTextureUnit(1, m_FontAtlas);
 
     for (auto t : m_TextureUnits) {
       unsigned int index = t.second;
@@ -120,12 +119,11 @@ namespace fz {
 
     // Render the batched data
     glDrawElements(GL_TRIANGLES, m_Indices.size(), GL_UNSIGNED_INT, (void*)0);
-    //m_VAO->unbind();
 
     m_VBO->unbind();
     m_VAO->unbind();
 
-    // ------ Text rendering ------
+    // // ------ Text rendering ------
     m_TextVAO->bind();
     m_TextVBO->bind();
 
@@ -162,14 +160,6 @@ namespace fz {
   void Renderer2D::drawRect(const int& width, const int& height,
                             const glm::vec2& pos, const Color& color,
                             Texture* texture) {
-    drawQuad({ pos.x, pos.y }, { pos.x, pos.y + height },
-             { pos.x + width, pos.y + height }, { pos.x + width, pos.y },
-             color, texture);
-  }
-
-   void Renderer2D::drawRect(const int& width, const int& height,
-                            const glm::vec2& pos, const Color& color,
-                            unsigned int texture) {
     drawQuad({ pos.x, pos.y }, { pos.x, pos.y + height },
              { pos.x + width, pos.y + height }, { pos.x + width, pos.y },
              color, texture);
@@ -242,103 +232,33 @@ namespace fz {
     m_Indices.push_back(3 + indexOffset);
   }
 
-  void Renderer2D::drawQuad(const glm::vec2& a, const glm::vec2& b,
-                            const glm::vec2& c, const glm::vec2& d,
-                            const Color& color, unsigned int texture) {
-    std::array<glm::vec2, 4> points = { a, b, c, d };
-
-    // 1. Estimate center point as the mean of the points
-    glm::vec2 center((a.x + b.x + c.x + d.x) / 4.0f,
-                     (a.y + b.y + c.y + d.y) / 4.0f);
-
-    std::sort(points.begin(), points.end(), [center](glm::vec2 u, glm::vec2 v) {
-      glm::vec2 uDir = u - center;
-      glm::vec2 vDir = v - center;
-      uDir.y = -uDir.y; // flip sign due to screen space coordinates
-      vDir.y = -vDir.y; // flip sign due to screen space coordinates
-
-      // Compute angle between center point and point u
-      float uAngle = std::atan2(uDir.y, uDir.x);
-      uAngle += uAngle < 0.0f ? glm::two_pi<float>() : 0.0f;
-
-      // Compute angle between center point and point v
-      float vAngle = std::atan2(vDir.y, vDir.x);
-      vAngle += vAngle < 0.0f ? glm::two_pi<float>() : 0.0f;
-
-      if (uAngle < vAngle) {
-        return true;
-      }
-
-      // If uAngle is not less than vAngle, we must then sort by lowest length
-      if (uAngle == vAngle && glm::length(uDir) < glm::length(vDir)) {
-        return true;
-      }
-
-      return false;
-    });
-
-    // Retrieve the corresponding texture index value
-    float texIndex = 0.0f; // default tex value
-
-    if (texture != 0) {
-      auto res = m_TextureUnits.find(texture);
-
-      if (res == m_TextureUnits.end()) { // texture not bound
-        m_NumTextures++;
-        m_TextureUnits.insert({ texture, m_NumTextures });
-        texIndex = (float)m_NumTextures;
-      }
-      else {
-        texIndex = (float)res->second;
-      }
-    }
-
-    // TODO: Use memcpy instead on predefined array size
-    m_Vertices.push_back({ { points[0].x, points[0].y, 0.0f }, { 1.0f, 1.0f }, texIndex, Color::normalize(color) });
-    m_Vertices.push_back({ { points[1].x, points[1].y, 0.0f }, { 0.0f, 1.0f }, texIndex, Color::normalize(color) });
-    m_Vertices.push_back({ { points[2].x, points[2].y, 0.0f }, { 0.0f, 0.0f }, texIndex, Color::normalize(color) });
-    m_Vertices.push_back({ { points[3].x, points[3].y, 0.0f }, { 1.0f, 0.0f }, texIndex, Color::normalize(color) });
-
-    // TODO: Dynamic indices
-    unsigned int indexOffset = (m_Indices.size() / 6) * 4;
-    m_Indices.push_back(0 + indexOffset);
-    m_Indices.push_back(1 + indexOffset);
-    m_Indices.push_back(2 + indexOffset);
-    m_Indices.push_back(0 + indexOffset);
-    m_Indices.push_back(2 + indexOffset);
-    m_Indices.push_back(3 + indexOffset);
-  }
-
   void Renderer2D::drawText(const std::string& text, const glm::vec2& pos,
                             const float& fontSize, const Color& color) {
-    float x = pos.x;
-    float y = pos.y;
-    float scaling = fontSize / float(m_Font->getMaxHeight());
+    float posX = pos.x;
+    float scaling = fontSize / m_Font->getMaxHeight();
 
     for (char c : text) {
-      GlyphData* glyph = m_Font->getGlyph(c);
+      GlyphData* glyph = m_Font->getGlyph((uint32_t)c);
 
-      if (c == ' ') { // Whitespace does not need to be rendered, just advance instead
-        x += (glyph->advanceX >> 6);
-        continue;
+      if (c != ' ') {
+        float texIndex = 0.0f;
+        // TODO: Use memcpy instead on predefined array size
+        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize + glyph->width) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize) * scaling,                  0.0f }, { glyph->texRightX, glyph->texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize) * scaling,                                 0.0f }, { glyph->texLeftX, glyph->texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize + glyph->height) * scaling,                 0.0f }, { glyph->texLeftX, glyph->texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize + glyph->width) * scaling,  pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize + glyph->height) * scaling, 0.0f }, { glyph->texRightX, glyph->texBottomY }, texIndex, Color::normalize(color) });
+
+        // TODO: Dynamic indices
+        unsigned int indexOffset = (m_TextIndices.size() / 6) * 4;
+        m_TextIndices.push_back(0 + indexOffset);
+        m_TextIndices.push_back(1 + indexOffset);
+        m_TextIndices.push_back(2 + indexOffset);
+        m_TextIndices.push_back(0 + indexOffset);
+        m_TextIndices.push_back(2 + indexOffset);
+        m_TextIndices.push_back(3 + indexOffset);
       }
 
-      // Text batching
-      m_TextVertices.push_back({ { x + scaling * (glyph->bearingX + glyph->width), y + scaling * (m_Font->getMaxHeight() - glyph->bearingY), 0.0f }, { glyph->texRightX, glyph->texTopY }, 0.0f, Color::normalize(color) });
-      m_TextVertices.push_back({ { x + scaling * (glyph->bearingX), y + scaling * (m_Font->getMaxHeight() - glyph->bearingY), 0.0f }, { glyph->texLeftX, glyph->texTopY }, 0.0f, Color::normalize(color) });
-      m_TextVertices.push_back({ { x + scaling * (glyph->bearingX), y + scaling * (glyph->height + m_Font->getMaxHeight() - glyph->bearingY), 0.0f }, { glyph->texLeftX, glyph->texBottomY }, 0.0f, Color::normalize(color) });
-      m_TextVertices.push_back({ { x + scaling * (glyph->bearingX + glyph->width), y + scaling * (glyph->height + m_Font->getMaxHeight() - glyph->bearingY), 0.0f }, { glyph->texRightX, glyph->texBottomY }, 0.0f, Color::normalize(color) });
-
-      // TODO: Dynamic indices
-      unsigned int indexOffset = (m_TextIndices.size() / 6) * 4;
-      m_TextIndices.push_back(0 + indexOffset);
-      m_TextIndices.push_back(1 + indexOffset);
-      m_TextIndices.push_back(2 + indexOffset);
-      m_TextIndices.push_back(0 + indexOffset);
-      m_TextIndices.push_back(2 + indexOffset);
-      m_TextIndices.push_back(3 + indexOffset);
-
-      x += scaling * (glyph->advanceX >> 6);
+      posX += glyph->advanceX * m_Font->m_FontSize * scaling;
     }
   }
 }

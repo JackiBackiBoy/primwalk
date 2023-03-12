@@ -299,15 +299,14 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 203, 203, 203 });
-    m_Renderer2D->drawText("Forza Coach (Beta)", { 0, 0 }, 15, { 255, 255, 255 });
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
 
     static float time = 0.0f;
     time += 0.01f;
-    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 15, { 255, 255, 255 });
+    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 70, { 255, 255, 255 });
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
