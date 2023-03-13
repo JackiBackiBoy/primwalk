@@ -87,7 +87,7 @@ namespace fz {
           newTime - currentTime).count();
       currentTime = newTime;
 
-      onUpdate();
+      onUpdate(dt);
       onRender();
 
       if (firstPaint) {
@@ -256,7 +256,7 @@ namespace fz {
     m_UIElements.push_back(button);
   }
 
-  void WindowWin32::onUpdate() {
+  void WindowWin32::onUpdate(const float& dt) {
 
     // Get relative mouse position
     POINT p;
@@ -267,7 +267,7 @@ namespace fz {
     mouse.m_RelativePos = { (float)p.x, (float)p.y };
 
     for (UIElement* element : m_UIElements) {
-      element->update(0.0f); // TODO: Pass delta time instead
+      element->update(dt); // TODO: Pass delta time instead
     }
   }
 
@@ -291,7 +291,7 @@ namespace fz {
 
     // ------ Caption bar area ------
     m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, { 60, 60, 60 });
-    m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 });
+    //m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 });
     m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, &m_WindowIcon);
 
     // Window minmize, maximize and close buttons
@@ -299,14 +299,14 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 14, { 255, 255, 255 });
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
 
     static float time = 0.0f;
     time += 0.01f;
-    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 70, { 255, 255, 255 });
+    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 40, { 255, 255, 255 });
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);

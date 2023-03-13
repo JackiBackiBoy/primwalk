@@ -11,7 +11,7 @@ namespace fz {
   class FZ_API UIElement {
     public:
       UIElement(const glm::vec2& pos) : m_Position(pos) {};
-      ~UIElement() {};
+      virtual ~UIElement() {};
 
       virtual void update(const float& dt) = 0;
       virtual void draw(Renderer2D* renderer) = 0;

@@ -80,7 +80,8 @@ namespace fz {
 
     // glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
     // shader.setUniformMat4("projMat", projMat);
-    m_Font = FontFace::create("assets/fonts/segoeui.ttf");
+    m_SmallFont = FontFace::create("assets/fonts/segoeui.ttf", 12.0);
+    m_MediumFont = FontFace::create("assets/fonts/segoeui.ttf", 24.0);
   }
 
   Renderer2D::~Renderer2D() {
@@ -129,7 +130,8 @@ namespace fz {
 
     glyphShader.bind();
     glyphShader.setUniformMat4("projMat", projMat);
-    glBindTextureUnit(0, m_Font->m_TextureAtlas);
+    glBindTextureUnit(0, m_SmallFont->m_TextureAtlas);
+    glBindTextureUnit(1, m_MediumFont->m_TextureAtlas);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * m_TextVertices.size(), m_TextVertices.data());
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(unsigned int) * m_TextIndices.size(), m_TextIndices.data());
@@ -234,19 +236,27 @@ namespace fz {
 
   void Renderer2D::drawText(const std::string& text, const glm::vec2& pos,
                             const float& fontSize, const Color& color) {
+    FontFace* font = m_SmallFont;
+    float texIndex = 0.0f;
+
+    if (fontSize >= 26.0) {
+      font = m_MediumFont;
+      texIndex = 1.0f;
+    }
+
     float posX = pos.x;
-    float scaling = fontSize / m_Font->getMaxHeight();
+    float scaling = fontSize / font->getMaxHeight();
 
     for (char c : text) {
-      GlyphData* glyph = m_Font->getGlyph((uint32_t)c);
+      GlyphData glyph = font->getGlyph((uint32_t)c);
 
       if (c != ' ') {
-        float texIndex = 0.0f;
+        
         // TODO: Use memcpy instead on predefined array size
-        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize + glyph->width) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize) * scaling,                  0.0f }, { glyph->texRightX, glyph->texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize) * scaling,                                 0.0f }, { glyph->texLeftX, glyph->texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize) * scaling, pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize + glyph->height) * scaling,                 0.0f }, { glyph->texLeftX, glyph->texBottomY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph->bearingX * m_Font->m_FontSize + glyph->width) * scaling,  pos.y + (m_Font->getMaxHeight() - glyph->bearingY * m_Font->m_FontSize + glyph->height) * scaling, 0.0f }, { glyph->texRightX, glyph->texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX * font->m_FontSize + glyph.width) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY * font->m_FontSize) * scaling,                 0.0f }, { glyph.texRightX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX * font->m_FontSize) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY * font->m_FontSize) * scaling,                               0.0f }, { glyph.texLeftX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX * font->m_FontSize) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY * font->m_FontSize + glyph.height) * scaling,                0.0f }, { glyph.texLeftX, glyph.texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX * font->m_FontSize + glyph.width) * scaling,  pos.y + (font->getMaxHeight() - glyph.bearingY * font->m_FontSize + glyph.height) * scaling, 0.0f }, { glyph.texRightX, glyph.texBottomY }, texIndex, Color::normalize(color) });
 
         // TODO: Dynamic indices
         unsigned int indexOffset = (m_TextIndices.size() / 6) * 4;
@@ -258,7 +268,7 @@ namespace fz {
         m_TextIndices.push_back(3 + indexOffset);
       }
 
-      posX += glyph->advanceX * m_Font->m_FontSize * scaling;
+      posX += glyph.advanceX * font->m_FontSize * scaling;
     }
   }
 }

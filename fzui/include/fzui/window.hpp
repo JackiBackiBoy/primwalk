@@ -13,7 +13,7 @@ namespace fz {
       virtual ~WindowBase() {}
 
       // Event functions
-      virtual void onUpdate() {};
+      virtual void onUpdate(const float& dt) {};
       virtual void onRender() {};
 
     protected:

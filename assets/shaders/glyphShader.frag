@@ -10,13 +10,7 @@ out vec4 FragColor;
 uniform sampler2D u_Textures[16];
 
 float screenPxRange() {
-  int index = int(v_TexIndex);
-    float pxRange = 2.5;
-    vec2 unitRange = vec2(pxRange)/vec2(textureSize(u_Textures[index], 0));
-    vec2 screenTexSize = vec2(1.0)/fwidth(texCoord);
-    return max(0.5 * dot(unitRange, screenTexSize), 1.0);
-
-    return 2.0;
+  return 2.5;
 }
 
 float median(float r, float g, float b) {

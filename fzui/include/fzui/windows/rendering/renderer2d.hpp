@@ -59,6 +59,7 @@ namespace fz {
 
       Shader shader{};
       Shader glyphShader{};
-      FontFace* m_Font = nullptr;
+      FontFace* m_SmallFont = nullptr;
+      FontFace* m_MediumFont = nullptr;
   };
 }

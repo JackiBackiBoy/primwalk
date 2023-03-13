@@ -26,7 +26,7 @@ namespace fz {
       // Event functions
       virtual void onCreate(HWND hWnd);
       virtual void onResize() {};
-      virtual void onUpdate() override;
+      virtual void onUpdate(const float& dt) override;
       virtual void onRender() override;
       virtual void onDestroy() {};
 

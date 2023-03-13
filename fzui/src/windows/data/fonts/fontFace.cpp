@@ -13,11 +13,11 @@ namespace fz {
     
   }
 
-  FontFace* FontFace::create(const std::string& fontPath) {
+  FontFace* FontFace::create(const std::string& fontPath, const double& fontSize) {
     FontFace* fontFace = new FontFace();
     fontFace->glyphs = std::vector<msdf_atlas::GlyphGeometry>();
-    fontFace->m_GlyphData = std::unordered_map<msdf_atlas::unicode_t, GlyphData*>();
-    fontFace->m_FontSize = 12.0;
+    fontFace->m_GlyphData = std::unordered_map<msdf_atlas::unicode_t, GlyphData>();
+    fontFace->m_FontSize = fontSize;
     std::string truePath = BASE_DIR + fontPath;
 
     bool success = false;
@@ -40,8 +40,8 @@ namespace fz {
 
             packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
             packer.setMinimumScale(fontFace->m_FontSize);
-            packer.setScale(fontFace->m_FontSize);
-            packer.setPixelRange(2.0);
+            packer.setScale(fontFace->m_FontSize); // TODO: Make dynamic scale
+            packer.setPixelRange(2.5);
             packer.setMiterLimit(1.0);
 
             // Compute atlas layout - pack glyphs
@@ -90,30 +90,28 @@ namespace fz {
       g.getQuadPlaneBounds(pLeft, pBottom, pRight, pTop);
       g.getQuadAtlasBounds(aLeft, aBottom, aRight, aTop);
 
-      GlyphData* glyphData = new GlyphData();
-      glyphData->advanceX = g.getAdvance();
-      glyphData->width = aRight - aLeft;
-      glyphData->height = aTop - aBottom;
-      glyphData->texLeftX = static_cast<float>(aLeft) / bitmap.width;
-      glyphData->texTopY = static_cast<float>(aTop) / bitmap.height;
-      glyphData->texRightX = static_cast<float>(aRight) / bitmap.width;
-      glyphData->texBottomY = static_cast<float>(aBottom) / bitmap.height;
-      glyphData->bearingX = pLeft;
-      glyphData->bearingY = pTop;
-      glyphData->pl = pLeft;
-      glyphData->pb = pBottom;
-      glyphData->pr = pRight;
-      glyphData->pt = pTop;
-      glyphData->il = aLeft;
-      glyphData->ib = aBottom;
-      glyphData->ir = aRight;
-      glyphData->it = aTop;
+      GlyphData glyphData = GlyphData();
+      glyphData.advanceX = g.getAdvance();
+      glyphData.width = aRight - aLeft;
+      glyphData.height = aTop - aBottom;
+      glyphData.texLeftX = static_cast<float>(aLeft) / bitmap.width;
+      glyphData.texTopY = static_cast<float>(aTop) / bitmap.height;
+      glyphData.texRightX = static_cast<float>(aRight) / bitmap.width;
+      glyphData.texBottomY = static_cast<float>(aBottom) / bitmap.height;
+      glyphData.bearingX = pLeft;
+      glyphData.bearingY = pTop;
+      glyphData.pl = pLeft;
+      glyphData.pb = pBottom;
+      glyphData.pr = pRight;
+      glyphData.pt = pTop;
+      glyphData.il = aLeft;
+      glyphData.ib = aBottom;
+      glyphData.ir = aRight;
+      glyphData.it = aTop;
 
       m_GlyphData.insert({ g.getCodepoint(), glyphData });
 
-      std::cout << "BearingX: " << pLeft * m_FontSize << std::endl;
-      std::cout << "BearingY: " << pTop * m_FontSize << std::endl;
-      m_MaxHeight = std::max(m_MaxHeight, (int)glyphData->height);
+      m_MaxHeight = std::max(m_MaxHeight, (int)glyphData.height);
     }
 
     std::cout << "Max font height: " << m_MaxHeight << std::endl;
@@ -141,7 +139,7 @@ namespace fz {
     return m_MaxHeight;
   }
 
-  GlyphData* FontFace::getGlyph(const msdf_atlas::unicode_t& c) {
+  GlyphData FontFace::getGlyph(const msdf_atlas::unicode_t& c) {
     return m_GlyphData[c];
   }
 }
