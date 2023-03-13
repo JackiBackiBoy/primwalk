@@ -34,15 +34,9 @@ namespace fz {
       void drawRect(const int& width, const int& height,
                     const glm::vec2& pos, const Color& color,
                     Texture* texture = nullptr);
-                    void drawRect(const int& width, const int& height,
-                    const glm::vec2& pos, const Color& color,
-                    unsigned int texture);
       void drawQuad(const glm::vec2& a, const glm::vec2& b,
                     const glm::vec2& c, const glm::vec2& d,
                     const Color& color, Texture* texture = nullptr);
-      void drawQuad(const glm::vec2& a, const glm::vec2& b,
-                    const glm::vec2& c, const glm::vec2& d,
-                    const Color& color, unsigned int texture);
       void drawText(const std::string& text, const glm::vec2& pos,
                     const float& fontSize, const Color& color);
 
