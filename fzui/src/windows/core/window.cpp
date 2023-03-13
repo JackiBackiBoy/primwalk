@@ -299,7 +299,7 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 255, 255, 255 });
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 14, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);

@@ -40,6 +40,7 @@ namespace fz {
 
             packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
             packer.setMinimumScale(fontFace->m_FontSize);
+            packer.setScale(fontFace->m_FontSize);
             packer.setPixelRange(2.0);
             packer.setMiterLimit(1.0);
 

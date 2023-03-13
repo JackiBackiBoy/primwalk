@@ -11,10 +11,12 @@ uniform sampler2D u_Textures[16];
 
 float screenPxRange() {
   int index = int(v_TexIndex);
-    float pxRange = 2.0;
+    float pxRange = 2.5;
     vec2 unitRange = vec2(pxRange)/vec2(textureSize(u_Textures[index], 0));
     vec2 screenTexSize = vec2(1.0)/fwidth(texCoord);
     return max(0.5 * dot(unitRange, screenTexSize), 1.0);
+
+    return 2.0;
 }
 
 float median(float r, float g, float b) {
@@ -29,5 +31,6 @@ void main()
   float sd = median(msd.r, msd.g, msd.b);
   float screenPxDistance  = screenPxRange() * (sd - 0.5);
   float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
-  FragColor = mix(vec4(0.235294, 0.235294, 0.235294, 1.0), vec4(v_Color, 1.0), opacity);
+  
+  FragColor = vec4(v_Color, opacity);
 }
