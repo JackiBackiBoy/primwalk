@@ -15,6 +15,7 @@
 #include "fzui/windows/data/texture.hpp"
 #include "fzui/windows/ui/uiButton.hpp"
 #include "fzui/mouse.hpp"
+#include "fzui/windows/data/fonts/fontManager.hpp"
 
 // Windows
 #include <sdkddkver.h>
@@ -66,7 +67,7 @@ namespace fz {
 
     // onCreate
     m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
-    m_MinmizeIcon.loadFromFile("assets/icons/minimize.png");
+    m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
     m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
     m_CloseIcon.loadFromFile("assets/icons/close.png");
 
@@ -272,6 +273,8 @@ namespace fz {
   }
 
   void WindowWin32::onRender() {
+    FontFace* font = FontManager::Instance().getDefaultSmallFont();
+
     // Calculate new window dimensions if resized
     RECT clientRect;
     GetClientRect(m_Handle, &clientRect);
@@ -295,11 +298,11 @@ namespace fz {
     m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, &m_WindowIcon);
 
     // Window minmize, maximize and close buttons
-    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, &m_MinmizeIcon);
+    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, &m_MinimizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - 15 / 2 }, 15, { 255, 255, 255 });
+    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);

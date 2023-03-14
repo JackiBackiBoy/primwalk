@@ -42,7 +42,7 @@ namespace fz {
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
-      Texture m_MinmizeIcon{};
+      Texture m_MinimizeIcon{};
       Texture m_MaximizeIcon{};
       Texture m_CloseIcon{};
 

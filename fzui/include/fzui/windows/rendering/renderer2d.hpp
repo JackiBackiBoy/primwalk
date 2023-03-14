@@ -38,7 +38,8 @@ namespace fz {
                     const glm::vec2& c, const glm::vec2& d,
                     const Color& color, Texture* texture = nullptr);
       void drawText(const std::string& text, const glm::vec2& pos,
-                    const float& fontSize, const Color& color);
+                    const float& fontSize, const Color& color,
+                    FontFace* fontFace = nullptr);
 
     private:
       std::vector<Vertex> m_Vertices;

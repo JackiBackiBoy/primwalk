@@ -83,6 +83,8 @@ namespace fz {
     atlasWidth = bitmap.width;
     atlasHeight = bitmap.height;
 
+    uint32_t code = 0;
+
     //glyph
     for (msdf_atlas::GlyphGeometry g : glyphs) {
       double pLeft, pBottom, pRight, pTop;
@@ -91,30 +93,29 @@ namespace fz {
       g.getQuadAtlasBounds(aLeft, aBottom, aRight, aTop);
 
       GlyphData glyphData = GlyphData();
-      glyphData.advanceX = g.getAdvance();
+      glyphData.advanceX = g.getAdvance() * m_FontSize;
       glyphData.width = aRight - aLeft;
       glyphData.height = aTop - aBottom;
       glyphData.texLeftX = static_cast<float>(aLeft) / bitmap.width;
       glyphData.texTopY = static_cast<float>(aTop) / bitmap.height;
       glyphData.texRightX = static_cast<float>(aRight) / bitmap.width;
       glyphData.texBottomY = static_cast<float>(aBottom) / bitmap.height;
-      glyphData.bearingX = pLeft;
-      glyphData.bearingY = pTop;
-      glyphData.pl = pLeft;
-      glyphData.pb = pBottom;
-      glyphData.pr = pRight;
-      glyphData.pt = pTop;
-      glyphData.il = aLeft;
-      glyphData.ib = aBottom;
-      glyphData.ir = aRight;
-      glyphData.it = aTop;
+      glyphData.bearingX = pLeft * m_FontSize;
+      glyphData.bearingY = pTop * m_FontSize;
+      glyphData.bearingUnderline = pBottom * m_FontSize;
 
       m_GlyphData.insert({ g.getCodepoint(), glyphData });
 
-      m_MaxHeight = std::max(m_MaxHeight, (int)glyphData.height);
+      if (glyphData.height > m_MaxHeight) {
+        code = g.getCodepoint();
+      }
+
+      std::cout << "Quad plane bounds: " << pTop * m_FontSize << ", " << pBottom * m_FontSize << std::endl;
+
+      m_MaxHeight = std::max(m_MaxHeight, (int)((float)glyphData.height + glyphData.bearingUnderline));
     }
 
-    std::cout << "Max font height: " << m_MaxHeight << std::endl;
+    std::cout << "Max font height: " << m_MaxHeight << ", " << code << std::endl;
 
     glBindTexture(GL_TEXTURE_2D, 0); // bind
     glGenTextures(1, &m_TextureAtlas);
@@ -141,5 +142,9 @@ namespace fz {
 
   GlyphData FontFace::getGlyph(const msdf_atlas::unicode_t& c) {
     return m_GlyphData[c];
+  }
+
+  const double& FontFace::getFontSize() const {
+    return m_FontSize;
   }
 }
