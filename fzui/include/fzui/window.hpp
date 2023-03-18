@@ -16,6 +16,10 @@ namespace fz {
       virtual void onUpdate(const float& dt) {};
       virtual void onRender() {};
 
+      // Getters
+      virtual int getWidth() const = 0;
+      virtual int getHeight() const = 0;
+
     protected:
       Texture m_WindowIcon;
   };

@@ -11,6 +11,6 @@ namespace fz {
     glm::vec3 position;
     glm::vec2 texCoord;
     float texIndex;
-    glm::vec3 color;
+    glm::vec4 color;
   };
 }

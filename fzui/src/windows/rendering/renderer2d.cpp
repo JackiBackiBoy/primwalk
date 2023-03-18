@@ -28,16 +28,16 @@ namespace fz {
     m_Indices = std::vector<unsigned int>();
     m_TextVertices = std::vector<Vertex>();
     m_TextIndices = std::vector<unsigned int>();
-
-
     m_TextureUnits = std::unordered_map<unsigned int, unsigned int>();
+    m_FontTextureUnits = std::unordered_map<unsigned int, unsigned int>();
     m_NumTextures = 0;
+    m_NumFontTextures = 0;
 
     BufferLayout bufferLayout;
     bufferLayout.addAttribute<float>("Position", 3);
     bufferLayout.addAttribute<float>("TexCoord", 2);
     bufferLayout.addAttribute<float>("TexIndex", 1);
-    bufferLayout.addAttribute<float>("Color", 3);
+    bufferLayout.addAttribute<float>("Color", 4);
 
     m_VBO = new VertexBuffer(m_Vertices, GL_DYNAMIC_DRAW);
     m_IBO = new IndexBuffer(m_Indices, GL_DYNAMIC_DRAW);
@@ -82,7 +82,7 @@ namespace fz {
     // glm::mat4 projMat = glm::ortho(0.0f, (float)m_Width, (float)m_Height, 0.0f);
     // shader.setUniformMat4("projMat", projMat);
     m_SmallFont = FontFace::create("assets/fonts/segoeui.ttf", 12.0);
-    m_MediumFont = FontFace::create("assets/fonts/segoeui.ttf", 24.0);
+    m_MediumFont = FontFace::create("assets/fonts/segoeui.ttf", 32.0);
 
     FontManager& instance = FontManager::Instance();
     instance.setDefaultSmallFont(m_SmallFont);
@@ -135,8 +135,12 @@ namespace fz {
 
     glyphShader.bind();
     glyphShader.setUniformMat4("projMat", projMat);
-    glBindTextureUnit(0, m_SmallFont->m_TextureAtlas);
-    glBindTextureUnit(1, m_MediumFont->m_TextureAtlas);
+
+    for (auto t : m_FontTextureUnits) {
+      unsigned int index = t.second;
+      unsigned int texID = t.first;
+      glBindTextureUnit(index, texID);
+    }
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * m_TextVertices.size(), m_TextVertices.data());
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(unsigned int) * m_TextIndices.size(), m_TextIndices.data());
@@ -150,11 +154,13 @@ namespace fz {
     // Cleanup
     m_Vertices.clear();
     m_Indices.clear();
-    m_TextureUnits.clear();
-    m_NumTextures = 0;
 
     m_TextVertices.clear();
     m_TextIndices.clear();
+
+    m_NumTextures = 0;
+    m_NumFontTextures = 0;
+    m_TextureUnits.clear();
   }
 
   void Renderer2D::setViewport(const unsigned int& width,
@@ -242,32 +248,34 @@ namespace fz {
   void Renderer2D::drawText(const std::string& text, const glm::vec2& pos,
                             const float& fontSize, const Color& color,
                             FontFace* fontFace) {
-    FontFace* font = m_SmallFont;
+    FontFace* font = fontSize < 26 ? m_SmallFont : m_MediumFont;
     float texIndex = 0.0f;
-
-    if (fontSize >= 26.0) {
-      font = m_MediumFont;
-      texIndex = 1.0f;
-    }
 
     if (fontFace != nullptr) {
       font = fontFace;
+    }
+
+    auto res = m_FontTextureUnits.find(font->getTextureID());
+    if (res == m_FontTextureUnits.end()) { // texture atlas not found
+      m_FontTextureUnits.insert({ font->getTextureID(), m_NumFontTextures++ });
+      texIndex = static_cast<float>(m_NumFontTextures);
+    }
+    else {
+      texIndex = static_cast<float>(res->second);
     }
 
     float posX = pos.x;
     float scaling = fontSize / font->getFontSize();
 
     for (char c : text) {
-      GlyphData glyph = font->getGlyph((uint32_t)c);
-
-      float offset = 0.0f;
+      GlyphData glyph = font->getGlyph(static_cast<uint32_t>(c));
 
       if (c != ' ') {
         // TODO: Use memcpy instead on predefined array size
-        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY) * scaling + offset,                 0.0f }, { glyph.texRightX, glyph.texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY) * scaling + offset,                               0.0f }, { glyph.texLeftX, glyph.texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY + glyph.height) * scaling + offset,                0.0f }, { glyph.texLeftX, glyph.texBottomY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling,  pos.y + (font->getMaxHeight() - glyph.bearingY + glyph.height) * scaling + offset, 0.0f }, { glyph.texRightX, glyph.texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY) * scaling,                  0.0f }, { glyph.texRightX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY) * scaling,                               0.0f }, { glyph.texLeftX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY + glyph.height) * scaling,                 0.0f }, { glyph.texLeftX, glyph.texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling,  pos.y + (font->getMaxHeight() - glyph.bearingY + glyph.height) * scaling, 0.0f }, { glyph.texRightX, glyph.texBottomY }, texIndex, Color::normalize(color) });
 
         // TODO: Dynamic indices
         unsigned int indexOffset = (m_TextIndices.size() / 6) * 4;

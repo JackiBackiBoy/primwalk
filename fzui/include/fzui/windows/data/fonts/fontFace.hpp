@@ -24,14 +24,14 @@ namespace fz {
 
       // Getters
       int getMaxHeight() const;
+      unsigned int getTextureID() const;
       GlyphData getGlyph(const msdf_atlas::unicode_t& c);
       const double& getFontSize() const;
 
-      unsigned int m_TextureAtlas = 0;
+      
       std::vector<msdf_atlas::GlyphGeometry> glyphs;
       int atlasWidth = 0;
       int atlasHeight = 0;
-      int m_LowestBear = 0;
 
     private:
       FontFace() {};
@@ -45,5 +45,6 @@ namespace fz {
       int m_FontBoundingBoxY = 0;
       int m_FontLowestOffsetY = 0;
       double m_FontSize = 0.0f;
+      unsigned int m_TextureAtlas = 0;
   };
 }

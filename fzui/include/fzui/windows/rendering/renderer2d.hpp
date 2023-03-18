@@ -55,7 +55,9 @@ namespace fz {
       VertexArray* m_TextVAO = nullptr;
 
       std::unordered_map<unsigned int, unsigned int> m_TextureUnits;
+      std::unordered_map<unsigned int, unsigned int> m_FontTextureUnits;
       unsigned int m_NumTextures = 0;
+      unsigned int m_NumFontTextures = 0;
       glm::vec2 m_Viewport = { 0, 0 };
 
       Shader shader{};

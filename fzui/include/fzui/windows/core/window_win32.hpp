@@ -18,7 +18,7 @@
 namespace fz {
   class FZ_API WindowWin32 : public WindowBase {
     public:
-      WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent = nullptr);
+      WindowWin32(const std::string& name, const int& width, const int& height, WindowWin32* parent = nullptr);
       virtual ~WindowWin32();
 
       int run();
@@ -32,6 +32,10 @@ namespace fz {
 
       // UI
       virtual void addElement(UIElement* elem);
+
+      // Getters
+      virtual int getWidth() const;
+      virtual int getHeight() const;
 
     private:
       int init();
@@ -49,7 +53,7 @@ namespace fz {
       HDC m_HDC = NULL;
       int m_Vsync = 0;
       HBRUSH m_BackgroundBrush = NULL;
-      std::wstring m_Name = L"";
+      std::string m_Name = "";
       int m_Width = 0;
       int m_Height = 0;
       HINSTANCE m_Instance = NULL;

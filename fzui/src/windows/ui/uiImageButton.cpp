@@ -1,23 +1,20 @@
 // FZUI
-#include "fzui/windows/ui/uiButton.hpp"
+#include "fzui/windows/ui/uiImageButton.hpp"
 #include "fzui/mouse.hpp"
 #include "fzui/windows/math/math.hpp"
 
 // std
-#include <iostream>
+#include <algorithm>
 
 namespace fz {
-  UIButton::UIButton(const std::string& text, const glm::vec2& pos,
-                     const int& width, const int& height) :
-    UIElement(pos), m_Text(text), m_Width(width), m_Height(height) {
-      m_TextColor = { 255, 255, 255 };
-      m_BackgroundColor = { 255, 255, 255 };
-      m_HoverColor = { 200, 200, 200 };
-      m_DisplayColor = m_BackgroundColor;
-      m_HoverTransition = 0.5f; // seconds
+  UIImageButton::UIImageButton(Texture* texture, const glm::vec2& pos, const int& width, const int& height) :
+    UIElement(pos), m_Texture(texture), m_Width(width), m_Height(height) {
+      m_BackgroundColor = { 0, 0, 0 };
+      m_HoverColor = { 128, 128, 128 };
+      m_DisplayColor = { 255, 255, 255 };
   }
 
-  void UIButton::update(const float& dt) {
+  void UIImageButton::update(const float& dt) {
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
 
     // Collision detection
@@ -39,25 +36,17 @@ namespace fz {
     m_DisplayColor.a = Math::lerp(m_BackgroundColor.a, m_HoverColor.a, percentage);
   }
 
-  void UIButton::draw(Renderer2D* renderer) {
+  void UIImageButton::draw(Renderer2D* renderer) {
     renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor);
-    renderer->drawText(m_Text, m_Position, 12, { 0, 0, 0 });
+    renderer->drawRect(m_Width, m_Height, m_Position, { 255, 255, 255 }, m_Texture);
   }
 
   // Setters
-  void UIButton::setTextColor(const Color& color) {
-    m_TextColor = color;
-  }
-
-  void UIButton::setBackgroundColor(const Color& color) {
+  void UIImageButton::setBackgroundColor(const Color& color) {
     m_BackgroundColor = color;
   }
 
-  void UIButton::setHoverColor(const Color& color) {
+  void UIImageButton::setHoverColor(const Color& color) {
     m_HoverColor = color;
-  }
-
-  void UIButton::setHoverTransition(const float& duration) {
-    m_HoverTransition = duration;
   }
 }

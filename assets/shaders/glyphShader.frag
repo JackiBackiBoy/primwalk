@@ -3,7 +3,7 @@
 in vec3 v_Pos;
 in vec2 texCoord;
 in float v_TexIndex;
-in vec3 v_Color;
+in vec4 v_Color;
 
 out vec4 FragColor;
 
@@ -26,5 +26,5 @@ void main()
   float screenPxDistance  = screenPxRange() * (sd - 0.5);
   float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
   
-  FragColor = vec4(v_Color, opacity);
+  FragColor = v_Color * vec4(1.0, 1.0, 1.0, opacity);
 }

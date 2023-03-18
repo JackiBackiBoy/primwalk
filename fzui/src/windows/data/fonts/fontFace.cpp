@@ -7,6 +7,7 @@
 
 // vendor
 #include <glad/glad.h>
+#include "fzui/windows/data/fonts/fontFace.hpp"
 
 namespace fz {
   FontFace::~FontFace() {
@@ -140,7 +141,13 @@ namespace fz {
     return m_MaxHeight;
   }
 
-  GlyphData FontFace::getGlyph(const msdf_atlas::unicode_t& c) {
+  unsigned int FontFace::getTextureID() const
+  {
+    return m_TextureAtlas;
+  }
+
+  GlyphData FontFace::getGlyph(const msdf_atlas::unicode_t &c)
+  {
     return m_GlyphData[c];
   }
 

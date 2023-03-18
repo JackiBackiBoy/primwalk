@@ -9,7 +9,7 @@
 namespace fz {
   class FZ_API UILabel : public UIElement {
     public:
-      UILabel(const std::string& text, const glm::vec2& pos);
+      UILabel(const std::string& text, const glm::vec2& pos, const Color& color, const float& fontSize, FontFace* font = nullptr);
       virtual ~UILabel() = default;
 
       virtual void update(const float& dt) override;
@@ -18,6 +18,8 @@ namespace fz {
     private:
       std::string m_Text;
       Color m_TextColor;
+      float m_FontSize;
+      FontFace* m_Font;
   };
 }
 

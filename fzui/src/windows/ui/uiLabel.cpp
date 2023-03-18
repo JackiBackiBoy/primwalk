@@ -2,9 +2,11 @@
 #include "fzui/windows/ui/uiLabel.hpp"
 
 namespace fz {
-  UILabel::UILabel(const std::string& text, const glm::vec2& pos) :
+  UILabel::UILabel(const std::string& text, const glm::vec2& pos, const Color& color, const float& fontSize, FontFace* font) :
     UIElement(pos), m_Text(text) {
-      m_TextColor = { 255, 0, 255 };
+      m_TextColor = color;
+      m_FontSize = fontSize;
+      m_Font = font;
   }
 
   void UILabel::update(const float& dt) {
@@ -12,6 +14,6 @@ namespace fz {
   }
 
   void UILabel::draw(Renderer2D* renderer) {
-    renderer->drawText(m_Text, m_Position, 26.0, m_TextColor);
+    renderer->drawText(m_Text, m_Position, m_FontSize, m_TextColor, m_Font);
   }
 }

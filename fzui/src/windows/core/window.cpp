@@ -39,7 +39,7 @@ typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
 typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
-  WindowWin32::WindowWin32(const std::wstring& name, const int& width, const int& height, WindowWin32* parent)
+  WindowWin32::WindowWin32(const std::string& name, const int& width, const int& height, WindowWin32* parent)
     : WindowBase() {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
@@ -99,7 +99,11 @@ namespace fz {
       }
     }
 
-    UnregisterClass(m_Name.c_str(), m_Instance);
+    // Convert string name to wide string
+    std::wstring wName(m_Name.size(), L' ');
+    wName.resize(std::mbstowcs(&wName[0], m_Name.c_str(), m_Name.size()));
+
+    UnregisterClass(wName.c_str(), m_Instance);
 
     return (int)msg.wParam;
   }
@@ -122,13 +126,16 @@ namespace fz {
     m_Icon = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
 
+    // Convert string name to wide string
+    std::wstring wName(m_Name.size(), L' ');
+    wName.resize(std::mbstowcs(&wName[0], m_Name.c_str(), m_Name.size()));
+
     // Setup window class attributes.
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
-
     wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
     wcex.style = CS_OWNDC;   // Window class styles
-    wcex.lpszClassName = m_Name.c_str(); // Window class name
+    wcex.lpszClassName = wName.c_str(); // Window class name
     wcex.hbrBackground = m_BackgroundBrush;  // Window background brush color.
     wcex.hCursor = LoadIcon(NULL, IDC_ARROW);    // Window cursor
     wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
@@ -152,7 +159,7 @@ namespace fz {
     cs.cy = m_Height;  // Window height
     cs.hInstance = m_Instance; // Window instance.
     cs.lpszClass = wcex.lpszClassName; // Window class name
-    cs.lpszName = m_Name.c_str(); // Window title
+    cs.lpszName = wName.c_str(); // Window title
     cs.style = WS_OVERLAPPEDWINDOW; // Window style
     cs.dwExStyle = 0;
     cs.hMenu = NULL;
@@ -252,9 +259,6 @@ namespace fz {
   }
 
   void WindowWin32::onCreate(HWND hWnd) {
-    UIButton* button = new UIButton("Ok", { 50, 50 }, 100, 50);
-    
-    m_UIElements.push_back(button);
   }
 
   void WindowWin32::onUpdate(const float& dt) {
@@ -302,17 +306,25 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText("Forza Coach (Beta)", { m_Width / 2 - 64, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
+    m_Renderer2D->drawText(m_Name, { m_Width / 2 - 64, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
 
     static float time = 0.0f;
     time += 0.01f;
-    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f + 1.0f) * 40, { 255, 255, 255 });
+    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f * 5.0f + 1.0f)* 40, { 255, 255, 255 });
 
     m_Renderer2D->end();
     SwapBuffers(m_HDC);
+  }
+
+  int WindowWin32::getWidth() const {
+    return m_Width;
+  }
+
+  int WindowWin32::getHeight() const {
+    return m_Height;
   }
 
   // Hit test the frame for resizing and moving.
