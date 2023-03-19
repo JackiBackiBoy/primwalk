@@ -24,10 +24,10 @@ namespace fz {
       int run();
 
       // Event functions
-      virtual void onCreate(HWND hWnd);
+      virtual void onCreate();
       virtual void onResize() {};
       virtual void onUpdate(const float& dt) override;
-      virtual void onRender() override;
+      virtual void onRender(const float& dt) override;
       virtual void onDestroy() {};
 
       // UI

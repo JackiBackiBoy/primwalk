@@ -23,11 +23,11 @@ namespace fz {
       static FontFace* create(const std::string& fontPath, const double& fontSize);
 
       // Getters
+      int getTextWidth(const std::string& text, const float& fontSize);
       int getMaxHeight() const;
       unsigned int getTextureID() const;
       GlyphData getGlyph(const msdf_atlas::unicode_t& c);
       const double& getFontSize() const;
-
       
       std::vector<msdf_atlas::GlyphGeometry> glyphs;
       int atlasWidth = 0;

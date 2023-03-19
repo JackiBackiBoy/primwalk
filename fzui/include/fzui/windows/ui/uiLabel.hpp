@@ -15,6 +15,8 @@ namespace fz {
       virtual void update(const float& dt) override;
       virtual void draw(Renderer2D* renderer) override;
 
+      // Setters
+
     private:
       std::string m_Text;
       Color m_TextColor;

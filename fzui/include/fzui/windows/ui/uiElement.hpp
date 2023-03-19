@@ -16,6 +16,12 @@ namespace fz {
       virtual void update(const float& dt) = 0;
       virtual void draw(Renderer2D* renderer) = 0;
 
+      // Getters
+      const glm::vec2& getPosition() const;
+
+      // Setters
+      void setPosition(const glm::vec2& position);
+
     protected:
       glm::vec2 m_Position;
   };

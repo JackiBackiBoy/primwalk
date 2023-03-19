@@ -63,13 +63,13 @@ namespace fz {
     static float dt = 0.0f;
     auto currentTime = std::chrono::high_resolution_clock::now();
 
-    
-
     // onCreate
     m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
     m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
     m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
     m_CloseIcon.loadFromFile("assets/icons/close.png");
+
+    onCreate();
 
     MSG msg;
     while(true) {
@@ -88,8 +88,13 @@ namespace fz {
           newTime - currentTime).count();
       currentTime = newTime;
 
+      // OnUpdate
+      Window::onUpdate(dt);
       onUpdate(dt);
-      onRender();
+
+      // OnRender
+      onRender(dt);
+      Window::onRender(dt);
 
       if (firstPaint) {
         // Shows window
@@ -258,7 +263,8 @@ namespace fz {
     }
   }
 
-  void WindowWin32::onCreate(HWND hWnd) {
+  // ------ Event functions ------
+  void WindowWin32::onCreate() {
   }
 
   void WindowWin32::onUpdate(const float& dt) {
@@ -276,7 +282,7 @@ namespace fz {
     }
   }
 
-  void WindowWin32::onRender() {
+  void WindowWin32::onRender(const float& dt) {
     FontFace* font = FontManager::Instance().getDefaultSmallFont();
 
     // Calculate new window dimensions if resized
@@ -306,13 +312,13 @@ namespace fz {
     m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
     m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
 
-    m_Renderer2D->drawText(m_Name, { m_Width / 2 - 64, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
+    m_Renderer2D->drawText(m_Name, { m_Width / 2 - FontManager::Instance().getDefaultSmallFont()->getTextWidth(m_Name, 12) / 2, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
 
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
     std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
 
     static float time = 0.0f;
-    time += 0.01f;
+    time += 1.0f * dt;
     m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f * 5.0f + 1.0f)* 40, { 255, 255, 255 });
 
     m_Renderer2D->end();
@@ -398,7 +404,7 @@ namespace fz {
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
       window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-      window->onCreate(hWnd);
+      
 
       RECT rcClient;
       GetWindowRect(hWnd, &rcClient);
@@ -479,7 +485,7 @@ namespace fz {
         }
         case WM_SIZING:
         {
-          window->onRender();
+          window->Window::onRender(1.0f); // TODO: Fix delta time
           break;
         }
         case WM_SETCURSOR:

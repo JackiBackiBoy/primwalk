@@ -136,6 +136,24 @@ namespace fz {
     return true; // TODO: Make return value actually reflect whether it worked or not
   }
 
+  int FontFace::getTextWidth(const std::string& text, const float& fontSize) {
+    float width = 0.0f;
+    float scaling = fontSize / m_FontSize;
+
+    for (size_t i = 0; i < text.length(); i++) {
+      GlyphData glyph = m_GlyphData[static_cast<uint32_t>(text[i])];
+
+      if (i < text.length() - 1) {
+        width += glyph.advanceX * scaling;
+      }
+      else {
+        width += (glyph.bearingX + glyph.width) * scaling;
+      }
+    }
+
+    return static_cast<int>(width);
+  }
+
   // Getters
   int FontFace::getMaxHeight() const {
     return m_MaxHeight;

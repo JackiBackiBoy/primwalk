@@ -266,16 +266,21 @@ namespace fz {
 
     float posX = pos.x;
     float scaling = fontSize / font->getFontSize();
+    float offsetX = 0.0f;
 
-    for (char c : text) {
-      GlyphData glyph = font->getGlyph(static_cast<uint32_t>(c));
+    for (size_t i = 0; i < text.length(); i++) {
+      GlyphData glyph = font->getGlyph(static_cast<uint32_t>(text[i]));
 
-      if (c != ' ') {
+      if (i == 0) {
+        offsetX = 0.0f;
+      }
+
+      if (text[i] != ' ') {
         // TODO: Use memcpy instead on predefined array size
-        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY) * scaling,                  0.0f }, { glyph.texRightX, glyph.texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight() - glyph.bearingY) * scaling,                               0.0f }, { glyph.texLeftX, glyph.texTopY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling, pos.y + (font->getMaxHeight()- glyph.bearingY + glyph.height) * scaling,                 0.0f }, { glyph.texLeftX, glyph.texBottomY }, texIndex, Color::normalize(color) });
-        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling,  pos.y + (font->getMaxHeight() - glyph.bearingY + glyph.height) * scaling, 0.0f }, { glyph.texRightX, glyph.texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling + offsetX, pos.y + (font->getMaxHeight()- glyph.bearingY) * scaling,                  0.0f }, { glyph.texRightX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling + offsetX, pos.y + (font->getMaxHeight() - glyph.bearingY) * scaling,                               0.0f }, { glyph.texLeftX, glyph.texTopY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX) * scaling + offsetX, pos.y + (font->getMaxHeight()- glyph.bearingY + glyph.height) * scaling,                 0.0f }, { glyph.texLeftX, glyph.texBottomY }, texIndex, Color::normalize(color) });
+        m_TextVertices.push_back({ { posX + (glyph.bearingX + glyph.width) * scaling + offsetX,  pos.y + (font->getMaxHeight() - glyph.bearingY + glyph.height) * scaling, 0.0f }, { glyph.texRightX, glyph.texBottomY }, texIndex, Color::normalize(color) });
 
         // TODO: Dynamic indices
         unsigned int indexOffset = (m_TextIndices.size() / 6) * 4;

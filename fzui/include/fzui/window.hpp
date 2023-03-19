@@ -14,7 +14,7 @@ namespace fz {
 
       // Event functions
       virtual void onUpdate(const float& dt) {};
-      virtual void onRender() {};
+      virtual void onRender(const float& dt) {};
 
       // Getters
       virtual int getWidth() const = 0;
