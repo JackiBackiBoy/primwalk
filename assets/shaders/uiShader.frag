@@ -7,7 +7,7 @@ in vec4 v_Color;
 
 out vec4 FragColor;
 
-uniform sampler2D u_Textures[16];
+uniform sampler2D u_Textures[8];
 
 void main()
 {

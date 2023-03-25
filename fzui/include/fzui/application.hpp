@@ -6,7 +6,6 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/window.hpp"
 
 namespace fz {
 
@@ -20,12 +19,9 @@ namespace fz {
       Application& operator=(Application&&) = delete;
 
       static Application& Instance();
-      void setMainWindow(Window* window);
 
     private:
       Application() {};
       ~Application() {};
-
-      Window* m_MainWindow = nullptr;
   };
 }

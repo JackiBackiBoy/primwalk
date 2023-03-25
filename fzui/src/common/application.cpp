@@ -6,8 +6,4 @@ namespace fz {
     static Application instance;
     return instance;
   }
-
-  void Application::setMainWindow(Window* window) {
-    m_MainWindow = window;
-  }
 }

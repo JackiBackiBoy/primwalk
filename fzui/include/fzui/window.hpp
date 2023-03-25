@@ -2,7 +2,7 @@
 #define FZ_WINDOW_BASE_HEADER
 
 #include "fzui/core.hpp"
-#include "fzui/windows/data/texture.hpp"
+#include "fzui/data/texture.hpp"
 
 namespace fz {
   class FZ_API WindowBase;
@@ -32,6 +32,10 @@ namespace fz {
     typedef WindowWin32 Window;
   }
 #elif defined(FZ_MACOS)
+  #include "fzui/macos/core/window_osx.hpp"
+  namespace fz {
+    typedef WindowOSX Window;
+  }
 #endif
 
 #endif

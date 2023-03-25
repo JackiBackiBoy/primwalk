@@ -16,11 +16,12 @@ execute_process(
 
 # ------ MSDF-Atlas-Gen ------
 set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "Build with the Skia library" FORCE) # disable Skia
-add_subdirectory(vendor/msdf-atlas-gen)
 
 if(NOT submodule_update_result EQUAL "0")
   message(FATAL_ERROR "Failed to update sub-submodule")
 endif()
+
+add_subdirectory(vendor/msdf-atlas-gen)
 
 add_subdirectory(fzui)
 add_subdirectory(fzcoach)

@@ -27,7 +27,7 @@ class FzCoachWindow : public fz::Window {
       dashboardButton = new fz::UIImageButton(m_HomeIcon, { 8, 100 }, 32, 32);
       dashboardButton->setHoverColor({ 128, 128, 158 });
   
-      auctionButton = new fz::UIImageButton(m_AuctionIcon, { 8, 150 }, 32, 32);
+      auctionButton = new fz::UIImageButton(m_AuctionIcon, { 8, 0 }, 32, 32);
       brushButton = new fz::UIImageButton(m_BrushIcon, { 8, 200 }, 32, 32);
 
       addElement(title);
