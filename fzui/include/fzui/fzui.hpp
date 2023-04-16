@@ -6,7 +6,7 @@
 #include "fzui/window.hpp"
 
 // Data
-#include "fzui/data/fonts/fontManager.hpp"
+#include "fzui/data/fonts/fontFace.hpp"
 #include "fzui/data/texture.hpp"
 
 // UI

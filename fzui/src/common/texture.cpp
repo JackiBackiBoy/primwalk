@@ -5,9 +5,6 @@
 #include "fzui/data/texture.hpp"
 #include "fzui/vendor/stb/stb_image.hpp"
 
-// vendor
-#include <glad/glad.h>
-
 namespace fz {
   Texture::Texture() {
     stbi_set_flip_vertically_on_load(true);
@@ -17,15 +14,19 @@ namespace fz {
     std::string truePath = BASE_DIR + path;
 
     // Load file from path
-    int width;
-    int height;
-    int channels;
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+
+    
 
     stbi_uc* pixels = stbi_load(truePath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
     if (!pixels) {
       std::cout << "ERROR: Could not load texture at: " << truePath << std::endl;
     }
+
+    std::cout << width << ", " << height << std::endl;
 
     create(width, height, pixels);
     stbi_image_free(pixels);
@@ -35,6 +36,7 @@ namespace fz {
     glBindTexture(GL_TEXTURE_2D, m_ID);
   }
 
+  // Getters
   unsigned int Texture::getID() const {
     return m_ID;
   }
@@ -43,7 +45,15 @@ namespace fz {
     return m_Width;
   }
 
-  void Texture::create(const int& width, const int& height, unsigned char* pixels) {
+  unsigned int Texture::getHeight() const {
+    return m_Height;
+  }
+
+  float Texture::getAspectRatio() const {
+    return float(m_Width) / m_Height;
+  }
+
+  void Texture::create(const int& width, const int& height, unsigned char* pixels, int internalFormat, int format) {
     m_Width = width;
     m_Height = height;
 
@@ -62,7 +72,18 @@ namespace fz {
 
     // Fill the texture with the pixel data
     // TODO: Let the pixel format be dynamic in the future
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
+
+  void Texture::update(const int& width, const int& height, unsigned char* pixels, int internalFormat, int format) {
+    m_Width = width;
+    m_Height = height;
+
+    // Fill the texture with the pixel data
+    // TODO: Let the pixel format be dynamic in the future
+    glBindTexture(GL_TEXTURE_2D, m_ID);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
     glGenerateMipmap(GL_TEXTURE_2D);
   }
 

@@ -30,6 +30,7 @@ namespace fz {
       void compileShaders();
 
       // Uniforms
+      void setUniformVec2(const std::string& name, const glm::vec2& value) const;
       void setUniformVec3(const std::string& name, const glm::vec3& value) const;
       void setUniformMat4(const std::string& name, const glm::mat4& value) const;
 

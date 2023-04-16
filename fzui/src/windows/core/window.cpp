@@ -1,21 +1,21 @@
 // std
 #include <cassert>
 #include <iostream>
-#include <chrono>
 #include <cmath>
+#include <thread>
 
 // FZUI
 #include "fzui/window.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
-#include "fzui/windows/rendering/vertexArray.hpp"
-#include "fzui/windows/rendering/vertexBuffer.hpp"
-#include "fzui/windows/rendering/indexBuffer.hpp"
-#include "fzui/windows/rendering/bufferLayout.hpp"
-#include "fzui/windows/data/texture.hpp"
-#include "fzui/windows/ui/uiButton.hpp"
+#include "fzui/rendering/vertexArray.hpp"
+#include "fzui/rendering/vertexBuffer.hpp"
+#include "fzui/rendering/indexBuffer.hpp"
+#include "fzui/rendering/bufferLayout.hpp"
+#include "fzui/data/texture.hpp"
+#include "fzui/uiButton.hpp"
 #include "fzui/mouse.hpp"
-#include "fzui/windows/data/fonts/fontManager.hpp"
+#include "fzui/data/fonts/fontManager.hpp"
 
 // Windows
 #include <sdkddkver.h>
@@ -45,8 +45,8 @@ namespace fz {
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
 
     m_Name = name;
-    m_Width = width;
-    m_Height = height;
+    m_Width.store(width, std::memory_order_relaxed);
+    m_Height.store(height, std::memory_order_relaxed);
 
     init();
   }
@@ -56,58 +56,47 @@ namespace fz {
   }
 
   int WindowWin32::run() {
-    bool firstPaint = true;
-    //HDC hdc = GetDC(m_Handle);
+    // Create separate rendering thread
+    std::thread renderThread([this]() {
+      renderingThread();
+    });
 
-    // Application loop
-    static float dt = 0.0f;
-    auto currentTime = std::chrono::high_resolution_clock::now();
-
+    
+    
     // onCreate
-    m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
-    m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
-    m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
-    m_CloseIcon.loadFromFile("assets/icons/close.png");
-
-    onCreate();
+    //m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
+    //m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
+    //m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
+    //m_CloseIcon.loadFromFile("assets/icons/close.png");
 
     MSG msg;
-    while(true) {
-      if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-        if (msg.message == WM_QUIT) {
-          break;
-        }
+    BOOL bRet;
+    while (true)
+    {
+      bRet = GetMessage(&msg, NULL, 0, 0);
 
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+      if (bRet > 0)  // (bRet > 0 indicates a message that must be processed.)
+      {
+          TranslateMessage(&msg);
+          DispatchMessage(&msg);
       }
-
-      // TODO: Make frame timing consistent when resizing window
-      auto newTime = std::chrono::high_resolution_clock::now();
-      float dt = std::chrono::duration<float, std::chrono::seconds::period>(
-          newTime - currentTime).count();
-      currentTime = newTime;
-
-      // OnUpdate
-      Window::onUpdate(dt);
-      onUpdate(dt);
-
-      // OnRender
-      onRender(dt);
-      Window::onRender(dt);
-
-      if (firstPaint) {
-        // Shows window
-        ShowWindow(m_Handle, SW_SHOW);
-        UpdateWindow(m_Handle);
-        firstPaint = false;
+      else if (bRet < 0)  // (bRet == -1 indicates an error.)
+      {
+          // Handle or log the error; possibly exit.
+          // ...
+      }
+      else  // (bRet == 0 indicates "exit program".)
+      {
+          break;
       }
     }
+
+    // Wait for the rendering thread to close
+    renderThread.join();
 
     // Convert string name to wide string
     std::wstring wName(m_Name.size(), L' ');
     wName.resize(std::mbstowcs(&wName[0], m_Name.c_str(), m_Name.size()));
-
     UnregisterClass(wName.c_str(), m_Instance);
 
     return (int)msg.wParam;
@@ -119,12 +108,7 @@ namespace fz {
   }
 
   int WindowWin32::init() {
-    INITCOMMONCONTROLSEX icc{};
 
-    // Initialise common controls.
-    icc.dwSize = sizeof(icc);
-    icc.dwICC = ICC_WIN95_CLASSES;
-    InitCommonControlsEx(&icc);
 
     m_Instance = GetModuleHandle(0);
     m_BackgroundBrush = CreateSolidBrush(Win32Utilities::getColorRef({ 30, 30, 30 }));
@@ -141,7 +125,7 @@ namespace fz {
     wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
     wcex.style = CS_OWNDC;   // Window class styles
     wcex.lpszClassName = wName.c_str(); // Window class name
-    wcex.hbrBackground = m_BackgroundBrush;  // Window background brush color.
+    wcex.hbrBackground = NULL;  // Window background brush color.
     wcex.hCursor = LoadIcon(NULL, IDC_ARROW);    // Window cursor
     wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
     wcex.hInstance = m_Instance; // The application instance.
@@ -160,8 +144,8 @@ namespace fz {
 
     cs.x = CW_USEDEFAULT; // Window X position
     cs.y = CW_USEDEFAULT; // Window Y position
-    cs.cx = m_Width;  // Window width
-    cs.cy = m_Height;  // Window height
+    cs.cx = m_Width.load(std::memory_order_relaxed);  // Window width
+    cs.cy = m_Height.load(std::memory_order_relaxed);  // Window height
     cs.hInstance = m_Instance; // Window instance.
     cs.lpszClass = wcex.lpszClassName; // Window class name
     cs.lpszName = wName.c_str(); // Window title
@@ -187,11 +171,6 @@ namespace fz {
 
     // Validate window.
     if (!m_Handle) { return 0; }
-
-    createGraphicsContext();
-
-    // Create the renderer once OpenGL is loaded
-    m_Renderer2D = new Renderer2D();
 
     return 1;
   }
@@ -229,7 +208,7 @@ namespace fz {
       WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
     };
 
-    HGLRC hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
+    hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
     wglMakeCurrent(NULL, NULL);
     wglDeleteContext(tempRC);
     wglMakeCurrent(m_HDC, hglrc);
@@ -251,15 +230,61 @@ namespace fz {
     PFNWGLSWAPINTERVALEXTPROC wglSwapInternalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
     PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 
-    if (wglSwapInternalEXT(1)) {
-      printf("VSync enabled \n");
-    }
-    else {
-      printf("Could not enable VSync");
-    }
+      if (wglSwapInternalEXT(1)) {
+        printf("VSync enabled \n");
+      }
+      else {
+        printf("Could not enable VSync");
+      }
     }
     else {
       printf("WGL_EXT_swap_control not supported \n");
+    }
+  }
+
+  void WindowWin32::renderingThread() {
+    bool firstPaint = true;
+    createGraphicsContext();
+    m_Renderer2D = new Renderer2D();
+
+    onCreate();
+
+    auto lastTime = std::chrono::high_resolution_clock::now();
+
+    // TODO: Make frame timing consistent when resizing window
+    while (!m_ShouldClose.load(std::memory_order_relaxed)) {
+      m_FrameDone.store(false, std::memory_order_relaxed);
+      if (m_ShouldRender.load(std::memory_order_relaxed) && !m_Resizing.load(std::memory_order_relaxed)) {
+        wglMakeCurrent(m_HDC, hglrc);
+
+        auto newTime = std::chrono::high_resolution_clock::now();
+        float dt = std::chrono::duration<float, std::chrono::seconds::period>(
+          newTime - lastTime).count();
+        lastTime = newTime;
+
+        // OnUpdate
+        onUpdate(dt);
+        Window::onUpdate(dt);
+
+        // OnRender
+        onRender(dt);
+        Window::onRender(dt);
+
+        // Extra resizing check to prevent in-loop buffer swapping
+        if (!m_Resizing.load(std::memory_order_relaxed)) {
+          SwapBuffers(m_HDC);
+        }
+
+        if (firstPaint) {
+          // Shows window
+          ShowWindow(m_Handle, SW_SHOW);
+          UpdateWindow(m_Handle);
+          firstPaint = false;
+        }
+
+        wglMakeCurrent(0, 0);
+      }
+      m_FrameDone.store(true, std::memory_order_relaxed);
     }
   }
 
@@ -267,7 +292,7 @@ namespace fz {
   void WindowWin32::onCreate() {
   }
 
-  void WindowWin32::onUpdate(const float& dt) {
+  void WindowWin32::onUpdate(float dt) {
 
     // Get relative mouse position
     POINT p;
@@ -282,18 +307,19 @@ namespace fz {
     }
   }
 
-  void WindowWin32::onRender(const float& dt) {
-    FontFace* font = FontManager::Instance().getDefaultSmallFont();
+  void WindowWin32::onRender(float dt) {
+    //FontFace* font = FontManager::Instance().getDefaultSmallFont();
 
     // Calculate new window dimensions if resized
     RECT clientRect;
     GetClientRect(m_Handle, &clientRect);
-    m_Width = clientRect.right - clientRect.left;
-    m_Height = clientRect.bottom - clientRect.top;
-    float aspect = (float)m_Width / (float)m_Height;
+    m_Width.store(clientRect.right - clientRect.left, std::memory_order_relaxed);
+    m_Height.store(clientRect.bottom - clientRect.top, std::memory_order_relaxed);
+    float aspect = (float)m_Width.load(std::memory_order_relaxed) / (float)m_Height.load(std::memory_order_relaxed);
 
     // TODO: Remove this call if possible
-    m_Renderer2D->setViewport(m_Width, m_Height);
+    glViewport(0, 0, m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
+    m_Renderer2D->setViewport(m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
 
     m_Renderer2D->begin();
 
@@ -303,34 +329,17 @@ namespace fz {
     }
 
     // ------ Caption bar area ------
-    m_Renderer2D->drawRect(m_Width, 29, { 0.0f, 0.0f }, { 60, 60, 60 });
-    //m_Renderer2D->drawRect(47, m_Height - 29, { 0.0f, 29.0f }, { 51, 51, 51 });
-    m_Renderer2D->drawRect(16, 16, { 9.0f, 6.0f }, { 255, 255, 255 }, &m_WindowIcon);
-
-    // Window minmize, maximize and close buttons
-    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, &m_MinimizeIcon);
-    m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, &m_MaximizeIcon);
-    m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, &m_CloseIcon);
-
-    m_Renderer2D->drawText(m_Name, { m_Width / 2 - FontManager::Instance().getDefaultSmallFont()->getTextWidth(m_Name, 12) / 2, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
-
-    glm::vec2 mousePos = Mouse::Instance().getRelativePos();
-    std::string s = std::to_string((int)mousePos.x) + ", " + std::to_string((int)mousePos.y);
-
-    static float time = 0.0f;
-    time += 1.0f * dt;
-    m_Renderer2D->drawText(s, { 100, 100 }, ((sin(time) + 1.0f) / 2.0f * 5.0f + 1.0f)* 40, { 255, 255, 255 });
-
+    m_Renderer2D->drawRect(m_Width.load(std::memory_order_relaxed), 29, { 0.0f, 0.0f }, { 60, 60, 60, 200 });
+    //m_Renderer2D->drawText(m_Name, { m_Width.load(std::memory_order_relaxed) / 2 - FontManager::Instance().getDefaultSmallFont()->getTextWidth(m_Name, 12) / 2, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
     m_Renderer2D->end();
-    SwapBuffers(m_HDC);
   }
 
   int WindowWin32::getWidth() const {
-    return m_Width;
+    return m_Width.load(std::memory_order_relaxed);
   }
 
   int WindowWin32::getHeight() const {
-    return m_Height;
+    return m_Height.load(std::memory_order_relaxed);
   }
 
   // Hit test the frame for resizing and moving.
@@ -397,15 +406,13 @@ namespace fz {
     window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
     //WindowProperties windowProperties = window->getProperties();
 
-    if (message == WM_CREATE) {
+    if (message == WM_NCCREATE) {
       // Set window pointer on create
       CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
       WindowWin32* window = reinterpret_cast<WindowWin32*>(pCreate->lpCreateParams);
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
       window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-
       
-
       RECT rcClient;
       GetWindowRect(hWnd, &rcClient);
 
@@ -416,8 +423,7 @@ namespace fz {
                    rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
                    SWP_FRAMECHANGED);
 
-      //ShowWindow(hWnd, SW_SHOWDEFAULT);
-      //UpdateWindow(hWnd);
+      result = DefWindowProc(hWnd, message, wParam, lParam);
     }
     else {
       bool wasHandled = false;
@@ -425,6 +431,7 @@ namespace fz {
       switch (message) {
         case WM_ERASEBKGND:
         {
+          return 1;
           result = 0;
           wasHandled = true;
           break;
@@ -447,13 +454,14 @@ namespace fz {
         case WM_NCLBUTTONDOWN:
         {
           LRESULT result = 0;
-
+          
           if (wParam == HTMAXBUTTON) {
             window->m_MaximizeButtonDown = true;
             return 0;
           }
 
           window->m_MaximizeButtonDown = false;
+          //return 0;
 
           break;
         }
@@ -483,9 +491,31 @@ namespace fz {
 
           break;
         }
+        case WM_ENTERSIZEMOVE:
+        {
+          
+          break;
+        }
+        case WM_EXITSIZEMOVE:
+        {
+          break;
+        }
+        case WM_SIZE:
+        {
+          // This message is sent after WM_SIZING, which indicates that
+          // the resizing operation is complete, this means that we can
+          // safely render a frame until WM_SIZING is sent again.
+          window->m_Resizing.store(false, std::memory_order_relaxed);
+          break;
+        }
         case WM_SIZING:
         {
-          window->Window::onRender(1.0f); // TODO: Fix delta time
+          // When WM_SIZING is sent the rendering thread should render
+          // a frame as fast as possible and then lock rendering until
+          // all related sizing operations have been completed, namely
+          // until the WM_SIZE message is sent.
+          while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
+          window->m_Resizing.store(true, std::memory_order_relaxed); // locks rendering
           break;
         }
         case WM_SETCURSOR:
@@ -498,12 +528,18 @@ namespace fz {
         }
         case WM_DESTROY:
         {
+          window->m_ShouldClose.store(true, std::memory_order_relaxed);
           window->onDestroy();
 
           PostQuitMessage(0);
 
           wasHandled = true;
           result = 1;
+          break;
+        }
+        case WM_PAINT:
+        {
+          return 0;
           break;
         }
       }

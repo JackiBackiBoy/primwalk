@@ -17,7 +17,7 @@ namespace fz {
 
       void bind();
       void unbind();
-      void create();
+      void create(int size);
 
     private:
       unsigned int m_ID = 0;

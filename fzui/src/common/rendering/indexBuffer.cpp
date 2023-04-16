@@ -18,10 +18,10 @@ namespace fz {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
-  void IndexBuffer::create() {
+  void IndexBuffer::create(int size) {
     glGenBuffers(1, &m_ID);
     bind();
     // TODO: Fix dynamic storage data
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * 1024, nullptr, m_Usage);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 16384, nullptr, m_Usage);
   }
 }

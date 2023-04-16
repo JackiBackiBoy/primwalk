@@ -2,7 +2,7 @@
 #include "fzui/rendering/vertexArray.hpp"
 
 namespace fz {
-  VertexArray::VertexArray(BufferLayout& layout, VertexBuffer* vbo,
+  VertexArray::VertexArray(BufferLayout layout, VertexBuffer* vbo,
       IndexBuffer* ibo) :
     m_BufferLayout(layout), m_VBO(vbo), m_IBO(ibo) {
       //m_VBO.unbind();
@@ -28,8 +28,8 @@ namespace fz {
     bind();
 
     // Create VBO and IBO
-    m_VBO->create();
-    m_IBO->create();
+    m_VBO->create(0);
+    m_IBO->create(0);
 
     std::vector<BufferAttribute> attributes = m_BufferLayout.getAttributes();
     int offset = 0;
@@ -45,5 +45,16 @@ namespace fz {
 
     m_VBO->unbind();
     unbind();
+  }
+
+  // Getters
+  unsigned int VertexArray::getVertexSize() const {
+    unsigned int size = 0;
+
+    for (auto& a : m_BufferLayout.getAttributes()) {
+      size += a.byteSize;
+    }
+
+    return size;
   }
 }

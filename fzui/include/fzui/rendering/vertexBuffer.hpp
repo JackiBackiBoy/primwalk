@@ -13,16 +13,17 @@
 namespace fz {
   class FZ_API VertexBuffer {
     public:
-      VertexBuffer(const std::vector<Vertex>& vertices, const int& usage);
+      VertexBuffer(const int& usage);
       ~VertexBuffer();
 
       void bind();
       void unbind();
-      void create();
+      void create(int size);
 
     private:
       unsigned int m_ID = 0;
-      std::vector<Vertex> m_Vertices;
       int m_Usage = 0;
+
+      friend class VertexArray;
   };
 }

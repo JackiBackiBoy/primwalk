@@ -7,10 +7,18 @@
 #include <glm/glm.hpp>
 
 namespace fz {
-  struct FZ_API Vertex {
-    glm::vec3 position;
-    glm::vec2 texCoord;
-    float texIndex;
-    glm::vec4 color;
+  struct FZ_API TextVertex {
+    glm::vec3 position{0.0f};
+    glm::vec2 texCoord{0.0f};
+    float texIndex = 0.0f;
+    glm::vec4 color{0.0f};
+  };
+
+  struct FZ_API RectVertex {
+    glm::vec3 position{0.0f};
+    glm::vec2 texCoord{0.0f};
+    float texIndex = 0.0f;
+    glm::vec4 color{0.0f};
+    float borderRadius = 0.0f;
   };
 }

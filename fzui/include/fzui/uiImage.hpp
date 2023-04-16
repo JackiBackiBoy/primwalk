@@ -16,12 +16,20 @@ namespace fz {
       virtual void update(const float& dt) override;
       virtual void draw(Renderer2D* renderer) override;
 
+      // Getters
+      int getWidth() const;
+      int getHeight() const;
+
+      // Setters
+      void setBorderRadius(int radius);
+
     private:
       std::string m_Text;
       Color m_Color;
       Texture* m_Texture = nullptr;
       int m_Width;
       int m_Height;
+      int m_BorderRadius;
   };
 }
 

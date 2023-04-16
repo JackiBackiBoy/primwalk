@@ -18,8 +18,7 @@ namespace fz {
   }
 
   void UIButton::update(const float& dt) {
-    //glm::vec2 mousePos = Mouse::Instance().getRelativePos();
-    glm::vec2 mousePos = { 0, 0 };
+    glm::vec2 mousePos = Mouse::Instance().getRelativePos();
 
     // Collision detection
     if (mousePos.x >= m_Position.x && mousePos.x <= m_Position.x + m_Width &&
@@ -43,6 +42,11 @@ namespace fz {
   void UIButton::draw(Renderer2D* renderer) {
     renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor);
     renderer->drawText(m_Text, m_Position, 12, { 0, 0, 0 });
+  }
+
+  // Getters
+  int UIButton::getWidth() const {
+    return m_Width;
   }
 
   // Setters

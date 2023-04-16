@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.20.0)
+cmake_policy(SET CMP0091 NEW)
 
-if (WIN32)
-  set(CMAKE_CXX_COMPILER "C:/Users/TheGa/mingw64/bin/g++.exe")
-  set(CMAKE_C_COMPILER "C:/Users/TheGa/mingw64/bin/gcc.exe")
+if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
+  set(CMAKE_CXX_COMPILER g++)
+  set(CMAKE_C_COMPILER gcc)
 endif()
 
 project(fz)
@@ -14,14 +15,22 @@ execute_process(
   RESULT_VARIABLE submodule_update_result
 )
 
-# ------ MSDF-Atlas-Gen ------
-set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "Build with the Skia library" FORCE) # disable Skia
-
 if(NOT submodule_update_result EQUAL "0")
   message(FATAL_ERROR "Failed to update sub-submodule")
 endif()
 
-add_subdirectory(vendor/msdf-atlas-gen)
+if(MSVC)
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+  add_compile_options(
+    $<$<CONFIG:>:/MT> #---------|
+    $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
+    $<$<CONFIG:Release>:/MT> #--|
+  )
+endif()
 
+# ------ MSDF-Atlas-Gen ------
+set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "Build with the Skia library" FORCE) # disable Skia
+
+add_subdirectory(vendor/msdf-atlas-gen)
 add_subdirectory(fzui)
 add_subdirectory(fzcoach)

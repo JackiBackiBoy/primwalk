@@ -12,11 +12,12 @@ namespace fz {
       m_BackgroundColor = { 0, 0, 0 };
       m_HoverColor = { 128, 128, 128 };
       m_DisplayColor = { 255, 255, 255 };
+      m_TextColor = { 255, 255, 255 };
+      m_Text = "";
   }
 
   void UIImageButton::update(const float& dt) {
-    //glm::vec2 mousePos = Mouse::Instance().getRelativePos();
-    glm::vec2 mousePos = { 0, 0 };
+    glm::vec2 mousePos = Mouse::Instance().getRelativePos();
 
     // Collision detection
     if (mousePos.x >= m_Position.x && mousePos.x <= m_Position.x + m_Width &&
@@ -38,8 +39,16 @@ namespace fz {
   }
 
   void UIImageButton::draw(Renderer2D* renderer) {
-    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor);
-    renderer->drawRect(m_Width, m_Height, m_Position, { 255, 255, 255 }, m_Texture);
+    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor, 0, m_Texture);
+
+    if (m_Text != "") {
+      renderer->drawText(m_Text, { m_Position.x + m_Width, m_Position.y}, 12, m_TextColor, nullptr);
+    }
+  }
+
+  // Getters
+  int UIImageButton::getWidth() const {
+    return m_Width;
   }
 
   // Setters
@@ -49,5 +58,13 @@ namespace fz {
 
   void UIImageButton::setHoverColor(const Color& color) {
     m_HoverColor = color;
+  }
+
+  void UIImageButton::setText(const std::string& text) {
+    m_Text = text;
+  }
+
+  void UIImageButton::setBorderRadius(int radius) {
+    m_BorderRadius = radius;
   }
 }

@@ -27,32 +27,27 @@ namespace fz {
       void end();
 
       // Setters
-      void setViewport(const unsigned int& width,
-                       const unsigned int& height);
+      void setViewport(unsigned int width,
+                       unsigned int height);
 
       // Draw functions
-      void drawRect(const int& width, const int& height,
+      void drawRect(int width, int height,
                     const glm::vec2& pos, const Color& color,
-                    Texture* texture = nullptr);
+                    int borderRadius = 0, Texture* texture = nullptr);
       void drawQuad(const glm::vec2& a, const glm::vec2& b,
                     const glm::vec2& c, const glm::vec2& d,
                     const Color& color, Texture* texture = nullptr);
       void drawText(const std::string& text, const glm::vec2& pos,
-                    const float& fontSize, const Color& color,
+                    float fontSize, const Color& color,
                     FontFace* fontFace = nullptr);
 
     private:
-      std::vector<Vertex> m_Vertices;
+      unsigned int VBO, VAO, EBO;
+      unsigned int textVBO, textVAO, textEBO;
+      std::vector<RectVertex> m_Vertices;
       std::vector<unsigned int> m_Indices;
-      std::vector<Vertex> m_TextVertices;
+      std::vector<TextVertex> m_TextVertices;
       std::vector<unsigned int> m_TextIndices;
-
-      VertexBuffer* m_VBO = nullptr;
-      IndexBuffer* m_IBO = nullptr;
-      VertexArray* m_VAO = nullptr;
-      VertexBuffer* m_TextVBO = nullptr;
-      IndexBuffer* m_TextIBO = nullptr;
-      VertexArray* m_TextVAO = nullptr;
 
       std::unordered_map<unsigned int, unsigned int> m_TextureUnits;
       std::unordered_map<unsigned int, unsigned int> m_FontTextureUnits;

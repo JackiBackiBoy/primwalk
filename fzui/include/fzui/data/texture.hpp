@@ -9,6 +9,9 @@
 // FZUI
 #include "fzui/core.hpp"
 
+// vendor
+#include <glad/glad.h>
+
 namespace fz {
   class FZ_API Texture {
     public:
@@ -16,12 +19,15 @@ namespace fz {
       ~Texture() {};
 
       void loadFromFile(const std::string& path);
-      void create(const int& width, const int& height, unsigned char* pixels);
+      void create(const int& width, const int& height, unsigned char* pixels, int internalFormat = GL_RGBA, int format = GL_RGBA);
+      void update(const int& width, const int& height, unsigned char* pixels, int internalFormat = GL_RGBA, int format = GL_RGBA);
       void bind() const;
 
       // Getters
       unsigned int getID() const;
       unsigned int getWidth() const;
+      unsigned int getHeight() const;
+      float getAspectRatio() const;
 
       static Texture* create(const std::string& path);
 

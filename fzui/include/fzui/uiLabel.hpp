@@ -18,10 +18,10 @@ namespace fz {
       // Setters
 
     private:
-      std::string m_Text;
-      Color m_TextColor;
-      float m_FontSize;
-      FontFace* m_Font;
+      std::string m_Text = "";
+      Color m_TextColor = { 255, 255, 255 };
+      float m_FontSize = 0.0f;
+      FontFace* m_Font = nullptr;
   };
 }
 

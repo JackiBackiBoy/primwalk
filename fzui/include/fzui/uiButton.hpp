@@ -18,6 +18,9 @@ namespace fz {
       virtual void update(const float& dt) override;
       virtual void draw(Renderer2D* renderer) override;
 
+      // Getters
+      int getWidth() const;
+
       // Setters
       void setTextColor(const Color& color);
       void setBackgroundColor(const Color& color);

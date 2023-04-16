@@ -13,8 +13,8 @@ namespace fz {
       virtual ~WindowBase() {}
 
       // Event functions
-      virtual void onUpdate(const float& dt) {};
-      virtual void onRender(const float& dt) {};
+      virtual void onUpdate(float dt) {};
+      virtual void onRender(float dt) {};
 
       // Getters
       virtual int getWidth() const = 0;

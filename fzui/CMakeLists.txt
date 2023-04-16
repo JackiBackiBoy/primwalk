@@ -69,8 +69,36 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Retrieve all source and header files
 if(WIN32)
-  file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp ${SOURCE_DIR}/*.c)
-  file(GLOB_RECURSE HEADER_FILES ${INCLUDE_DIR}/*.hpp)
+  file(GLOB_RECURSE SOURCE_FILES
+  ${SOURCE_DIR}/common/*.cpp
+  ${SOURCE_DIR}/common/*.c
+  ${SOURCE_DIR}/windows/*.cpp
+  ${SOURCE_DIR}/windows/*.c
+  )
+  file(GLOB_RECURSE HEADER_FILES
+  ${INCLUDE_DIR}/data/*.hpp
+  ${INCLUDE_DIR}/data/*.h
+  ${INCLUDE_DIR}/windows/*.hpp
+  ${INCLUDE_DIR}/windows/*.h
+  ${INCLUDE_DIR}/math/*.hpp
+  ${INCLUDE_DIR}/math/*.h
+  ${INCLUDE_DIR}/rendering/*.hpp
+  ${INCLUDE_DIR}/rendering/*.h
+  ${INCLUDE_DIR}/vendor/*.hpp
+  ${INCLUDE_DIR}/vendor/*.h
+  ${INCLUDE_DIR}/application.hpp
+  ${INCLUDE_DIR}/color.hpp
+  ${INCLUDE_DIR}/core.hpp
+  ${INCLUDE_DIR}/fzui.hpp
+  ${INCLUDE_DIR}/mouse.hpp
+  ${INCLUDE_DIR}/uiButton.hpp
+  ${INCLUDE_DIR}/uiElement.hpp
+  ${INCLUDE_DIR}/uiImage.hpp
+  ${INCLUDE_DIR}/uiImageButton.hpp
+  ${INCLUDE_DIR}/uiLabel.hpp
+  ${INCLUDE_DIR}/vertex.hpp
+  ${INCLUDE_DIR}/window.hpp
+  )
 elseif(APPLE)
   file(GLOB_RECURSE SOURCE_FILES
     ${SOURCE_DIR}/common/*.cpp

@@ -75,6 +75,7 @@
     "xutility": "cpp",
     "deque": "cpp",
     "queue": "cpp",
-    "set": "cpp"
+    "set": "cpp",
+    "condition_variable": "cpp"
   }
 }

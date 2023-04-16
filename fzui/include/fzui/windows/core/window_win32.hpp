@@ -2,15 +2,19 @@
 #define FZ_WIN32_WINDOW_HEADER
 
 // std
+#include <atomic>
 #include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/windows/ui/uiElement.hpp"
-#include "fzui/windows/rendering/renderer2d.hpp"
+#include "fzui/uiElement.hpp"
+#include "fzui/rendering/renderer2d.hpp"
 
 // Windows
 #include <windows.h>
@@ -26,8 +30,8 @@ namespace fz {
       // Event functions
       virtual void onCreate();
       virtual void onResize() {};
-      virtual void onUpdate(const float& dt) override;
-      virtual void onRender(const float& dt) override;
+      virtual void onUpdate(float dt) override;
+      virtual void onRender(float dt) override;
       virtual void onDestroy() {};
 
       // UI
@@ -40,22 +44,28 @@ namespace fz {
     private:
       int init();
       void createGraphicsContext();
+      void renderingThread();
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
       static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
-      Texture m_MinimizeIcon{};
-      Texture m_MaximizeIcon{};
-      Texture m_CloseIcon{};
 
       HDC m_HDC = NULL;
       int m_Vsync = 0;
       HBRUSH m_BackgroundBrush = NULL;
+
       std::string m_Name = "";
-      int m_Width = 0;
-      int m_Height = 0;
+      std::atomic<int> m_Width = 0;
+      std::atomic<int> m_Height = 0;
+      std::atomic<bool> m_ShouldClose = false;
+      std::atomic<bool> m_ShouldRender = true;
+      std::atomic<bool> m_Resizing = false;
+      std::atomic<bool> m_FrameDone = false;
+      std::atomic<bool> m_SplashScreenActive = false;
+
+      HGLRC hglrc = NULL;
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;
       HWND m_MenuHandle = NULL;

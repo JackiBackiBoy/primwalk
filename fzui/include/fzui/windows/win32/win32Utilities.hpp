@@ -5,7 +5,7 @@
 
 #include <windows.h>
 #include "fzui/core.hpp"
-#include "fzui/windows/color.hpp"
+#include "fzui/color.hpp"
 
 namespace fz {
   class FZ_API Win32Utilities {

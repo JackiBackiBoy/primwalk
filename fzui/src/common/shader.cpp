@@ -73,6 +73,10 @@ namespace fz {
 
   // Uniforms
   // TODO: Add automatic binding
+  void Shader::setUniformVec2(const std::string& name, const glm::vec2& value) const {
+    glUniform2fv(glGetUniformLocation(m_ID, name.c_str()), 1, glm::value_ptr(value));
+  }
+
   void Shader::setUniformVec3(const std::string& name, const glm::vec3& value) const {
     glUniform3fv(glGetUniformLocation(m_ID, name.c_str()), 1, glm::value_ptr(value));
   }

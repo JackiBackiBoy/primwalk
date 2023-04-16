@@ -2,7 +2,6 @@
 #include <iostream>
 
 // FZUI
-#include "fzui/window.hpp"
 #include "fzui/fzui.hpp"
 
 class FzCoachWindow : public fz::Window {
@@ -15,51 +14,58 @@ class FzCoachWindow : public fz::Window {
     }
 
     void onCreate() override {
-      // Resources
-      fz::FontManager::Instance().addFont("Big Font", 72, "assets/fonts/segoeui.ttf");
-      m_BigFont = fz::FontManager::Instance().getFont("Big Font");
       m_HomeIcon = fz::Texture::create("assets/icons/home.png");
       m_AuctionIcon = fz::Texture::create("assets/icons/auction.png");
       m_BrushIcon = fz::Texture::create("assets/icons/brush.png");
+      m_BannerImage = fz::Texture::create("assets/textures/fh5_banner.jpg");
 
       // UI Elements
-      title = new fz::UILabel("Forza Coach", { getWidth() / 2 - m_BigFont->getTextWidth("Forza Coach", 72.0f) / 2, 100 }, { 255, 255, 255 }, 72.0f, m_BigFont);
       dashboardButton = new fz::UIImageButton(m_HomeIcon, { 8, 100 }, 32, 32);
+      dashboardButton->setBackgroundColor({ 0, 0, 0, 255 });
       dashboardButton->setHoverColor({ 128, 128, 158 });
+      dashboardButton->setText("Dashboard");
   
-      auctionButton = new fz::UIImageButton(m_AuctionIcon, { 8, 0 }, 32, 32);
-      brushButton = new fz::UIImageButton(m_BrushIcon, { 8, 200 }, 32, 32);
+      auctionButton = new fz::UIImageButton(m_AuctionIcon, { 8, 150 }, 32, 32);
+      auctionButton->setBackgroundColor({ 255, 0, 0 });
+      auctionButton->setHoverColor({ 255, 0, 0 });
 
-      addElement(title);
+      brushButton = new fz::UIImageButton(m_BrushIcon, { 8, 200 }, 32, 32);
+      brushButton->setBackgroundColor({ 255, 255, 255 });
+
+      roundedRect = new fz::UIImageButton(nullptr, { 200, 200 }, 200, 200);
+      roundedRect->setBackgroundColor({ 255, 0, 0 });
+      roundedRect->setBorderRadius(8);
+
+      banner = new fz::UIImage(m_BannerImage, { 100, 0 }, 500 * m_BannerImage->getAspectRatio(), 500);
+      banner->setBorderRadius(32);
+
+      //addElement(title);
       addElement(dashboardButton);
       addElement(auctionButton);
       addElement(brushButton);
-    }
-    
-    void onUpdate(const float& dt) override {
-      title->setPosition({ (float)getWidth() / 2 - m_BigFont->getTextWidth("Forza Coach", 72.0f) / 2, title->getPosition().y });
-    }
-
-    void onRender(const float& dt) override {
-
+      addElement(banner);
+      addElement(roundedRect);
     }
 
   private:
-    fz::FontFace* m_BigFont;
-    fz::Texture* m_HomeIcon;
-    fz::Texture* m_AuctionIcon;
-    fz::Texture* m_BrushIcon;
+    fz::Texture* m_HomeIcon = nullptr;
+    fz::Texture* m_AuctionIcon = nullptr;
+    fz::Texture* m_BrushIcon = nullptr;
+    fz::Texture* m_BannerImage = nullptr;
 
     // UI Elements
-    fz::UILabel* title;
-    fz::UIImageButton* dashboardButton;
-    fz::UIImageButton* auctionButton;
-    fz::UIImageButton* brushButton;
+    fz::UILabel* title = nullptr;
+    fz::UIImage* banner = nullptr;
+    fz::UIImageButton* dashboardButton = nullptr;
+    fz::UIImageButton* auctionButton = nullptr;
+    fz::UIImageButton* brushButton = nullptr;
+    fz::UIImageButton* roundedRect = nullptr;
 };
 
 int main() {
   fz::Application& app = fz::Application::Instance(); // acquire app instance
   FzCoachWindow* fzMain = new FzCoachWindow();
+  
   fzMain->run();
 
   delete fzMain;
