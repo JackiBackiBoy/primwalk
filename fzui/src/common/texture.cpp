@@ -26,8 +26,6 @@ namespace fz {
       std::cout << "ERROR: Could not load texture at: " << truePath << std::endl;
     }
 
-    std::cout << width << ", " << height << std::endl;
-
     create(width, height, pixels);
     stbi_image_free(pixels);
   }
