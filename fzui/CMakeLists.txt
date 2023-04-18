@@ -92,6 +92,7 @@ if(WIN32)
   ${INCLUDE_DIR}/fzui.hpp
   ${INCLUDE_DIR}/mouse.hpp
   ${INCLUDE_DIR}/uiButton.hpp
+  ${INCLUDE_DIR}/uiContainer.hpp
   ${INCLUDE_DIR}/uiElement.hpp
   ${INCLUDE_DIR}/uiImage.hpp
   ${INCLUDE_DIR}/uiImageButton.hpp
@@ -125,6 +126,7 @@ elseif(APPLE)
     ${INCLUDE_DIR}/fzui.hpp
     ${INCLUDE_DIR}/mouse.hpp
     ${INCLUDE_DIR}/uiButton.hpp
+    ${INCLUDE_DIR}/uiContainer.hpp
     ${INCLUDE_DIR}/uiElement.hpp
     ${INCLUDE_DIR}/uiImage.hpp
     ${INCLUDE_DIR}/uiImageButton.hpp

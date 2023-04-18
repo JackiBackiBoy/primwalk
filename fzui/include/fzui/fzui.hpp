@@ -11,6 +11,7 @@
 
 // UI
 #include "fzui/uiButton.hpp"
+#include "fzui/uiContainer.hpp"
 #include "fzui/uiImage.hpp"
 #include "fzui/uiImageButton.hpp"
 #include "fzui/uiLabel.hpp"

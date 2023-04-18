@@ -40,8 +40,8 @@ namespace fz {
   }
 
   void UIButton::draw(Renderer2D* renderer) {
-    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor);
-    renderer->drawText(m_Text, m_Position, 12, { 0, 0, 0 });
+    renderer->drawRect(m_Width, m_Height, getAbsolutePosition(), m_DisplayColor);
+    renderer->drawText(m_Text, getAbsolutePosition(), 12, { 0, 0, 0 });
   }
 
   // Getters

@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 
 namespace fz {
+  class FZ_API UIContainer;
+
   class FZ_API UIElement {
     public:
       UIElement(const glm::vec2& pos) : m_Position(pos) {};
@@ -18,11 +20,15 @@ namespace fz {
 
       // Getters
       const glm::vec2& getPosition() const;
+      glm::vec2 getAbsolutePosition() const;
 
       // Setters
       void setPosition(const glm::vec2& position);
 
     protected:
       glm::vec2 m_Position;
+      UIContainer* m_Container = nullptr;
+      
+      friend class UIContainer;
   };
 }

@@ -107,11 +107,12 @@ namespace fz {
     m_UIElements.push_back(elem);
   }
 
+  void WindowWin32::addContainer(UIContainer* container) {
+    m_UIContainers.push_back(container);
+  }
+
   int WindowWin32::init() {
-
-
     m_Instance = GetModuleHandle(0);
-    m_BackgroundBrush = CreateSolidBrush(Win32Utilities::getColorRef({ 30, 30, 30 }));
     m_Icon = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
 
@@ -302,14 +303,16 @@ namespace fz {
     Mouse& mouse = Mouse::Instance();
     mouse.m_RelativePos = { (float)p.x, (float)p.y };
 
+    for (UIContainer* container : m_UIContainers) {
+      container->onUpdate(dt);
+    }
+
     for (UIElement* element : m_UIElements) {
-      element->update(dt); // TODO: Pass delta time instead
+      element->update(dt);
     }
   }
 
   void WindowWin32::onRender(float dt) {
-    //FontFace* font = FontManager::Instance().getDefaultSmallFont();
-
     // Calculate new window dimensions if resized
     RECT clientRect;
     GetClientRect(m_Handle, &clientRect);
@@ -323,7 +326,11 @@ namespace fz {
 
     m_Renderer2D->begin();
 
-    // Render UI elements
+    // Render UI elements and containers
+    for (UIContainer* container : m_UIContainers) {
+      container->onRender(m_Renderer2D);
+    }
+
     for (UIElement* element : m_UIElements) {
       element->draw(m_Renderer2D);
     }
@@ -498,6 +505,8 @@ namespace fz {
         }
         case WM_EXITSIZEMOVE:
         {
+          // In case WM_SIZE is not sent during fast resize
+          window->m_Resizing.store(false, std::memory_order_relaxed);
           break;
         }
         case WM_SIZE:

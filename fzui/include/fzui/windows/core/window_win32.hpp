@@ -13,6 +13,7 @@
 
 // FZUI
 #include "fzui/core.hpp"
+#include "fzui/uiContainer.hpp"
 #include "fzui/uiElement.hpp"
 #include "fzui/rendering/renderer2d.hpp"
 
@@ -36,6 +37,7 @@ namespace fz {
 
       // UI
       virtual void addElement(UIElement* elem);
+      virtual void addContainer(UIContainer* container);
 
       // Getters
       virtual int getWidth() const;
@@ -54,7 +56,6 @@ namespace fz {
 
       HDC m_HDC = NULL;
       int m_Vsync = 0;
-      HBRUSH m_BackgroundBrush = NULL;
 
       std::string m_Name = "";
       std::atomic<int> m_Width = 0;
@@ -73,6 +74,7 @@ namespace fz {
       HICON m_IconSmall = NULL;
       bool m_MaximizeButtonDown = false;
       std::vector<UIElement*> m_UIElements;
+      std::vector<UIContainer*> m_UIContainers;
   };
 }
 #endif

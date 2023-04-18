@@ -18,10 +18,11 @@ namespace fz {
 
   void UIImageButton::update(const float& dt) {
     glm::vec2 mousePos = Mouse::Instance().getRelativePos();
+    glm::vec2 truePos = getAbsolutePosition();
 
     // Collision detection
-    if (mousePos.x >= m_Position.x && mousePos.x <= m_Position.x + m_Width &&
-        mousePos.y >= m_Position.y && mousePos.y <= m_Position.y + m_Height) {
+    if (mousePos.x >= truePos.x && mousePos.x <= truePos.x + m_Width &&
+        mousePos.y >= truePos.y && mousePos.y <= truePos.y + m_Height) {
       m_IsHovered = true;
       m_Timer = std::clamp(m_Timer + dt, 0.0f, m_HoverTransition);
     }
@@ -39,11 +40,7 @@ namespace fz {
   }
 
   void UIImageButton::draw(Renderer2D* renderer) {
-    renderer->drawRect(m_Width, m_Height, m_Position, m_DisplayColor, 0, m_Texture);
-
-    if (m_Text != "") {
-      renderer->drawText(m_Text, { m_Position.x + m_Width, m_Position.y}, 12, m_TextColor, nullptr);
-    }
+    renderer->drawRect(m_Width, m_Height, getAbsolutePosition(), m_DisplayColor, 0, m_Texture);
   }
 
   // Getters

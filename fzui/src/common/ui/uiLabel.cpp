@@ -15,6 +15,6 @@ namespace fz {
   }
 
   void UILabel::draw(Renderer2D* renderer) {
-    renderer->drawText(m_Text, m_Position, m_FontSize, m_TextColor, m_Font);
+    renderer->drawText(m_Text, getAbsolutePosition(), m_FontSize, m_TextColor, m_Font);
   }
 }

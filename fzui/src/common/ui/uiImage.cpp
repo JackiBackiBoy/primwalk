@@ -12,7 +12,7 @@ namespace fz {
   }
 
   void UIImage::draw(Renderer2D* renderer) {
-    renderer->drawRect(m_Width, m_Height, m_Position, m_Color, m_BorderRadius, m_Texture);
+    renderer->drawRect(m_Width, m_Height, getAbsolutePosition(), m_Color, m_BorderRadius, m_Texture);
   }
 
   // Getters
