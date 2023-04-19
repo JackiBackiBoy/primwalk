@@ -24,6 +24,11 @@ namespace fz {
     return m_Height;
   }
 
+  void UIImage::setColor(Color color)
+  {
+    m_Color = color;
+  }
+
   // Setters
   void UIImage::setBorderRadius(int radius) {
     m_BorderRadius = radius;

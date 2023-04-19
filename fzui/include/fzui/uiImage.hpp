@@ -21,6 +21,7 @@ namespace fz {
       int getHeight() const;
 
       // Setters
+      void setColor(Color color);
       void setBorderRadius(int radius);
 
     private:

@@ -20,8 +20,9 @@ class FzCoachWindow : public fz::Window {
 
       m_HomeIcon = fz::Texture::create("assets/icons/home.png");
       m_AuctionIcon = fz::Texture::create("assets/icons/auction.png");
-      m_BrushIcon = fz::Texture::create("assets/icons/brush.png");
+      m_BrushIcon = fz::Texture::create("assets/icons/brush.png"); 
       m_BannerImage = fz::Texture::create("assets/textures/fh5_banner.jpg");
+      m_SettingsIcon = fz::Texture::create("assets/icons/settings.png");
 
       // # UI Elements #
       banner = new fz::UIImage(m_BannerImage, { 500, 100 }, 240 * m_BannerImage->getAspectRatio(), 240);
@@ -41,9 +42,8 @@ class FzCoachWindow : public fz::Window {
       dashButtonContainer->setBackgroundColor({ 58, 58, 65 });
       dashButtonContainer->setBorderRadius(8);
 
-      dashboardButton = new fz::UIImageButton(m_HomeIcon, { 0, 0 }, 32, 32);
-      dashboardButton->setBackgroundColor({ 255, 255, 255 });
-      dashboardButton->setHoverColor({ 255, 255, 255 });
+      dashboardButton = new fz::UIImage(m_HomeIcon, { 0, 0 }, 32, 32);
+      dashboardButton->setColor({ 255, 255, 255 });
       dashboardText = new fz::UILabel("DASHBOARD", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2}, {255, 255, 255}, 14, m_MainFont);
 
       dashButtonContainer->addElement(dashboardButton);
@@ -54,9 +54,8 @@ class FzCoachWindow : public fz::Window {
       auctionButtonContainer->setBackgroundColor({ 58, 58, 65 });
       auctionButtonContainer->setBorderRadius(8);
 
-      auctionButton = new fz::UIImageButton(m_AuctionIcon, { 0, 0 }, 32, 32);
-      auctionButton->setBackgroundColor({ 255, 255, 255 });
-      auctionButton->setHoverColor({ 255, 0, 0 });
+      auctionButton = new fz::UIImage(m_AuctionIcon, { 0, 0 }, 32, 32);
+      auctionButton->setColor({ 255, 255, 255 });
       auctionText = new fz::UILabel("AUCTION HOUSE", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
 
       auctionButtonContainer->addElement(auctionButton);
@@ -67,16 +66,29 @@ class FzCoachWindow : public fz::Window {
       brushButtonContainer->setBackgroundColor({ 58, 58, 65 });
       brushButtonContainer->setBorderRadius(8);
 
-      brushButton = new fz::UIImageButton(m_BrushIcon, { 0, 0 }, 32, 32);
-      brushButton->setBackgroundColor({ 255, 255, 255 });
+      brushButton = new fz::UIImage(m_BrushIcon, { 0, 0 }, 32, 32);
+      brushButton->setColor({ 255, 255, 255 });
       brushText = new fz::UILabel("DESIGNS & PAINTS", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
 
       brushButtonContainer->addElement(brushButton);
       brushButtonContainer->addElement(brushText);
+
+      // Settings button
+      settingsButtonContainer = new fz::UIContainer(200, 30, { 10, 210 });
+      settingsButtonContainer->setBackgroundColor({ 58, 58, 65 });
+      settingsButtonContainer->setBorderRadius(8);
+
+      settingsButton = new fz::UIImage(m_SettingsIcon, { 0, 0 }, 32, 32);
+      settingsButton->setColor({ 255, 255, 255 });
+      settingsText = new fz::UILabel("SETTINGS", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
+
+      settingsButtonContainer->addElement(settingsButton);
+      settingsButtonContainer->addElement(settingsText);
       
       navBar->addContainer(dashButtonContainer);
       navBar->addContainer(auctionButtonContainer);
       navBar->addContainer(brushButtonContainer);
+      navBar->addContainer(settingsButtonContainer);
       addContainer(navBar);
     }
 
@@ -93,21 +105,25 @@ class FzCoachWindow : public fz::Window {
     fz::Texture* m_AuctionIcon = nullptr;
     fz::Texture* m_BrushIcon = nullptr;
     fz::Texture* m_BannerImage = nullptr;
+    fz::Texture* m_SettingsIcon = nullptr;
 
     // UI Elements
     fz::UIContainer* navBar = nullptr;
     fz::UIContainer* dashButtonContainer = nullptr;
     fz::UIContainer* auctionButtonContainer = nullptr;
     fz::UIContainer* brushButtonContainer = nullptr;
+    fz::UIContainer* settingsButtonContainer = nullptr;
 
     fz::UILabel* dashboardTitle = nullptr;
     fz::UILabel* dashboardText = nullptr;
     fz::UILabel* auctionText = nullptr;
     fz::UILabel* brushText = nullptr;
+    fz::UILabel* settingsText = nullptr;
     fz::UIImage* banner = nullptr;
-    fz::UIImageButton* dashboardButton = nullptr;
-    fz::UIImageButton* auctionButton = nullptr;
-    fz::UIImageButton* brushButton = nullptr;
+    fz::UIImage* dashboardButton = nullptr;
+    fz::UIImage* auctionButton = nullptr;
+    fz::UIImage* brushButton = nullptr;
+    fz::UIImage* settingsButton = nullptr;
     fz::UIImageButton* roundedRect = nullptr;
 };
 
