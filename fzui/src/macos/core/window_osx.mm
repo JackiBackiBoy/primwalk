@@ -13,6 +13,7 @@
 #include "fzui/data/texture.hpp"
 #include "fzui/uiButton.hpp"
 #include "fzui/data/fonts/fontManager.hpp"
+#include "fzui/mouse.hpp"
 
 // Vendor
 #include <glad/glad.h>
@@ -33,11 +34,17 @@
   @end
 
   @interface WindowDelegate : NSObject<NSWindowDelegate>
+  @property bool* shouldQuit;
   @end
 
   @implementation WindowDelegate
   - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
     return frameSize;
+  }
+
+  - (BOOL)windowShouldClose:(NSWindow *)sender {
+    *self.shouldQuit = true;
+    return YES;
   }
   @end
 
@@ -59,20 +66,38 @@ namespace fz {
   }
 
   int WindowOSX::run() {
+    bool shouldQuit = false;
+
     // Create an instance of NSWindow
     NSWindow* window = [
       [NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, m_Width, m_Height)
-      styleMask:NSWindowStyleMaskTitled |
+      styleMask:NSWindowStyleMaskResizable |
+                NSWindowStyleMaskTitled |
                 NSWindowStyleMaskClosable |
-                NSWindowStyleMaskResizable
+                NSWindowStyleMaskMiniaturizable |
+                NSWindowStyleMaskFullSizeContentView
       backing:NSBackingStoreBuffered
       defer:NO];
+    
+    //NSAppearance *appearance = [NSAppearance appearanceNamed:NSAppearanceNameVibrantDark];
+    //[window setAppearance:appearance];
+    [window setTitlebarAppearsTransparent:YES];
+    [window setBackgroundColor:[NSColor colorWithRed:33.0 / 255.0
+                                        green:37.0 / 255.0
+                                        blue:42.0 / 255.0
+                                        alpha:0.0]];
+    [window setTitleVisibility:NSWindowTitleHidden]; // hide default title text
 
+    
     // TODO: Investigate character encoding (potential issue)
     NSString* titleString = @(m_Name.c_str());
     [window setTitle:titleString];
     [window setMinSize:NSMakeSize(100, 100)];
-    window.delegate = [[WindowDelegate alloc] init];
+
+    WindowDelegate* windowDelegate = [[WindowDelegate alloc] init];
+    windowDelegate.shouldQuit = &shouldQuit;
+    //window.delegate = [[WindowDelegate alloc] init];
+    [window setDelegate:windowDelegate];
 
     NSOpenGLPixelFormatAttribute attribs[] =
     {
@@ -95,7 +120,7 @@ namespace fz {
                                shareContext:nil];
 
     CGFloat scaleFactor = [[window screen] backingScaleFactor];
-    std::cout << scaleFactor << std::endl;
+    std::cout << "Scale factor: " << scaleFactor << std::endl;
     NSRect contentRect = [window contentRectForFrameRect:[window frame]];
     NSOpenGLView* glView = [[NSOpenGLView alloc] initWithFrame:contentRect pixelFormat:pixelFormat];
     [glView setWantsBestResolutionOpenGLSurface:YES];
@@ -122,7 +147,6 @@ namespace fz {
     onCreate();
 
     // Run the event loop
-    bool shouldQuit = false;
     while (!shouldQuit) {
       @autoreleasepool {
         NSEvent* event = [[NSApplication sharedApplication] nextEventMatchingMask:NSEventMaskAny
@@ -141,7 +165,9 @@ namespace fz {
           m_Width = width;
           m_Height = height;
 
-          glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+          glClearColor(m_BackgroundColor.r / 255.0f,
+                       m_BackgroundColor.g / 255.0f,
+                       m_BackgroundColor.b / 255.0f, 1.0f);
           glClear(GL_COLOR_BUFFER_BIT);
           glViewport(0, 0, m_Width * 2, m_Height * 2);
           m_Renderer2D->setViewport(m_Width, m_Height);
@@ -153,6 +179,11 @@ namespace fz {
           currentTime = newTime;
 
           // OnUpdate
+          NSPoint mouseLoc = [NSEvent mouseLocation];
+          NSPoint windowOrigin = [window frame].origin;
+          NSPoint relativeMouseLoc = NSMakePoint(mouseLoc.x - windowOrigin.x, NSMaxY([window frame]) - mouseLoc.y);
+          Mouse::Instance().m_RelativePos = { (int)relativeMouseLoc.x, (int)relativeMouseLoc.y };
+          
           Window::onUpdate(dt);
           onUpdate(dt);
 
@@ -171,6 +202,10 @@ namespace fz {
     m_UIElements.push_back(elem);
   }
 
+  void WindowOSX::addContainer(UIContainer* container) {
+    m_Containers.push_back(container);
+  }
+
   int WindowOSX::init() {
   }
 
@@ -181,24 +216,33 @@ namespace fz {
   void WindowOSX::onCreate() {
   }
 
-  void WindowOSX::onUpdate(const float& dt) {
+  void WindowOSX::onUpdate(float dt) {
+    // Update mouse position
+
     for (UIElement* element : m_UIElements) {
       element->update(dt); // TODO: Pass delta time instead
     }
   }
 
-  void WindowOSX::onRender(const float& dt) {
+  void WindowOSX::onRender(float dt) {
     m_Renderer2D->begin();
 
-    m_Renderer2D->drawRect(32, 32, { 0.0f, 0.0f }, { 60, 60, 60 });
+    // Render UI containers
+    for (UIContainer* container : m_Containers) {
+      container->onRender(m_Renderer2D);
+    }
+
     // Render UI elements
     for (UIElement* element : m_UIElements) {
       element->draw(m_Renderer2D);
     }
 
+    m_Renderer2D->drawRect(m_Width, 30, { 0, 0 }, {33, 37, 43 });
+
     m_Renderer2D->end();
   }
 
+  // Getters
   int WindowOSX::getWidth() const {
     return m_Width;
   }

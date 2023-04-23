@@ -31,6 +31,10 @@ namespace fz {
     typedef MouseWin32 Mouse;
   }
 #elif defined(FZ_MACOS)
+  #include "fzui/macos/input/mouse_osx.hpp"
+  namespace fz {
+    typedef MouseOSX Mouse;
+  }
 #endif
 
 #endif

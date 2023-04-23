@@ -30,7 +30,7 @@ class FzCoachWindow : public fz::Window {
 
       dashboardTitle = new fz::UILabel("Dashboard", { 260, 50 }, { 255, 255 ,255 }, 50, m_TitleFont);
 
-      addElement(banner);
+      //addElement(banner);
       addElement(dashboardTitle);
 
       // Left navigation bar
@@ -56,7 +56,7 @@ class FzCoachWindow : public fz::Window {
 
       auctionButton = new fz::UIImage(m_AuctionIcon, { 0, 0 }, 32, 32);
       auctionButton->setColor({ 255, 255, 255 });
-      auctionText = new fz::UILabel("AUCTION HOUSE", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
+      auctionText = new fz::UILabel("BUY AND SELL", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
 
       auctionButtonContainer->addElement(auctionButton);
       auctionButtonContainer->addElement(auctionText);
@@ -68,7 +68,7 @@ class FzCoachWindow : public fz::Window {
 
       brushButton = new fz::UIImage(m_BrushIcon, { 0, 0 }, 32, 32);
       brushButton->setColor({ 255, 255, 255 });
-      brushText = new fz::UILabel("DESIGNS & PAINTS", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
+      brushText = new fz::UILabel("DESIGNS", { 50, 30 / 2 - m_MainFont->getMaxHeight() / 2 }, { 255, 255, 255 }, 14, m_MainFont);
 
       brushButtonContainer->addElement(brushButton);
       brushButtonContainer->addElement(brushText);

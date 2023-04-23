@@ -4,6 +4,7 @@
 // FZUI
 #include "fzui/core.hpp"
 #include "fzui/uiElement.hpp"
+#include "fzui/uiContainer.hpp"
 #include "fzui/rendering/renderer2d.hpp"
 
 namespace fz {
@@ -17,16 +18,17 @@ namespace fz {
       // Event functions
       virtual void onCreate();
       virtual void onResize() {};
-      virtual void onUpdate(const float& dt) override;
-      virtual void onRender(const float& dt) override;
+      virtual void onUpdate(float dt) override;
+      virtual void onRender(float dt) override;
       virtual void onDestroy() {};
 
       // UI
       virtual void addElement(UIElement* elem);
+      virtual void addContainer(UIContainer* container);
 
       // Getters
-      virtual int getWidth() const;
-      virtual int getHeight() const;
+      virtual int getWidth() const override;
+      virtual int getHeight() const override;
 
     private:
       int init();
@@ -43,6 +45,8 @@ namespace fz {
       int m_Width = 0;
       int m_Height = 0;
       std::vector<UIElement*> m_UIElements;
+      std::vector<UIContainer*> m_Containers;
+      Color m_BackgroundColor = { 20, 20, 20 };
   };
 }
 
