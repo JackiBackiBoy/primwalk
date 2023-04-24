@@ -59,35 +59,17 @@ namespace fz {
     // Create separate rendering thread
     std::thread renderThread([this]() {
       renderingThread();
-    });
-
-    
-    
-    // onCreate
-    //m_WindowIcon.loadFromFile("assets/textures/fzcoach16x16.png");
-    //m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
-    //m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
-    //m_CloseIcon.loadFromFile("assets/icons/close.png");
+      });
 
     MSG msg;
-    BOOL bRet;
-    while (true)
+    while (GetMessage(&msg, NULL, 0, 0))
     {
-      bRet = GetMessage(&msg, NULL, 0, 0);
+      std::cout << msg.message << "\n";
 
-      if (bRet > 0)  // (bRet > 0 indicates a message that must be processed.)
-      {
-          TranslateMessage(&msg);
-          DispatchMessage(&msg);
-      }
-      else if (bRet < 0)  // (bRet == -1 indicates an error.)
-      {
-          // Handle or log the error; possibly exit.
-          // ...
-      }
-      else  // (bRet == 0 indicates "exit program".)
-      {
-          break;
+      if (msg.message != 15) {
+        
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
       }
     }
 
@@ -187,7 +169,7 @@ namespace fz {
     pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
     pfd.iPixelType = PFD_TYPE_RGBA;
     pfd.cColorBits = 32;
-    pfd.cDepthBits = 32;
+    pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
 
     int pixelFormat = ChoosePixelFormat(m_HDC, &pfd);
@@ -248,14 +230,20 @@ namespace fz {
     createGraphicsContext();
     m_Renderer2D = new Renderer2D();
 
+    Window::onCreate();
     onCreate();
 
     auto lastTime = std::chrono::high_resolution_clock::now();
 
     // TODO: Make frame timing consistent when resizing window
     while (!m_ShouldClose.load(std::memory_order_relaxed)) {
+      std::unique_lock<std::mutex> lock(mtx);
+      cv.wait(lock, [&] { return !m_IsMinimized.load(std::memory_order_relaxed); });
+
       m_FrameDone.store(false, std::memory_order_relaxed);
-      if (m_ShouldRender.load(std::memory_order_relaxed) && !m_Resizing.load(std::memory_order_relaxed)) {
+
+      if (m_ShouldRender.load(std::memory_order_relaxed) &&
+          !m_Resizing.load(std::memory_order_relaxed)) {
         wglMakeCurrent(m_HDC, hglrc);
 
         auto newTime = std::chrono::high_resolution_clock::now();
@@ -291,6 +279,9 @@ namespace fz {
 
   // ------ Event functions ------
   void WindowWin32::onCreate() {
+    m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
+    m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
+    m_CloseIcon.loadFromFile("assets/icons/close.png");
   }
 
   void WindowWin32::onUpdate(float dt) {
@@ -337,7 +328,12 @@ namespace fz {
 
     // ------ Caption bar area ------
     m_Renderer2D->drawRect(m_Width.load(std::memory_order_relaxed), 29, { 0.0f, 0.0f }, { 60, 60, 60, 200 });
-    //m_Renderer2D->drawText(m_Name, { m_Width.load(std::memory_order_relaxed) / 2 - FontManager::Instance().getDefaultSmallFont()->getTextWidth(m_Name, 12) / 2, 29 / 2 - font->getMaxHeight() / 2 }, 12, { 255, 255, 255 });
+
+    // Window minimize, maximize and close buttons
+    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, 0, &m_MinimizeIcon);
+    m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, 0, &m_MaximizeIcon);
+    m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, 0, &m_CloseIcon);
+
     m_Renderer2D->end();
   }
 
@@ -386,8 +382,14 @@ namespace fz {
     }
 
     // Maximize button
-    if (uRow == 0 && ptMouse.x >= rcWindow.right - 60 && ptMouse.x < rcWindow.right - 30) {
+    if (uRow == 0 && ptMouse.x >= rcWindow.right - 30 && ptMouse.x < rcWindow.right) {
+      return HTCLOSE;
+    }
+    else if (uRow == 0 && ptMouse.x >= rcWindow.right - 60 && ptMouse.x < rcWindow.right - 30) {
       return HTMAXBUTTON;
+    }
+    else if (uRow == 0 && ptMouse.x >= rcWindow.right - 90 && ptMouse.x < rcWindow.right - 60) {
+      return HTMINBUTTON;
     }
 
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.right &&
@@ -462,8 +464,16 @@ namespace fz {
         {
           LRESULT result = 0;
           
-          if (wParam == HTMAXBUTTON) {
+          if (wParam == HTMINBUTTON) {
+            window->m_MinimizeButtonDown = true;
+            return 0;
+          }
+          else if (wParam == HTMAXBUTTON) {
             window->m_MaximizeButtonDown = true;
+            return 0;
+          }
+          if (wParam == HTCLOSE) {
+            window->m_CloseButtonDown = true;
             return 0;
           }
 
@@ -479,6 +489,10 @@ namespace fz {
           
 
           if (wParam == HTMINBUTTON) {
+            window->m_IsMinimized.store(true, std::memory_order_relaxed);
+            window->cv.notify_all();
+
+            //window->m_IsMinimized.store(true, std::memory_order_relaxed);
             ShowWindow(hWnd, SW_MINIMIZE);
           }
           else if (wParam == HTMAXBUTTON && window->m_MaximizeButtonDown) {
@@ -535,6 +549,16 @@ namespace fz {
           }
           break;
         }
+        case WM_SYSCOMMAND:
+        {
+          // Reset minimized flag upon window restore
+          if (wParam == SC_RESTORE) {
+            window->m_IsMinimized.store(false, std::memory_order_relaxed);
+            window->cv.notify_all();
+          }
+
+          break;
+        }
         case WM_DESTROY:
         {
           window->m_ShouldClose.store(true, std::memory_order_relaxed);
@@ -544,11 +568,6 @@ namespace fz {
 
           wasHandled = true;
           result = 1;
-          break;
-        }
-        case WM_PAINT:
-        {
-          return 0;
           break;
         }
       }

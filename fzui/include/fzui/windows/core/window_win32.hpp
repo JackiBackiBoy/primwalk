@@ -16,6 +16,7 @@
 #include "fzui/uiContainer.hpp"
 #include "fzui/uiElement.hpp"
 #include "fzui/rendering/renderer2d.hpp"
+#include "fzui/data/texture.hpp"
 
 // Windows
 #include <windows.h>
@@ -66,13 +67,18 @@ namespace fz {
       std::atomic<bool> m_FrameDone = false;
       std::atomic<bool> m_SplashScreenActive = false;
 
+      Texture m_MinimizeIcon;
+      Texture m_MaximizeIcon;
+      Texture m_CloseIcon;
       HGLRC hglrc = NULL;
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;
       HWND m_MenuHandle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
+      bool m_MinimizeButtonDown = false;
       bool m_MaximizeButtonDown = false;
+      bool m_CloseButtonDown = false;
       std::vector<UIElement*> m_UIElements;
       std::vector<UIContainer*> m_UIContainers;
   };

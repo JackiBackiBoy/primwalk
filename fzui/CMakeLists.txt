@@ -34,6 +34,21 @@ include_directories(
   ${INCLUDE_DIR}
 )
 
+# 1. Find Vulkan SDK
+if (DEFINED VULKAN_SDK_PATH)
+  set(Vulkan_INCLUDE_DIRS "${VULKAN_SDK_PATH}/Include") # 1.1 Make sure this include path is correct
+  set(Vulkan_LIBRARIES "${VULKAN_SDK_PATH}/Lib") # 1.2 Make sure lib path is correct
+  set(Vulkan_FOUND "True")
+else()
+  find_package(Vulkan REQUIRED) # throws error if could not find Vulkan
+  message(STATUS "Found Vulkan: $ENV{VULKAN_SDK}")
+endif()
+if (NOT Vulkan_FOUND)
+  message(FATAL_ERROR "Could not find Vulkan library!")
+else()
+  message(STATUS "Using vulkan lib at: ${Vulkan_LIBRARIES}")
+endif()
+
 # 2. GLM
 find_path(GLM_INCLUDE_DIR vendor/glm ${CMAKE_HOME_DIRECTORY})
 
@@ -154,10 +169,12 @@ target_compile_definitions(${NAME} PRIVATE
 target_include_directories(${NAME} PUBLIC
   ${GLAD_INCLUDE_DIR}
   ${GLM_INCLUDE_DIR}
+  ${Vulkan_INCLUDE_DIRS}
   ${MSDFGEN_INCLUDE_DIR}
 )
 
 target_link_directories(${NAME} PUBLIC
+  ${Vulkan_LIBRARIES}
   ${MSDFGEN_LIBRARIES}
 )
 
@@ -169,6 +186,7 @@ if (WIN32)
     Dwmapi.lib
     UxTheme
     msdf-atlas-gen
+    ${Vulkan_LIBRARIES}
   )
 elseif(APPLE)
   target_link_libraries(${NAME} PUBLIC

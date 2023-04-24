@@ -1,6 +1,11 @@
 #ifndef FZ_WINDOW_BASE_HEADER
 #define FZ_WINDOW_BASE_HEADER
 
+// std
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+
 #include "fzui/core.hpp"
 #include "fzui/data/texture.hpp"
 
@@ -22,6 +27,9 @@ namespace fz {
 
     protected:
       Texture m_WindowIcon;
+      std::atomic<bool> m_IsMinimized = false;
+      std::mutex mtx;
+      std::condition_variable cv;
   };
 }
 
