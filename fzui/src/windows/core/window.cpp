@@ -59,27 +59,20 @@ namespace fz {
     // Create separate rendering thread
     std::thread renderThread([this]() {
       renderingThread();
-      });
+    });
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
     {
-      std::cout << msg.message << "\n";
-
-      if (msg.message != 15) {
-        
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
     }
 
     // Wait for the rendering thread to close
     renderThread.join();
 
     // Convert string name to wide string
-    std::wstring wName(m_Name.size(), L' ');
-    wName.resize(std::mbstowcs(&wName[0], m_Name.c_str(), m_Name.size()));
-    UnregisterClass(wName.c_str(), m_Instance);
+    UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
 
     return (int)msg.wParam;
   }
@@ -99,45 +92,44 @@ namespace fz {
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
 
     // Convert string name to wide string
-    std::wstring wName(m_Name.size(), L' ');
-    wName.resize(std::mbstowcs(&wName[0], m_Name.c_str(), m_Name.size()));
+    std::wstring wName = Win32Utilities::stringToWideString(m_Name);
 
-    // Setup window class attributes.
+    // 1. Setup window class attributes.
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
-    wcex.cbSize = sizeof(wcex); // WNDCLASSEX size in bytes
-    wcex.style = CS_OWNDC;   // Window class styles
-    wcex.lpszClassName = wName.c_str(); // Window class name
-    wcex.hbrBackground = NULL;  // Window background brush color.
-    wcex.hCursor = LoadIcon(NULL, IDC_ARROW);    // Window cursor
-    wcex.lpfnWndProc = WindowProc;    // Window procedure associated to this window class.
-    wcex.hInstance = m_Instance; // The application instance.
-    wcex.hIcon = m_Icon;      // Application icon.
-    wcex.hIconSm = m_IconSmall; // Application small icon.
+    wcex.cbSize        = sizeof(wcex);              // WNDCLASSEX size in bytes
+    wcex.style         = CS_OWNDC;                  // Window class styles
+    wcex.lpszClassName = wName.c_str();             // Window class name
+    wcex.hbrBackground = NULL;                      // Window background brush color
+    wcex.hCursor       = LoadIcon(NULL, IDC_ARROW); // Window cursor
+    wcex.lpfnWndProc   = WindowProc;                // Window procedure associated to this window class
+    wcex.hInstance     = m_Instance;                // The application instance
+    wcex.hIcon         = m_Icon;                    // Application icon
+    wcex.hIconSm       = m_IconSmall;               // Application small icon
 
-    // Register window and ensure registration success.
+    // 2. Register window and ensure registration success.
     if (!RegisterClassEx(&wcex)) {
       std::cout << "ERROR: Could not create main window!" << std::endl;
       return 0;
     }
 
-    // Setup window initialization attributes.
+    // 3. Setup window initialization attributes
+    POINT screenCenter = Win32Utilities::getScreenCenter();
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));
+    cs.x              = screenCenter.x - m_Width.load(std::memory_order_relaxed) / 2;                            // Window X position
+    cs.y              = screenCenter.y - m_Height.load(std::memory_order_relaxed) / 2;                            // Window Y position
+    cs.cx             = m_Width.load(std::memory_order_relaxed);  // Window width
+    cs.cy             = m_Height.load(std::memory_order_relaxed); // Window height
+    cs.hInstance      = m_Instance;                               // Window instance
+    cs.lpszClass      = wcex.lpszClassName;                       // Window class name
+    cs.lpszName       = wName.c_str();                            // Window title
+    cs.style          = WS_OVERLAPPEDWINDOW;                      // Window style
+    cs.dwExStyle      = 0;                                        // Window extended styles
+    cs.hMenu          = NULL;                                     // Window menu
+    cs.lpCreateParams = this;                                     // Window creation parameters
 
-    cs.x = CW_USEDEFAULT; // Window X position
-    cs.y = CW_USEDEFAULT; // Window Y position
-    cs.cx = m_Width.load(std::memory_order_relaxed);  // Window width
-    cs.cy = m_Height.load(std::memory_order_relaxed);  // Window height
-    cs.hInstance = m_Instance; // Window instance.
-    cs.lpszClass = wcex.lpszClassName; // Window class name
-    cs.lpszName = wName.c_str(); // Window title
-    cs.style = WS_OVERLAPPEDWINDOW; // Window style
-    cs.dwExStyle = 0;
-    cs.hMenu = NULL;
-    cs.lpCreateParams = this;
-
-    // Create the window.
+    // Create the window
     m_Handle = CreateWindowEx(
       cs.dwExStyle,
       cs.lpszClass,
@@ -152,7 +144,7 @@ namespace fz {
       cs.hInstance,
       this);
 
-    // Validate window.
+    // Validate window
     if (!m_Handle) { return 0; }
 
     return 1;
@@ -163,7 +155,6 @@ namespace fz {
 
     PIXELFORMATDESCRIPTOR pfd;
     memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
-
     pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
     pfd.nVersion = 1;
     pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
@@ -205,8 +196,7 @@ namespace fz {
     }
 
     PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-    bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0;
-    //https://www.khronos.org/opengl/wiki/Swap_Interval
+    bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0; //https://www.khronos.org/opengl/wiki/Swap_Interval
     int vsync = 0;
 
     if (swapControlSupported) {
@@ -237,8 +227,8 @@ namespace fz {
 
     // TODO: Make frame timing consistent when resizing window
     while (!m_ShouldClose.load(std::memory_order_relaxed)) {
-      std::unique_lock<std::mutex> lock(mtx);
-      cv.wait(lock, [&] { return !m_IsMinimized.load(std::memory_order_relaxed); });
+      std::unique_lock<std::mutex> lock(m_RenderingMutex);
+      m_RenderingCondition.wait(lock, [&] { return !m_IsMinimized.load(std::memory_order_relaxed); });
 
       m_FrameDone.store(false, std::memory_order_relaxed);
 
@@ -285,7 +275,6 @@ namespace fz {
   }
 
   void WindowWin32::onUpdate(float dt) {
-
     // Get relative mouse position
     POINT p;
     GetCursorPos(&p);
@@ -304,13 +293,6 @@ namespace fz {
   }
 
   void WindowWin32::onRender(float dt) {
-    // Calculate new window dimensions if resized
-    RECT clientRect;
-    GetClientRect(m_Handle, &clientRect);
-    m_Width.store(clientRect.right - clientRect.left, std::memory_order_relaxed);
-    m_Height.store(clientRect.bottom - clientRect.top, std::memory_order_relaxed);
-    float aspect = (float)m_Width.load(std::memory_order_relaxed) / (float)m_Height.load(std::memory_order_relaxed);
-
     // TODO: Remove this call if possible
     glViewport(0, 0, m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
     m_Renderer2D->setViewport(m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
@@ -478,7 +460,6 @@ namespace fz {
           }
 
           window->m_MaximizeButtonDown = false;
-          //return 0;
 
           break;
         }
@@ -490,7 +471,7 @@ namespace fz {
 
           if (wParam == HTMINBUTTON) {
             window->m_IsMinimized.store(true, std::memory_order_relaxed);
-            window->cv.notify_all();
+            window->m_RenderingCondition.notify_all();
 
             //window->m_IsMinimized.store(true, std::memory_order_relaxed);
             ShowWindow(hWnd, SW_MINIMIZE);
@@ -514,7 +495,6 @@ namespace fz {
         }
         case WM_ENTERSIZEMOVE:
         {
-          
           break;
         }
         case WM_EXITSIZEMOVE:
@@ -528,6 +508,9 @@ namespace fz {
           // This message is sent after WM_SIZING, which indicates that
           // the resizing operation is complete, this means that we can
           // safely render a frame until WM_SIZING is sent again.
+          // Calculate new window dimensions if resized
+          window->m_Width.store(LOWORD(lParam), std::memory_order_relaxed);
+          window->m_Height.store(HIWORD(lParam), std::memory_order_relaxed);
           window->m_Resizing.store(false, std::memory_order_relaxed);
           break;
         }
@@ -554,13 +537,15 @@ namespace fz {
           // Reset minimized flag upon window restore
           if (wParam == SC_RESTORE) {
             window->m_IsMinimized.store(false, std::memory_order_relaxed);
-            window->cv.notify_all();
+            window->m_RenderingCondition.notify_all();
           }
 
           break;
         }
         case WM_DESTROY:
         {
+          window->m_IsMinimized.store(false, std::memory_order_relaxed);
+          window->m_RenderingCondition.notify_all();
           window->m_ShouldClose.store(true, std::memory_order_relaxed);
           window->onDestroy();
 

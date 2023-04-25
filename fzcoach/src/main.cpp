@@ -30,7 +30,7 @@ class FzCoachWindow : public fz::Window {
 
       dashboardTitle = new fz::UILabel("Dashboard", { 260, 50 }, { 255, 255 ,255 }, 50, m_TitleFont);
 
-      //addElement(banner);
+      addElement(banner);
       addElement(dashboardTitle);
 
       // Left navigation bar

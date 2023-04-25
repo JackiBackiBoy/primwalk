@@ -65,7 +65,7 @@ namespace fz {
       std::atomic<bool> m_ShouldRender = true;
       std::atomic<bool> m_Resizing = false;
       std::atomic<bool> m_FrameDone = false;
-      std::atomic<bool> m_SplashScreenActive = false;
+      std::atomic<bool> m_SplashScreenActive = true;
 
       Texture m_MinimizeIcon;
       Texture m_MaximizeIcon;

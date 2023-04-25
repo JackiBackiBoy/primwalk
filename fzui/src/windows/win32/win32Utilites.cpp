@@ -92,4 +92,17 @@ namespace fz {
 
     return clientRect;
   }
+
+  std::wstring Win32Utilities::stringToWideString(const std::string& string) {
+    std::wstring wString(string.size(), L' ');
+    wString.resize(std::mbstowcs(&wString[0], string.c_str(), string.size()));
+    return wString;
+  }
+
+  POINT Win32Utilities::getScreenCenter() {
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    return { screenWidth / 2, screenHeight / 2 };
+  }
 }

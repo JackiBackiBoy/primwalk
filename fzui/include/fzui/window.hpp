@@ -28,8 +28,8 @@ namespace fz {
     protected:
       Texture m_WindowIcon;
       std::atomic<bool> m_IsMinimized = false;
-      std::mutex mtx;
-      std::condition_variable cv;
+      std::mutex m_RenderingMutex;
+      std::condition_variable m_RenderingCondition;
   };
 }
 

@@ -37,11 +37,20 @@ namespace fz {
     std::vector<UIElement*> m_Elements;
     std::vector<UIContainer*> m_Containers;
     glm::vec2 m_Position = { 0, 0 };
-    Color m_BackgroundColor = { 0, 0, 0 };
     int m_Width = 0;
     int m_Height = 0;
     int m_BorderRadius = 0;
     UIContainer* m_Parent = nullptr;
+
+    // Colors
+    Color m_BackgroundColor = { 0, 0, 0 };
+    Color m_HoverColor = { 0, 0, 0 };
+    Color m_DisplayColor = { 0, 0, 0 };
+
+    // Flags
+    bool m_IsHovered = false;
+    float m_Timer = 0.0f;
+    float m_HoverTransition = 0.5f;
   };
 }
 #endif

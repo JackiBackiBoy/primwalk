@@ -1,4 +1,6 @@
 #include "fzui/uiContainer.hpp"
+#include "fzui/mouse.hpp"
+#include "fzui/math/math.hpp"
 
 namespace fz {
 
@@ -7,6 +9,9 @@ namespace fz {
     m_Width = width;
     m_Height = height;
     m_Position = position;
+    m_HoverColor = { 200, 200, 200 };
+    m_DisplayColor = m_BackgroundColor;
+    m_HoverTransition = 0.5f; // seconds
   }
 
   void UIContainer::addElement(UIElement* element)
@@ -23,6 +28,27 @@ namespace fz {
 
   void UIContainer::onUpdate(float dt)
   {
+    glm::vec2 mousePos = Mouse::Instance().getRelativePos();
+    glm::vec2 truePos = getAbsolutePosition();
+
+    // Collision detection
+    if (mousePos.x >= truePos.x && mousePos.x <= truePos.x + m_Width &&
+        mousePos.y >= truePos.y && mousePos.y <= truePos.y + m_Height) {
+      m_IsHovered = true;
+      m_Timer = std::clamp(m_Timer + dt, 0.0f, m_HoverTransition);
+    }
+    else {
+      m_IsHovered = false;
+      m_Timer = std::clamp(m_Timer - dt, 0.0f, m_HoverTransition);
+    }
+
+    // Hover and unhover animation
+    float percentage = m_Timer / m_HoverTransition;
+    m_DisplayColor.r = Math::lerp(m_BackgroundColor.r, m_HoverColor.r, percentage);
+    m_DisplayColor.g = Math::lerp(m_BackgroundColor.g, m_HoverColor.g, percentage);
+    m_DisplayColor.b = Math::lerp(m_BackgroundColor.b, m_HoverColor.b, percentage);
+    m_DisplayColor.a = Math::lerp(m_BackgroundColor.a, m_HoverColor.a, percentage);
+
     for (UIElement* e : m_Elements) {
       e->update(dt);
     }
@@ -34,7 +60,7 @@ namespace fz {
 
   void UIContainer::onRender(Renderer2D* renderer)
   {
-    renderer->drawRect(m_Width, m_Height, getAbsolutePosition(), m_BackgroundColor, m_BorderRadius);
+    renderer->drawRect(m_Width, m_Height, getAbsolutePosition(), m_DisplayColor, m_BorderRadius);
 
     for (UIElement* e : m_Elements) {
       e->draw(renderer);
