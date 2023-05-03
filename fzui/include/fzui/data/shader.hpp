@@ -3,6 +3,7 @@
 // std
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 // FZUI
 #include "fzui/core.hpp"
@@ -20,6 +21,19 @@ namespace fz {
     TesselEval = GL_TESS_EVALUATION_SHADER,
   };
 
+  // ------ Vulkan ------
+  class FZ_API Shader_Vulkan {
+    public:
+      Shader_Vulkan() {};
+      ~Shader_Vulkan() {};
+
+      static std::vector<char> readFile(const std::string& path);
+
+    private:
+
+  };
+
+  // ------ General ------
   class FZ_API Shader {
     public:
       Shader() {};

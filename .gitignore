@@ -2,6 +2,8 @@
 build
 .cache
 
+# Vulkan
+*.spv
 
 # Prerequisites
 *.d

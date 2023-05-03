@@ -39,7 +39,7 @@ typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
 typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
-  WindowWin32::WindowWin32(const std::string& name, const int& width, const int& height, WindowWin32* parent)
+  WindowWin32::WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api, WindowWin32* parent)
     : WindowBase() {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
@@ -47,6 +47,7 @@ namespace fz {
     m_Name = name;
     m_Width.store(width, std::memory_order_relaxed);
     m_Height.store(height, std::memory_order_relaxed);
+    m_API = api;
 
     init();
   }
@@ -150,75 +151,82 @@ namespace fz {
     return 1;
   }
 
-  void WindowWin32::createGraphicsContext() {
+  void WindowWin32::createGraphicsContext(const GraphicsAPI& api) {
     m_HDC = GetDC(m_Handle);
+    m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(m_Handle);
+    m_GraphicsPipeline = new GraphicsPipeline(*m_GraphicsDevice);
 
-    PIXELFORMATDESCRIPTOR pfd;
-    memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
-    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 32;
-    pfd.cDepthBits = 24;
-    pfd.cStencilBits = 8;
-
-    int pixelFormat = ChoosePixelFormat(m_HDC, &pfd);
-    SetPixelFormat(m_HDC, pixelFormat, &pfd);
-
-    // Set OpenGL rendering context
-    HGLRC tempRC = wglCreateContext(m_HDC);
-    wglMakeCurrent(m_HDC, tempRC);
-
-    PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
-    wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-
-    // OpenGL version information
-    const int attribList[] = {
-      WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-      WGL_CONTEXT_MINOR_VERSION_ARB, 6,
-      WGL_CONTEXT_FLAGS_ARB, 0,
-      WGL_CONTEXT_PROFILE_MASK_ARB,
-      WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
-    };
-
-    hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
-    wglMakeCurrent(NULL, NULL);
-    wglDeleteContext(tempRC);
-    wglMakeCurrent(m_HDC, hglrc);
-
-    if (!gladLoadGL())
-    {
-      printf("Could not initialize GLAD \n");
+    if (api == GraphicsAPI::Vulkan) {
+      
     }
-    else {
-      printf("OpenGL version: %i.%i\n", GLVersion.major, GLVersion.minor);
-    }
+    else if (api == GraphicsAPI::OpenGL) {
+      PIXELFORMATDESCRIPTOR pfd;
+      memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
+      pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+      pfd.nVersion = 1;
+      pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+      pfd.iPixelType = PFD_TYPE_RGBA;
+      pfd.cColorBits = 32;
+      pfd.cDepthBits = 24;
+      pfd.cStencilBits = 8;
 
-    PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-    bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0; //https://www.khronos.org/opengl/wiki/Swap_Interval
-    int vsync = 0;
+      int pixelFormat = ChoosePixelFormat(m_HDC, &pfd);
+      SetPixelFormat(m_HDC, pixelFormat, &pfd);
 
-    if (swapControlSupported) {
-    PFNWGLSWAPINTERVALEXTPROC wglSwapInternalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
-    PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+      // Set OpenGL rendering context
+      HGLRC tempRC = wglCreateContext(m_HDC);
+      wglMakeCurrent(m_HDC, tempRC);
 
-      if (wglSwapInternalEXT(1)) {
-        printf("VSync enabled \n");
+      PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
+      wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+
+      // OpenGL version information
+      const int attribList[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 6,
+        WGL_CONTEXT_FLAGS_ARB, 0,
+        WGL_CONTEXT_PROFILE_MASK_ARB,
+        WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
+      };
+
+      hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
+      wglMakeCurrent(NULL, NULL);
+      wglDeleteContext(tempRC);
+      wglMakeCurrent(m_HDC, hglrc);
+
+      if (!gladLoadGL())
+      {
+        printf("Could not initialize GLAD \n");
       }
       else {
-        printf("Could not enable VSync");
+        printf("OpenGL version: %i.%i\n", GLVersion.major, GLVersion.minor);
       }
-    }
-    else {
-      printf("WGL_EXT_swap_control not supported \n");
+
+      PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+      bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0; //https://www.khronos.org/opengl/wiki/Swap_Interval
+      int vsync = 0;
+
+      if (swapControlSupported) {
+      PFNWGLSWAPINTERVALEXTPROC wglSwapInternalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+      PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+
+        if (wglSwapInternalEXT(1)) {
+          printf("VSync enabled \n");
+        }
+        else {
+          printf("Could not enable VSync");
+        }
+      }
+      else {
+        printf("WGL_EXT_swap_control not supported \n");
+      }
     }
   }
 
   void WindowWin32::renderingThread() {
     bool firstPaint = true;
-    createGraphicsContext();
-    m_Renderer2D = new Renderer2D();
+    createGraphicsContext(m_API);
+    //m_Renderer2D = new Renderer2D();
 
     Window::onCreate();
     onCreate();
@@ -234,25 +242,28 @@ namespace fz {
 
       if (m_ShouldRender.load(std::memory_order_relaxed) &&
           !m_Resizing.load(std::memory_order_relaxed)) {
-        wglMakeCurrent(m_HDC, hglrc);
+        //wglMakeCurrent(m_HDC, hglrc);
 
-        auto newTime = std::chrono::high_resolution_clock::now();
-        float dt = std::chrono::duration<float, std::chrono::seconds::period>(
-          newTime - lastTime).count();
-        lastTime = newTime;
+        //auto newTime = std::chrono::high_resolution_clock::now();
+        //float dt = std::chrono::duration<float, std::chrono::seconds::period>(
+        //  newTime - lastTime).count();
+        //lastTime = newTime;
 
-        // OnUpdate
-        onUpdate(dt);
-        Window::onUpdate(dt);
+        //// OnUpdate
+        //onUpdate(dt);
+        //Window::onUpdate(dt);
 
-        // OnRender
-        onRender(dt);
-        Window::onRender(dt);
+        //// OnRender
+        //onRender(dt);
+        //Window::onRender(dt);
 
-        // Extra resizing check to prevent in-loop buffer swapping
-        if (!m_Resizing.load(std::memory_order_relaxed)) {
-          SwapBuffers(m_HDC);
-        }
+        //// Extra resizing check to prevent in-loop buffer swapping
+        //if (!m_Resizing.load(std::memory_order_relaxed)) {
+        //  SwapBuffers(m_HDC);
+        //}
+
+        m_GraphicsDevice->drawFrame(*m_GraphicsPipeline);
+        // TODO: Do not forget SwapBuffers (probably)
 
         if (firstPaint) {
           // Shows window
@@ -261,17 +272,21 @@ namespace fz {
           firstPaint = false;
         }
 
-        wglMakeCurrent(0, 0);
+        //wglMakeCurrent(0, 0);
       }
       m_FrameDone.store(true, std::memory_order_relaxed);
     }
+
+    vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
+
+    delete m_GraphicsPipeline;
   }
 
   // ------ Event functions ------
   void WindowWin32::onCreate() {
-    m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
-    m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
-    m_CloseIcon.loadFromFile("assets/icons/close.png");
+    //m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
+    //m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
+    //m_CloseIcon.loadFromFile("assets/icons/close.png");
   }
 
   void WindowWin32::onUpdate(float dt) {

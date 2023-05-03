@@ -17,6 +17,7 @@
 #include "fzui/uiElement.hpp"
 #include "fzui/rendering/renderer2d.hpp"
 #include "fzui/data/texture.hpp"
+#include "fzui/rendering/graphicsAPI.hpp"
 
 // Windows
 #include <windows.h>
@@ -24,7 +25,7 @@
 namespace fz {
   class FZ_API WindowWin32 : public WindowBase {
     public:
-      WindowWin32(const std::string& name, const int& width, const int& height, WindowWin32* parent = nullptr);
+      WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api = GraphicsAPI::OpenGL, WindowWin32* parent = nullptr);
       virtual ~WindowWin32();
 
       int run();
@@ -46,7 +47,7 @@ namespace fz {
 
     private:
       int init();
-      void createGraphicsContext();
+      void createGraphicsContext(const GraphicsAPI& api);
       void renderingThread();
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -54,6 +55,7 @@ namespace fz {
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
+      GraphicsAPI m_API;
 
       HDC m_HDC = NULL;
       int m_Vsync = 0;
