@@ -29,29 +29,21 @@ namespace fz {
     createFrameBuffers(); // TODO: Put into swap chain class
     createSyncObjects();
   
-    createCommandBuffer();
+    createCommandBuffers();
   }
 
   GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan() {
-    vkDestroySemaphore(m_Device, m_ImageAvailableSemaphore, nullptr);
-    vkDestroySemaphore(m_Device, m_RenderFinishedSemaphore, nullptr);
-    vkDestroyFence(m_Device, m_InFlightFence, nullptr);
-
-    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
-
-    // Destroy framebuffers
-    for (auto frameBuffer : m_SwapChainFramebuffers) {
-      vkDestroyFramebuffer(m_Device, frameBuffer, nullptr);
-    }
-
+    cleanupSwapChain();
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 
-    // Destroy image views
-    for (auto imageView : m_SwapChainImageViews) {
-      vkDestroyImageView(m_Device, imageView, nullptr);
+    // Destroy synchronization objects
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);
+      vkDestroySemaphore(m_Device, m_RenderFinishedSemaphores[i], nullptr);
+      vkDestroyFence(m_Device, m_InFlightFences[i], nullptr);
     }
 
-    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
+    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     vkDestroyDevice(m_Device, nullptr);
 
     if (m_EnableValidationLayers) {
@@ -63,35 +55,43 @@ namespace fz {
   }
 
   void GraphicsDevice_Vulkan::drawFrame(GraphicsPipeline& gPipeline) {
-    vkWaitForFences(m_Device, 1, &m_InFlightFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(m_Device, 1, &m_InFlightFence);
+    vkWaitForFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
     
     // Acquire image from the swap chain
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(m_Device, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(m_Device, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(m_CommandBuffer, 0);
-    recordCommandBuffer(m_CommandBuffer, imageIndex);
-    gPipeline.bind(m_CommandBuffer);
-    vkCmdDraw(m_CommandBuffer, 6, 1, 0, 0);
-    endRecordCommandBuffer(m_CommandBuffer);
+    // Recreate swap chain if out of date
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+      recreateSwapChain();
+      return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+      throw std::runtime_error("VULKAN ERROR: Failed to acquire swap chain image!");
+    }
+    
+    vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
+    vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
+    recordCommandBuffer(m_CommandBuffers[m_CurrentFrame], imageIndex);
+    gPipeline.bind(m_CommandBuffers[m_CurrentFrame]);
+    vkCmdDraw(m_CommandBuffers[m_CurrentFrame], 6, 1, 0, 0);
+    endRecordCommandBuffer(m_CommandBuffers[m_CurrentFrame]);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphore };
+    VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_CommandBuffer;
+    submitInfo.pCommandBuffers = &m_CommandBuffers[m_CurrentFrame];
 
-    VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphore };
+    VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphores[m_CurrentFrame] };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFence) != VK_SUCCESS) {
+    if (vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to submit draw command buffer!");
     }
 
@@ -105,7 +105,22 @@ namespace fz {
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+    result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+        m_FramebufferResized.load(std::memory_order_relaxed)) {
+      m_FramebufferResized.store(false, std::memory_order_relaxed);
+      recreateSwapChain();
+    } else if (result != VK_SUCCESS) {
+      throw std::runtime_error("VULKAN ERROR: Failed to present swap chain image!");
+    }
+
+    // Advance to the next frame
+    m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+  }
+
+  void GraphicsDevice_Vulkan::framebufferResizeCallback() {
+    m_FramebufferResized.store(true, std::memory_order_relaxed);
   }
 
   // Getters
@@ -425,6 +440,10 @@ namespace fz {
   }
 
   void GraphicsDevice_Vulkan::createSyncObjects() {
+    m_ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    m_RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -432,11 +451,37 @@ namespace fz {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) != VK_SUCCESS ||
-      vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphore) != VK_SUCCESS ||
-      vkCreateFence(m_Device, &fenceInfo, nullptr, &m_InFlightFence) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create semaphores!");
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      if (vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) != VK_SUCCESS ||
+          vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]) != VK_SUCCESS ||
+          vkCreateFence(m_Device, &fenceInfo, nullptr, &m_InFlightFences[i]) != VK_SUCCESS) {
+        throw std::runtime_error("VULKAN ERROR: Failed to create synchronization objects for a frame!");
+      }
     }
+  }
+
+  void GraphicsDevice_Vulkan::recreateSwapChain() {
+    vkDeviceWaitIdle(m_Device);
+
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+    createFrameBuffers();
+  }
+
+  void GraphicsDevice_Vulkan::cleanupSwapChain() {
+    // Destroy framebuffers
+    for (auto frameBuffer : m_SwapChainFramebuffers) {
+      vkDestroyFramebuffer(m_Device, frameBuffer, nullptr);
+    }
+
+    // Destroy image views
+    for (auto imageView : m_SwapChainImageViews) {
+      vkDestroyImageView(m_Device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
   }
 
   void GraphicsDevice_Vulkan::createCommandPool() {
@@ -478,14 +523,16 @@ namespace fz {
     return true;
   }
 
-  void GraphicsDevice_Vulkan::createCommandBuffer() {
+  void GraphicsDevice_Vulkan::createCommandBuffers() {
+    m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = m_CommandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(m_CommandBuffers.size());
 
-    if (vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(m_Device, &allocInfo, m_CommandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("VULKAN ERROR: Failed to allocate command buffers!");
     }
   }
@@ -736,7 +783,7 @@ namespace fz {
   {
     for (const auto& availablePresentMode : availablePresentModes) {
       if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-        return availablePresentMode;
+        //return availablePresentMode;
       }
     }
 

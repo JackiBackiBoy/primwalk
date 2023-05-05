@@ -151,8 +151,6 @@ elseif(APPLE)
   )
 endif()
 
-find_package(OpenGL REQUIRED)
-
 add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES})
 
 # Eliminate target prefixes
@@ -180,7 +178,6 @@ target_link_directories(${NAME} PUBLIC
 
 if (WIN32)
   target_link_libraries(${NAME} PUBLIC
-    OpenGL::GL
     comctl32.lib
     msimg32.lib
     Dwmapi.lib
@@ -190,7 +187,6 @@ if (WIN32)
   )
 elseif(APPLE)
   target_link_libraries(${NAME} PUBLIC
-    OpenGL::GL
     msdf-atlas-gen
     "-framework Cocoa"
   )

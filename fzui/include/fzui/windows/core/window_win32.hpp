@@ -68,6 +68,7 @@ namespace fz {
       std::atomic<bool> m_Resizing = false;
       std::atomic<bool> m_FrameDone = false;
       std::atomic<bool> m_SplashScreenActive = true;
+      std::atomic<bool> m_FirstPaint = true; // false once the first frame has been renderer
 
       Texture m_MinimizeIcon;
       Texture m_MaximizeIcon;

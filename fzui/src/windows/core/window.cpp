@@ -25,18 +25,7 @@
 #include <windowsx.h>
 
 // Vendor
-#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
-
-#define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB 0X2092
-#define WGL_CONTEXT_FLAGS_ARB 0X2094
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
-#define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
-typedef HGLRC(WINAPI* PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShareContext, const int* attribList);
-typedef const char* (WINAPI* PFNWGLGETEXTENSIONSSTRINGEXTPROC)(void);
-typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC)(int);
-typedef int (WINAPI* PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
 namespace fz {
   WindowWin32::WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api, WindowWin32* parent)
@@ -61,6 +50,8 @@ namespace fz {
     std::thread renderThread([this]() {
       renderingThread();
     });
+
+    //createGraphicsContext(m_API);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
@@ -159,68 +150,6 @@ namespace fz {
     if (api == GraphicsAPI::Vulkan) {
       
     }
-    else if (api == GraphicsAPI::OpenGL) {
-      PIXELFORMATDESCRIPTOR pfd;
-      memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
-      pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-      pfd.nVersion = 1;
-      pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-      pfd.iPixelType = PFD_TYPE_RGBA;
-      pfd.cColorBits = 32;
-      pfd.cDepthBits = 24;
-      pfd.cStencilBits = 8;
-
-      int pixelFormat = ChoosePixelFormat(m_HDC, &pfd);
-      SetPixelFormat(m_HDC, pixelFormat, &pfd);
-
-      // Set OpenGL rendering context
-      HGLRC tempRC = wglCreateContext(m_HDC);
-      wglMakeCurrent(m_HDC, tempRC);
-
-      PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
-      wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-
-      // OpenGL version information
-      const int attribList[] = {
-        WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 6,
-        WGL_CONTEXT_FLAGS_ARB, 0,
-        WGL_CONTEXT_PROFILE_MASK_ARB,
-        WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0, 
-      };
-
-      hglrc = wglCreateContextAttribsARB(m_HDC, 0, attribList);
-      wglMakeCurrent(NULL, NULL);
-      wglDeleteContext(tempRC);
-      wglMakeCurrent(m_HDC, hglrc);
-
-      if (!gladLoadGL())
-      {
-        printf("Could not initialize GLAD \n");
-      }
-      else {
-        printf("OpenGL version: %i.%i\n", GLVersion.major, GLVersion.minor);
-      }
-
-      PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-      bool swapControlSupported = strstr(_wglGetExtensionsStringEXT(), "WGL_EXT_swap_control") != 0; //https://www.khronos.org/opengl/wiki/Swap_Interval
-      int vsync = 0;
-
-      if (swapControlSupported) {
-      PFNWGLSWAPINTERVALEXTPROC wglSwapInternalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
-      PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
-
-        if (wglSwapInternalEXT(1)) {
-          printf("VSync enabled \n");
-        }
-        else {
-          printf("Could not enable VSync");
-        }
-      }
-      else {
-        printf("WGL_EXT_swap_control not supported \n");
-      }
-    }
   }
 
   void WindowWin32::renderingThread() {
@@ -235,19 +164,14 @@ namespace fz {
 
     // TODO: Make frame timing consistent when resizing window
     while (!m_ShouldClose.load(std::memory_order_relaxed)) {
-      std::unique_lock<std::mutex> lock(m_RenderingMutex);
-      m_RenderingCondition.wait(lock, [&] { return !m_IsMinimized.load(std::memory_order_relaxed); });
 
       m_FrameDone.store(false, std::memory_order_relaxed);
 
-      if (m_ShouldRender.load(std::memory_order_relaxed) &&
-          !m_Resizing.load(std::memory_order_relaxed)) {
-        //wglMakeCurrent(m_HDC, hglrc);
-
-        //auto newTime = std::chrono::high_resolution_clock::now();
-        //float dt = std::chrono::duration<float, std::chrono::seconds::period>(
-        //  newTime - lastTime).count();
-        //lastTime = newTime;
+      if (m_ShouldRender.load(std::memory_order_relaxed)) {
+        auto newTime = std::chrono::high_resolution_clock::now();
+        float dt = std::chrono::duration<float, std::chrono::seconds::period>(
+          newTime - lastTime).count();
+        lastTime = newTime;
 
         //// OnUpdate
         //onUpdate(dt);
@@ -263,7 +187,7 @@ namespace fz {
         //}
 
         m_GraphicsDevice->drawFrame(*m_GraphicsPipeline);
-        // TODO: Do not forget SwapBuffers (probably)
+        m_FrameDone.store(true, std::memory_order_relaxed);
 
         if (firstPaint) {
           // Shows window
@@ -271,10 +195,8 @@ namespace fz {
           UpdateWindow(m_Handle);
           firstPaint = false;
         }
-
-        //wglMakeCurrent(0, 0);
       }
-      m_FrameDone.store(true, std::memory_order_relaxed);
+      
     }
 
     vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
@@ -437,10 +359,7 @@ namespace fz {
       switch (message) {
         case WM_ERASEBKGND:
         {
-          return 1;
-          result = 0;
-          wasHandled = true;
-          break;
+          return 0;
         }
         case WM_NCHITTEST:
         {
@@ -508,6 +427,13 @@ namespace fz {
 
           break;
         }
+        case WM_PAINT: {
+          //if (window != nullptr && window->m_GraphicsDevice != nullptr && window->m_GraphicsPipeline != nullptr) {
+            //window->m_GraphicsDevice->drawFrame(*window->m_GraphicsPipeline);
+          //}
+          return 0;
+          break;
+        }
         case WM_ENTERSIZEMOVE:
         {
           break;
@@ -524,9 +450,16 @@ namespace fz {
           // the resizing operation is complete, this means that we can
           // safely render a frame until WM_SIZING is sent again.
           // Calculate new window dimensions if resized
+          window->m_Resizing.store(false, std::memory_order_relaxed);
           window->m_Width.store(LOWORD(lParam), std::memory_order_relaxed);
           window->m_Height.store(HIWORD(lParam), std::memory_order_relaxed);
-          window->m_Resizing.store(false, std::memory_order_relaxed);
+          
+          
+            if (window->m_GraphicsDevice != nullptr) {
+              //window->m_GraphicsDevice->framebufferResizeCallback();
+              while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
+            }
+
           break;
         }
         case WM_SIZING:
@@ -535,8 +468,9 @@ namespace fz {
           // a frame as fast as possible and then lock rendering until
           // all related sizing operations have been completed, namely
           // until the WM_SIZE message is sent.
-          while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
-          window->m_Resizing.store(true, std::memory_order_relaxed); // locks rendering
+          //while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
+          //window->m_Resizing.store(true, std::memory_order_relaxed); // locks rendering
+          window->m_Resizing.store(true, std::memory_order_relaxed);
           break;
         }
         case WM_SETCURSOR:

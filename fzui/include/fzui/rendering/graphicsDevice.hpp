@@ -10,6 +10,7 @@
 #include "fzui/rendering/graphicsPipeline.hpp"
 
 // std
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -49,6 +50,7 @@ namespace fz {
       ~GraphicsDevice_Vulkan();
 
       void drawFrame(GraphicsPipeline& gPipeline);
+      void framebufferResizeCallback();
 
       // Getters
       VkDevice getDevice();
@@ -65,8 +67,10 @@ namespace fz {
       void createRenderPass();
       void createFrameBuffers();
       void createCommandPool();
-      void createCommandBuffer();
+      void createCommandBuffers();
       void createSyncObjects();
+      void recreateSwapChain();
+      void cleanupSwapChain();
       void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
       void endRecordCommandBuffer(VkCommandBuffer commandBuffer);
       bool checkValidationLayerSupport();
@@ -90,6 +94,7 @@ namespace fz {
       VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
       HWND m_Handle = NULL;
+      uint32_t m_CurrentFrame = 0;
       VkInstance m_Instance = VK_NULL_HANDLE;
       VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
       VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
@@ -102,19 +107,18 @@ namespace fz {
       VkExtent2D m_SwapChainExtent;
       VkRenderPass m_RenderPass = VK_NULL_HANDLE;
       VkCommandPool m_CommandPool = VK_NULL_HANDLE;
-      VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
-      VkSemaphore m_ImageAvailableSemaphore;
-      VkSemaphore m_RenderFinishedSemaphore;
-      VkFence m_InFlightFence;
+      std::vector<VkCommandBuffer> m_CommandBuffers;
+      std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+      std::vector<VkSemaphore> m_RenderFinishedSemaphores;
+      std::vector<VkFence> m_InFlightFences;
       std::vector<std::string> m_RequiredExtensions;
       std::vector<const char*> m_ExtensionPointers;
       std::vector<VkImage> m_SwapChainImages;
       std::vector<VkImageView> m_SwapChainImageViews;
       std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+      std::atomic<bool> m_FramebufferResized = false;
 
       static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
-
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
