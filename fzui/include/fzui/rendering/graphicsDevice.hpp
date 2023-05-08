@@ -4,12 +4,14 @@
 // vendor
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 
 // FZUI
 #include "fzui/core.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
 
 // std
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -17,8 +19,6 @@
 #include <string>
 #include <vector>
 #include <windows.h>
-
-
 
 namespace fz {
   // ------ DirectX 12 ------
@@ -29,6 +29,10 @@ namespace fz {
   };
 
   // ------ Vulkan ------
+  struct UniformBufferObject {
+    glm::mat4 proj;
+  };
+
   struct FZ_API SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
@@ -49,12 +53,17 @@ namespace fz {
       GraphicsDevice_Vulkan(HWND hWnd);
       ~GraphicsDevice_Vulkan();
 
-      void drawFrame(GraphicsPipeline& gPipeline);
-      void framebufferResizeCallback();
-
       // Getters
       VkDevice getDevice();
-      VkRenderPass getRenderPass();
+      VkCommandPool getCommandPool();
+      VkSurfaceKHR getSurface();
+      VkQueue getGraphicsQueue();
+      VkQueue getPresentQueue();
+      SwapChainSupportDetails getSwapChainSupport();
+      QueueFamilyIndices findPhysicalQueueFamilies();
+      static void createBuffer(GraphicsDevice_Vulkan& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+      static void copyBuffer(GraphicsDevice_Vulkan& device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     private:
       void createInstance();
@@ -62,17 +71,11 @@ namespace fz {
       void createSurface();
       void pickPhysicalDevice();
       void createLogicalDevice();
-      void createSwapChain();
-      void createImageViews();
-      void createRenderPass();
-      void createFrameBuffers();
       void createCommandPool();
-      void createCommandBuffers();
-      void createSyncObjects();
-      void recreateSwapChain();
-      void cleanupSwapChain();
-      void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-      void endRecordCommandBuffer(VkCommandBuffer commandBuffer);
+      
+      void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+      void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
       bool checkValidationLayerSupport();
       std::vector<const char*> getRequiredExtensions();
       VkResult createDebugUtilsMessengerEXT(
@@ -89,9 +92,7 @@ namespace fz {
       QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
       bool checkDeviceExtensionSupport(VkPhysicalDevice device);
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-      VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-      VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-      VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+      uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
       HWND m_Handle = NULL;
       uint32_t m_CurrentFrame = 0;
@@ -102,21 +103,15 @@ namespace fz {
       VkQueue m_GraphicsQueue = VK_NULL_HANDLE;
       VkQueue m_PresentQueue = VK_NULL_HANDLE;
       VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
-      VkSwapchainKHR m_SwapChain = VK_NULL_HANDLE;
-      VkFormat m_SwapChainImageFormat;
-      VkExtent2D m_SwapChainExtent;
-      VkRenderPass m_RenderPass = VK_NULL_HANDLE;
       VkCommandPool m_CommandPool = VK_NULL_HANDLE;
-      std::vector<VkCommandBuffer> m_CommandBuffers;
-      std::vector<VkSemaphore> m_ImageAvailableSemaphores;
-      std::vector<VkSemaphore> m_RenderFinishedSemaphores;
-      std::vector<VkFence> m_InFlightFences;
+      VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
+      
       std::vector<std::string> m_RequiredExtensions;
       std::vector<const char*> m_ExtensionPointers;
-      std::vector<VkImage> m_SwapChainImages;
-      std::vector<VkImageView> m_SwapChainImageViews;
-      std::vector<VkFramebuffer> m_SwapChainFramebuffers;
-      std::atomic<bool> m_FramebufferResized = false;
+      std::vector<VkBuffer> m_UniformBuffers;
+      std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+      std::vector<void*> m_UniformBuffersMapped;
+      
 
       static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -132,6 +127,8 @@ namespace fz {
       const std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation"
       };
+
+      
 
 #ifdef NDEBUG
       const bool m_EnableValidationLayers = false;

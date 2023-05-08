@@ -9,6 +9,7 @@
 #include <vector>
 #include <chrono>
 #include <mutex>
+#include <memory>
 #include <condition_variable>
 
 // FZUI
@@ -18,11 +19,15 @@
 #include "fzui/rendering/renderer2d.hpp"
 #include "fzui/data/texture.hpp"
 #include "fzui/rendering/graphicsAPI.hpp"
+#include "fzui/rendering/systems/uiRenderSystem.hpp"
 
 // Windows
 #include <windows.h>
 
 namespace fz {
+  // TODO: Move to base class
+  class FZ_API Renderer;
+
   class FZ_API WindowWin32 : public WindowBase {
     public:
       WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api = GraphicsAPI::OpenGL, WindowWin32* parent = nullptr);
@@ -44,6 +49,7 @@ namespace fz {
       // Getters
       virtual int getWidth() const;
       virtual int getHeight() const;
+      virtual HWND getHandle() const;
 
     private:
       int init();
@@ -55,6 +61,7 @@ namespace fz {
 
       // Rendering
       Renderer2D* m_Renderer2D = nullptr;
+      std::unique_ptr<Renderer> m_Renderer;
       GraphicsAPI m_API;
 
       HDC m_HDC = NULL;
@@ -84,6 +91,7 @@ namespace fz {
       bool m_CloseButtonDown = false;
       std::vector<UIElement*> m_UIElements;
       std::vector<UIContainer*> m_UIContainers;
+      std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
   };
 }
 #endif

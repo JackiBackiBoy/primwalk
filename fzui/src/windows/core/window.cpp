@@ -12,6 +12,7 @@
 #include "fzui/rendering/vertexBuffer.hpp"
 #include "fzui/rendering/indexBuffer.hpp"
 #include "fzui/rendering/bufferLayout.hpp"
+#include "fzui/rendering/renderer.hpp"
 #include "fzui/data/texture.hpp"
 #include "fzui/uiButton.hpp"
 #include "fzui/mouse.hpp"
@@ -145,7 +146,8 @@ namespace fz {
   void WindowWin32::createGraphicsContext(const GraphicsAPI& api) {
     m_HDC = GetDC(m_Handle);
     m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(m_Handle);
-    m_GraphicsPipeline = new GraphicsPipeline(*m_GraphicsDevice);
+    //m_GraphicsPipeline = new GraphicsPipeline(*m_GraphicsDevice);
+    m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
 
     if (api == GraphicsAPI::Vulkan) {
       
@@ -159,6 +161,11 @@ namespace fz {
 
     Window::onCreate();
     onCreate();
+
+    // TODO: Move to onCreate
+    VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
+    std::vector<VkDescriptorSetLayout> setLayouts;
+    m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
 
     auto lastTime = std::chrono::high_resolution_clock::now();
 
@@ -177,6 +184,15 @@ namespace fz {
         //onUpdate(dt);
         //Window::onUpdate(dt);
 
+        if (auto commandBuffer = m_Renderer->beginFrame()) {
+          m_Renderer->beginSwapChainRenderPass(commandBuffer);
+
+          m_UIRenderSystem->onRender(commandBuffer);
+
+          m_Renderer->endSwapChainRenderPass(commandBuffer);
+          m_Renderer->endFrame();
+        }
+
         //// OnRender
         //onRender(dt);
         //Window::onRender(dt);
@@ -186,7 +202,7 @@ namespace fz {
         //  SwapBuffers(m_HDC);
         //}
 
-        m_GraphicsDevice->drawFrame(*m_GraphicsPipeline);
+        //m_GraphicsDevice->drawFrame(*m_GraphicsPipeline);
         m_FrameDone.store(true, std::memory_order_relaxed);
 
         if (firstPaint) {
@@ -512,5 +528,9 @@ namespace fz {
     }
 
     return result;
+  }
+
+  HWND WindowWin32::getHandle() const {
+    return m_Handle;
   }
 }
