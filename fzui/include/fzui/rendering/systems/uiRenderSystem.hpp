@@ -16,19 +16,24 @@ namespace fz {
       UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts);
       ~UIRenderSystem();
 
-      void onRender(VkCommandBuffer commandBuffer);
+      void onUpdate(VkCommandBuffer commandBuffer, size_t currentImage);
+      void onRender(VkCommandBuffer commandBuffer, size_t currentFrame);
 
     private:
+      void createDescriptorSetLayout();
       void createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts);
       void createPipeline(VkRenderPass renderPass);
       void createVertexBuffer();
       void createIndexBuffer();
+      void createUniformBuffers();
+      void createDescriptorPool();
+      void createDescriptorSets();
 
       const std::vector<Vertex> m_Vertices = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+        {{0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{100.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{100.0f, 100.0f}, {0.0f, 0.0f, 1.0f}},
+        {{0.0f, 100.0f}, {1.0f, 1.0f, 1.0f}}
       };
 
       const std::vector<uint16_t> m_Indices = {
@@ -37,11 +42,19 @@ namespace fz {
 
       GraphicsDevice_Vulkan& m_Device;
       std::unique_ptr<GraphicsPipeline> m_Pipeline;
+      VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
+      VkDescriptorSetLayout m_DescriptorSetLayout = VK_NULL_HANDLE;
       VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
       VkBuffer m_VertexBuffer = VK_NULL_HANDLE;
       VkDeviceMemory m_VertexBufferMemory = VK_NULL_HANDLE;
       VkBuffer m_IndexBuffer = VK_NULL_HANDLE;
       VkDeviceMemory m_IndexBufferMemory = VK_NULL_HANDLE;
+
+      std::vector<VkBuffer> m_UniformBuffers;
+      std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+      std::vector<void*> m_UniformBuffersMapped;
+      std::vector<VkDescriptorSet> m_DescriptorSets;
+
   };
 }
 #endif

@@ -24,6 +24,8 @@ namespace fz {
       void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
 
       // Getters
+      int getFrameIndex() const;
+      size_t getCurrentFrame() const;
       VkRenderPass getSwapChainRenderPass() const;
 
     private:

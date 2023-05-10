@@ -139,6 +139,16 @@ namespace fz {
     vkCmdEndRenderPass(commandBuffer);
   }
 
+  int Renderer::getFrameIndex() const
+  {
+    return m_CurrentFrameIndex;
+  }
+
+  size_t Renderer::getCurrentFrame() const
+  {
+    return m_CurrentFrame;
+  }
+
   VkRenderPass Renderer::getSwapChainRenderPass() const
   {
     return m_RenderPass;
@@ -403,7 +413,7 @@ namespace fz {
     vkResetFences(m_Device.getDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
     if (vkQueueSubmit(m_Device.getGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) !=
       VK_SUCCESS) {
-      throw std::runtime_error("failed to submit draw command buffer!");
+      throw std::runtime_error("VULKAN ERROR: Failed to submit draw command buffer!");
     }
 
     VkPresentInfoKHR presentInfo = {};

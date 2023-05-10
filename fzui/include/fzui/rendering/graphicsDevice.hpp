@@ -30,7 +30,7 @@ namespace fz {
 
   // ------ Vulkan ------
   struct UniformBufferObject {
-    glm::mat4 proj;
+    alignas(16) glm::mat4 proj;
   };
 
   struct FZ_API SwapChainSupportDetails {

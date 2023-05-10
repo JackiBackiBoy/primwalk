@@ -13,6 +13,7 @@
 #include "fzui/rendering/indexBuffer.hpp"
 #include "fzui/rendering/bufferLayout.hpp"
 #include "fzui/rendering/renderer.hpp"
+#include "fzui/rendering/frameInfo.hpp"
 #include "fzui/data/texture.hpp"
 #include "fzui/uiButton.hpp"
 #include "fzui/mouse.hpp"
@@ -185,9 +186,20 @@ namespace fz {
         //Window::onUpdate(dt);
 
         if (auto commandBuffer = m_Renderer->beginFrame()) {
+          int frameIndex = m_Renderer->getFrameIndex();
+
+          // Update
+          //FrameInfo frameInfo{};
+          //frameInfo.frameIndex = frameIndex;
+          //frameInfo.frameTime = dt;
+          //frameInfo.commandBuffer = commandBuffer;
+
+          m_UIRenderSystem->onUpdate(commandBuffer, m_Renderer->getCurrentFrame());
+
+          // Render
           m_Renderer->beginSwapChainRenderPass(commandBuffer);
 
-          m_UIRenderSystem->onRender(commandBuffer);
+          m_UIRenderSystem->onRender(commandBuffer, m_Renderer->getCurrentFrame());
 
           m_Renderer->endSwapChainRenderPass(commandBuffer);
           m_Renderer->endFrame();
