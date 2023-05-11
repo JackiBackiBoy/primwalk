@@ -11,6 +11,10 @@
 #include <cstdint>
 
 namespace fz {
+  struct FZ_API RenderParams {
+    glm::vec2 position;
+  };
+
   class FZ_API UIRenderSystem {
     public:
       UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts);
@@ -37,13 +41,13 @@ namespace fz {
       };
 
       const std::vector<uint16_t> m_Indices = {
-        0, 1, 2, 2, 3, 0
+        0, 1, 2, 2, 3, 0,
       };
 
       GraphicsDevice_Vulkan& m_Device;
       std::unique_ptr<GraphicsPipeline> m_Pipeline;
       VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
-      VkDescriptorSetLayout m_DescriptorSetLayout = VK_NULL_HANDLE;
+      std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
       VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
       VkBuffer m_VertexBuffer = VK_NULL_HANDLE;
       VkDeviceMemory m_VertexBufferMemory = VK_NULL_HANDLE;
@@ -53,6 +57,9 @@ namespace fz {
       std::vector<VkBuffer> m_UniformBuffers;
       std::vector<VkDeviceMemory> m_UniformBuffersMemory;
       std::vector<void*> m_UniformBuffersMapped;
+      std::vector<VkBuffer> m_StorageBuffers;
+      std::vector<VkDeviceMemory> m_StorageBuffersMemory;
+      std::vector<void*> m_StorageBuffersMapped;
       std::vector<VkDescriptorSet> m_DescriptorSets;
 
   };

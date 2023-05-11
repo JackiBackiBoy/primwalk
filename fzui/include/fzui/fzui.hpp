@@ -4,14 +4,3 @@
 #include "fzui/application.hpp"
 #include "fzui/core.hpp"
 #include "fzui/window.hpp"
-
-// Data
-#include "fzui/data/fonts/fontFace.hpp"
-#include "fzui/data/texture.hpp"
-
-// UI
-#include "fzui/uiButton.hpp"
-#include "fzui/uiContainer.hpp"
-#include "fzui/uiImage.hpp"
-#include "fzui/uiImageButton.hpp"
-#include "fzui/uiLabel.hpp"

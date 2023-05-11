@@ -14,10 +14,6 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/uiContainer.hpp"
-#include "fzui/uiElement.hpp"
-#include "fzui/rendering/renderer2d.hpp"
-#include "fzui/data/texture.hpp"
 #include "fzui/rendering/graphicsAPI.hpp"
 #include "fzui/rendering/systems/uiRenderSystem.hpp"
 
@@ -42,10 +38,6 @@ namespace fz {
       virtual void onRender(float dt) override;
       virtual void onDestroy() {};
 
-      // UI
-      virtual void addElement(UIElement* elem);
-      virtual void addContainer(UIContainer* container);
-
       // Getters
       virtual int getWidth() const;
       virtual int getHeight() const;
@@ -60,7 +52,6 @@ namespace fz {
       static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
-      Renderer2D* m_Renderer2D = nullptr;
       std::unique_ptr<Renderer> m_Renderer;
       GraphicsAPI m_API;
 
@@ -77,9 +68,6 @@ namespace fz {
       std::atomic<bool> m_SplashScreenActive = true;
       std::atomic<bool> m_FirstPaint = true; // false once the first frame has been renderer
 
-      Texture m_MinimizeIcon;
-      Texture m_MaximizeIcon;
-      Texture m_CloseIcon;
       HGLRC hglrc = NULL;
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;
@@ -89,8 +77,6 @@ namespace fz {
       bool m_MinimizeButtonDown = false;
       bool m_MaximizeButtonDown = false;
       bool m_CloseButtonDown = false;
-      std::vector<UIElement*> m_UIElements;
-      std::vector<UIContainer*> m_UIContainers;
       std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
   };
 }

@@ -4,12 +4,10 @@ cmake_minimum_required(VERSION 3.20.0)
 if (WIN32)
   set(PLATFORM "windows")
   add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
-  set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/Windows/include)
 elseif(APPLE)
   set(PLATFORM "macos")
   enable_language(OBJCXX CXX)
   add_definitions(-DFZ_MACOS -DGL_SILENCE_DEPRECATION)
-  set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/MacOS/include)
 endif()
 
 set(NAME fzui)
@@ -165,7 +163,6 @@ target_compile_definitions(${NAME} PRIVATE
 )
 
 target_include_directories(${NAME} PUBLIC
-  ${GLAD_INCLUDE_DIR}
   ${GLM_INCLUDE_DIR}
   ${Vulkan_INCLUDE_DIRS}
   ${MSDFGEN_INCLUDE_DIR}

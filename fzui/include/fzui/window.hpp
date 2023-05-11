@@ -9,7 +9,6 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/data/texture.hpp"
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
 
@@ -30,11 +29,9 @@ namespace fz {
       virtual int getHeight() const = 0;
 
     protected:
-      Texture m_WindowIcon;
       std::atomic<bool> m_IsMinimized = false;
       std::mutex m_RenderingMutex;
       std::condition_variable m_RenderingCondition;
-      GraphicsPipeline* m_GraphicsPipeline = nullptr;
       std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice;
   };
 }

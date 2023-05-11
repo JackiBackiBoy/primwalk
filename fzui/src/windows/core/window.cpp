@@ -8,16 +8,9 @@
 #include "fzui/window.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
-#include "fzui/rendering/vertexArray.hpp"
-#include "fzui/rendering/vertexBuffer.hpp"
-#include "fzui/rendering/indexBuffer.hpp"
-#include "fzui/rendering/bufferLayout.hpp"
 #include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/frameInfo.hpp"
-#include "fzui/data/texture.hpp"
-#include "fzui/uiButton.hpp"
 #include "fzui/mouse.hpp"
-#include "fzui/data/fonts/fontManager.hpp"
 
 // Windows
 #include <sdkddkver.h>
@@ -44,7 +37,6 @@ namespace fz {
   }
 
   WindowWin32::~WindowWin32() {
-    delete m_Renderer2D;
   }
 
   int WindowWin32::run() {
@@ -52,8 +44,6 @@ namespace fz {
     std::thread renderThread([this]() {
       renderingThread();
     });
-
-    //createGraphicsContext(m_API);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
@@ -69,15 +59,6 @@ namespace fz {
     UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
 
     return (int)msg.wParam;
-  }
-
-  // UI
-  void WindowWin32::addElement(UIElement* elem) {
-    m_UIElements.push_back(elem);
-  }
-
-  void WindowWin32::addContainer(UIContainer* container) {
-    m_UIContainers.push_back(container);
   }
 
   int WindowWin32::init() {
@@ -147,7 +128,6 @@ namespace fz {
   void WindowWin32::createGraphicsContext(const GraphicsAPI& api) {
     m_HDC = GetDC(m_Handle);
     m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(m_Handle);
-    //m_GraphicsPipeline = new GraphicsPipeline(*m_GraphicsDevice);
     m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
 
     if (api == GraphicsAPI::Vulkan) {
@@ -181,10 +161,6 @@ namespace fz {
           newTime - lastTime).count();
         lastTime = newTime;
 
-        //// OnUpdate
-        //onUpdate(dt);
-        //Window::onUpdate(dt);
-
         if (auto commandBuffer = m_Renderer->beginFrame()) {
           int frameIndex = m_Renderer->getFrameIndex();
 
@@ -205,16 +181,6 @@ namespace fz {
           m_Renderer->endFrame();
         }
 
-        //// OnRender
-        //onRender(dt);
-        //Window::onRender(dt);
-
-        //// Extra resizing check to prevent in-loop buffer swapping
-        //if (!m_Resizing.load(std::memory_order_relaxed)) {
-        //  SwapBuffers(m_HDC);
-        //}
-
-        //m_GraphicsDevice->drawFrame(*m_GraphicsPipeline);
         m_FrameDone.store(true, std::memory_order_relaxed);
 
         if (firstPaint) {
@@ -228,8 +194,6 @@ namespace fz {
     }
 
     vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
-
-    delete m_GraphicsPipeline;
   }
 
   // ------ Event functions ------
@@ -240,48 +204,9 @@ namespace fz {
   }
 
   void WindowWin32::onUpdate(float dt) {
-    // Get relative mouse position
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(m_Handle, &p);
-
-    Mouse& mouse = Mouse::Instance();
-    mouse.m_RelativePos = { (float)p.x, (float)p.y };
-
-    for (UIContainer* container : m_UIContainers) {
-      container->onUpdate(dt);
-    }
-
-    for (UIElement* element : m_UIElements) {
-      element->update(dt);
-    }
   }
 
   void WindowWin32::onRender(float dt) {
-    // TODO: Remove this call if possible
-    glViewport(0, 0, m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
-    m_Renderer2D->setViewport(m_Width.load(std::memory_order_relaxed), m_Height.load(std::memory_order_relaxed));
-
-    m_Renderer2D->begin();
-
-    // Render UI elements and containers
-    for (UIContainer* container : m_UIContainers) {
-      container->onRender(m_Renderer2D);
-    }
-
-    for (UIElement* element : m_UIElements) {
-      element->draw(m_Renderer2D);
-    }
-
-    // ------ Caption bar area ------
-    m_Renderer2D->drawRect(m_Width.load(std::memory_order_relaxed), 29, { 0.0f, 0.0f }, { 60, 60, 60, 200 });
-
-    // Window minimize, maximize and close buttons
-    m_Renderer2D->drawRect(30, 30, { m_Width - 90, 0.0f }, { 255, 255, 255 }, 0, &m_MinimizeIcon);
-    m_Renderer2D->drawRect(30, 30, { m_Width - 60, 0.0f }, { 255, 255, 255 }, 0, &m_MaximizeIcon);
-    m_Renderer2D->drawRect(30, 30, { m_Width - 30, 0.0f }, { 255, 255, 255 }, 0, &m_CloseIcon);
-
-    m_Renderer2D->end();
   }
 
   int WindowWin32::getWidth() const {
