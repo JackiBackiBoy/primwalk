@@ -297,36 +297,6 @@ namespace fz {
     vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
   }
 
-  void GraphicsDevice_Vulkan::createBuffer(GraphicsDevice_Vulkan& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-  {
-    // Buffer creation
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(device.getDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create buffer!");
-    }
-
-    // Memory requirements
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device.getDevice(), buffer, &memRequirements);
-
-    // Memory allocation
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = device.findMemoryType(memRequirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-      throw std::runtime_error("VUlKAN ERROR: Failed to allocate buffer memory!");
-    }
-
-    vkBindBufferMemory(device.getDevice(), buffer, bufferMemory, 0);
-  }
-
   void GraphicsDevice_Vulkan::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
   {
     // TODO: Create separate command pool for optimization of short lived objects
@@ -363,44 +333,6 @@ namespace fz {
 
     // Cleanup
     vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &commandBuffer);
-  }
-
-  void GraphicsDevice_Vulkan::copyBuffer(GraphicsDevice_Vulkan& device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-  {
-    // TODO: Create separate command pool for optimization of short lived objects
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = device.m_CommandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device.getDevice(), &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    VkBufferCopy copyRegion{};
-    copyRegion.srcOffset = 0; // optional
-    copyRegion.dstOffset = 0; // optional
-    copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(device.m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(device.m_GraphicsQueue);
-
-    // Cleanup
-    vkFreeCommandBuffers(device.getDevice(), device.m_CommandPool, 1, &commandBuffer);
   }
 
   std::vector<const char*> GraphicsDevice_Vulkan::getRequiredExtensions()

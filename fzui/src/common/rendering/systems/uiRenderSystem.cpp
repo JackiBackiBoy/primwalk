@@ -25,55 +25,45 @@ namespace fz {
   {
     vkDestroyPipelineLayout(m_Device.getDevice(), m_PipelineLayout, nullptr);
 
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      vkDestroyBuffer(m_Device.getDevice(), m_UniformBuffers[i], nullptr);
-      vkFreeMemory(m_Device.getDevice(), m_UniformBuffersMemory[i], nullptr);
-    }
-
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      vkDestroyBuffer(m_Device.getDevice(), m_StorageBuffers[i], nullptr);
-      vkFreeMemory(m_Device.getDevice(), m_StorageBuffersMemory[i], nullptr);
-    }
-
     vkDestroyDescriptorPool(m_Device.getDevice(), m_DescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[0], nullptr);
     vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[1], nullptr);
-
-    // Index buffer
-    vkDestroyBuffer(m_Device.getDevice(), m_IndexBuffer, nullptr);
-    vkFreeMemory(m_Device.getDevice(), m_IndexBufferMemory, nullptr);
-
-    // Vertex buffer
-    vkDestroyBuffer(m_Device.getDevice(), m_VertexBuffer, nullptr);
-    vkFreeMemory(m_Device.getDevice(), m_VertexBufferMemory, nullptr);
   }
 
-  void UIRenderSystem::onUpdate(VkCommandBuffer commandBuffer, size_t currentImage)
+  void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
   {
     // TODO: Update uniform buffers
     UniformBufferObject ubo{};
-    ubo.proj = glm::ortho(0.0f, 1080.0f, 0.0f, 720.0f);
+    ubo.proj = glm::ortho(0.0f, frameInfo.windowWidth, 0.0f, frameInfo.windowHeight);
 
-    memcpy(m_UniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    //memcpy(m_UniformBuffersMapped[frameInfo.frameIndex], &ubo, sizeof(ubo));
+    m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
-    std::vector<RenderParams> renderParams = { { { 0, 0 } },  { { 300, 0 } },  { { 0, 300 } },  { { 300, 300 } } };
-    memcpy(m_StorageBuffersMapped[currentImage], renderParams.data(), sizeof(RenderParams) * 4);
+    std::vector<RenderParams> renderParams = {
+      { { 0, 0 }, { 200, 100 }, { 1.0f, 1.0f, 1.0f, 1.0f }  },
+      { { 300, 0 }, { 50, 50 }, { 1.0f, 0.0f, 1.0f, 1.0f } },
+      { { 0, 300 }, { 25, 25 }, { 0.0f, 1.0f, 1.0f, 1.0f } },
+      { { 300, 300 }, { 10, 10 }, { 1.0f, 0.0f, 0.0f, 1.0f } }
+    };
+    //memcpy(m_StorageBuffersMapped[frameInfo.frameIndex], renderParams.data(), sizeof(RenderParams) * 4);
+
+    m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(renderParams.data());
   }
 
-  void UIRenderSystem::onRender(VkCommandBuffer commandBuffer, size_t currentFrame)
+  void UIRenderSystem::onRender(const FrameInfo& frameInfo)
   {
-    m_Pipeline->bind(commandBuffer);
+    m_Pipeline->bind(frameInfo.commandBuffer);
 
-    VkBuffer vertexBuffers[] = { m_VertexBuffer };
+    VkBuffer vertexBuffers[] = { m_VertexBuffer->getBuffer() };
     VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(frameInfo.commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(frameInfo.commandBuffer, m_IndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 0, 1, &m_DescriptorSets[currentFrame], 0, nullptr);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 1, 1, &m_DescriptorSets[currentFrame + 2], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_Indices.size()), 4, 0, 0, 0);
+    vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_PipelineLayout, 0, 1, &m_DescriptorSets[frameInfo.frameIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_PipelineLayout, 1, 1, &m_DescriptorSets[frameInfo.frameIndex + 2], 0, nullptr);
+    vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), 4, 0, 0, 0);
   }
 
   void UIRenderSystem::createDescriptorSetLayout()
@@ -147,51 +137,50 @@ namespace fz {
   void UIRenderSystem::createVertexBuffer()
   {
     VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
+    uint32_t vertexCount = static_cast<uint32_t>(m_Vertices.size());
+    uint32_t vertexSize = sizeof(m_Vertices[0]);
 
     // Staging buffer
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      stagingBuffer, stagingBufferMemory);
+    Buffer stagingBuffer(m_Device, vertexSize, vertexCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    stagingBuffer.map();
+    stagingBuffer.writeToBuffer((void*)m_Vertices.data());
+    stagingBuffer.unmap();
 
-    void* data;
-    vkMapMemory(m_Device.getDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, m_Vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(m_Device.getDevice(), stagingBufferMemory);
+    m_VertexBuffer = std::make_unique<Buffer>(
+      m_Device,
+      vertexSize,
+      vertexCount,
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 
-    GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      m_VertexBuffer, m_VertexBufferMemory);
-    GraphicsDevice_Vulkan::copyBuffer(m_Device, stagingBuffer, m_VertexBuffer, bufferSize);
-
-    vkDestroyBuffer(m_Device.getDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(m_Device.getDevice(), stagingBufferMemory, nullptr);
+    m_Device.copyBuffer(stagingBuffer.getBuffer(), m_VertexBuffer->getBuffer(), bufferSize);
   }
 
   void UIRenderSystem::createIndexBuffer()
   {
     VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
+    uint32_t indexCount = static_cast<uint32_t>(m_Indices.size());
+    uint32_t indexSize = sizeof(m_Indices[0]);
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      stagingBuffer, stagingBufferMemory);
+    // Staging buffer
+    Buffer stagingBuffer(m_Device, indexSize, indexCount, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    stagingBuffer.map();
+    stagingBuffer.writeToBuffer((void*)m_Indices.data());
+    stagingBuffer.unmap();
 
-    void* data;
-    vkMapMemory(m_Device.getDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, m_Indices.data(), static_cast<size_t>(bufferSize));
-    vkUnmapMemory(m_Device.getDevice(), stagingBufferMemory);
+    // Index buffer
+    m_IndexBuffer = std::make_unique<Buffer>(
+      m_Device,
+      indexSize,
+      indexCount,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 
-    GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
-
-    GraphicsDevice_Vulkan::copyBuffer(m_Device, stagingBuffer, m_IndexBuffer, bufferSize);
-
-    vkDestroyBuffer(m_Device.getDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(m_Device.getDevice(), stagingBufferMemory, nullptr);
+    m_Device.copyBuffer(stagingBuffer.getBuffer(), m_IndexBuffer->getBuffer(), bufferSize);
   }
 
   void UIRenderSystem::createUniformBuffers()
@@ -199,29 +188,31 @@ namespace fz {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
     m_UniformBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_UniformBuffersMemory.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_UniformBuffersMapped.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        m_UniformBuffers[i], m_UniformBuffersMemory[i]);
-
-      vkMapMemory(m_Device.getDevice(), m_UniformBuffersMemory[i], 0, bufferSize, 0, &m_UniformBuffersMapped[i]);
+      m_UniformBuffers[i] = std::make_unique<Buffer>(
+        m_Device,
+        sizeof(UniformBufferObject),
+        1,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      );
+      m_UniformBuffers[i]->map();
     }
 
     // TODO: Move to separate function (or make class)
     bufferSize = sizeof(RenderParams) * 100;
     m_StorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_StorageBuffersMemory.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_StorageBuffersMapped.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      GraphicsDevice_Vulkan::createBuffer(m_Device, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        m_StorageBuffers[i], m_StorageBuffersMemory[i]);
-
-      vkMapMemory(m_Device.getDevice(), m_StorageBuffersMemory[i], 0, bufferSize, 0, &m_StorageBuffersMapped[i]);
+      m_StorageBuffers[i] = std::make_unique<Buffer>(
+        m_Device,
+        sizeof(RenderParams),
+        100,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      );
+      m_StorageBuffers[i]->map();
     }
   }
 
@@ -268,7 +259,7 @@ namespace fz {
     // Uniforms buffer
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
       VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = m_UniformBuffers[i];
+      bufferInfo.buffer = m_UniformBuffers[i]->getBuffer();
       bufferInfo.offset = 0;
       bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -289,7 +280,7 @@ namespace fz {
     // Storage buffer
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
       VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = m_StorageBuffers[i];
+      bufferInfo.buffer = m_StorageBuffers[i]->getBuffer();
       bufferInfo.offset = 0;
       bufferInfo.range = sizeof(RenderParams) * 100;
 

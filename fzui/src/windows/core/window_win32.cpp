@@ -19,7 +19,7 @@
 #include <dwmapi.h>
 #include <windowsx.h>
 
-// Vendor
+// vendor
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace fz {
@@ -161,23 +161,24 @@ namespace fz {
           newTime - lastTime).count();
         lastTime = newTime;
 
+        if (m_ShouldRender.load(std::memory_order_relaxed)) {
         if (auto commandBuffer = m_Renderer->beginFrame()) {
           int frameIndex = m_Renderer->getFrameIndex();
-
           // Update
-          //FrameInfo frameInfo{};
-          //frameInfo.frameIndex = frameIndex;
-          //frameInfo.frameTime = dt;
-          //frameInfo.commandBuffer = commandBuffer;
+          FrameInfo frameInfo{};
+          frameInfo.frameIndex = frameIndex;
+          frameInfo.frameTime = dt;
+          frameInfo.commandBuffer = commandBuffer;
+          frameInfo.windowWidth = (float)m_Renderer->getSwapChainWidth();
+          frameInfo.windowHeight = (float)m_Renderer->getSwapChainHeight();
 
-          m_UIRenderSystem->onUpdate(commandBuffer, m_Renderer->getCurrentFrame());
+          m_UIRenderSystem->onUpdate(frameInfo);
 
           // Render
           m_Renderer->beginSwapChainRenderPass(commandBuffer);
-
-          m_UIRenderSystem->onRender(commandBuffer, m_Renderer->getCurrentFrame());
-
+          m_UIRenderSystem->onRender(frameInfo);
           m_Renderer->endSwapChainRenderPass(commandBuffer);
+          
           m_Renderer->endFrame();
         }
 
@@ -190,7 +191,7 @@ namespace fz {
           firstPaint = false;
         }
       }
-      
+      }
     }
 
     vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
@@ -408,10 +409,12 @@ namespace fz {
           window->m_Height.store(HIWORD(lParam), std::memory_order_relaxed);
           
           
-            if (window->m_GraphicsDevice != nullptr) {
-              //window->m_GraphicsDevice->framebufferResizeCallback();
-              while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
-            }
+          if (window->m_GraphicsDevice != nullptr) {
+            //window->m_GraphicsDevice->framebufferResizeCallback();
+            window->m_Renderer->m_FramebufferResized.load(std::memory_order_relaxed);
+            //window->m_ShouldRender.store(true, std::memory_order_relaxed);
+            while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
+          }
 
           break;
         }
@@ -424,6 +427,7 @@ namespace fz {
           //while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
           //window->m_Resizing.store(true, std::memory_order_relaxed); // locks rendering
           window->m_Resizing.store(true, std::memory_order_relaxed);
+          //window->m_ShouldRender.store(false, std::memory_order_relaxed);
           break;
         }
         case WM_SETCURSOR:

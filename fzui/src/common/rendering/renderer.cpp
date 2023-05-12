@@ -1,5 +1,8 @@
 #include "fzui/rendering/renderer.hpp"
 
+// std
+#include <algorithm>
+
 namespace fz {
 
   Renderer::Renderer(Window& window, GraphicsDevice_Vulkan& device) :
@@ -58,7 +61,7 @@ namespace fz {
     // Acquire image from the swap chain
     VkResult result = vkAcquireNextImageKHR(m_Device.getDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_CurrentImageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       recreateSwapChain();
       return nullptr;
     }
@@ -171,6 +174,14 @@ namespace fz {
     createSwapChain();
     createImageViews();
     createFramebuffers();
+  }
+
+  uint32_t Renderer::getSwapChainWidth() const {
+    return m_SwapChainExtent.width;
+  }
+
+  uint32_t Renderer::getSwapChainHeight() const {
+    return m_SwapChainExtent.height;
   }
 
   void Renderer::cleanupSwapChain() {

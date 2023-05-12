@@ -53,6 +53,10 @@ namespace fz {
       GraphicsDevice_Vulkan(HWND hWnd);
       ~GraphicsDevice_Vulkan();
 
+      void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+      void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
       // Getters
       VkDevice getDevice();
       VkCommandPool getCommandPool();
@@ -61,9 +65,6 @@ namespace fz {
       VkQueue getPresentQueue();
       SwapChainSupportDetails getSwapChainSupport();
       QueueFamilyIndices findPhysicalQueueFamilies();
-      static void createBuffer(GraphicsDevice_Vulkan& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-        VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-      static void copyBuffer(GraphicsDevice_Vulkan& device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     private:
       void createInstance();
@@ -73,9 +74,6 @@ namespace fz {
       void createLogicalDevice();
       void createCommandPool();
       
-      void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-        VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-      void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
       bool checkValidationLayerSupport();
       std::vector<const char*> getRequiredExtensions();
       VkResult createDebugUtilsMessengerEXT(

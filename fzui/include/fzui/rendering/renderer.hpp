@@ -22,11 +22,14 @@ namespace fz {
       bool endFrame();
       void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
       void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+      std::atomic<bool> m_FramebufferResized = false;
 
       // Getters
       int getFrameIndex() const;
       size_t getCurrentFrame() const;
       VkRenderPass getSwapChainRenderPass() const;
+      uint32_t getSwapChainWidth() const;
+      uint32_t getSwapChainHeight() const;
 
     private:
       void recreateSwapChain();
@@ -59,7 +62,7 @@ namespace fz {
       std::vector<VkFence> m_InFlightFences;
       std::vector<VkFence> m_ImagesInFlight;
       std::vector<VkCommandBuffer> m_CommandBuffers;
-      std::atomic<bool> m_FramebufferResized = false;
+      
 
       uint32_t m_CurrentImageIndex = 0;
       size_t m_CurrentFrame = 0;

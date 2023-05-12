@@ -2,6 +2,8 @@
 
 struct RenderParams {
     vec2 pos;
+    vec2 size;
+    vec4 color;
 };
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
@@ -20,6 +22,6 @@ float offsets[] = { 0.0, 300.0 };
 
 void main() {
     RenderParams params = in_render_params.params[gl_InstanceIndex];
-    gl_Position = ubo.proj * vec4(inPosition.x + params.pos.x, inPosition.y + params.pos.y, 0.0, 1.0);
-    fragColor = inColor;
+    gl_Position = ubo.proj * vec4(inPosition.x * params.size.x + params.pos.x, inPosition.y * params.size.y + params.pos.y, 0.0, 1.0);
+    fragColor = inColor * params.color.rgb;
 }
