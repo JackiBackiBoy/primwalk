@@ -6,7 +6,6 @@
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
 #include "fzui/rendering/frameInfo.hpp"
-#include "fzui/rendering/buffer.hpp"
 
 // std
 #include <cstdint>
@@ -19,6 +18,8 @@ namespace fz {
     glm::vec2 size;
     glm::vec4 color;
   };
+
+  class FZ_API Buffer;
 
   class FZ_API UIRenderSystem {
     public:

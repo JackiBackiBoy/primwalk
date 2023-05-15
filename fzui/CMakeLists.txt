@@ -7,7 +7,7 @@ if (WIN32)
 elseif(APPLE)
   set(PLATFORM "macos")
   enable_language(OBJCXX CXX)
-  add_definitions(-DFZ_MACOS -DGL_SILENCE_DEPRECATION)
+  add_definitions(-DFZ_MACOS)
 endif()
 
 set(NAME fzui)
@@ -169,7 +169,6 @@ target_include_directories(${NAME} PUBLIC
 )
 
 target_link_directories(${NAME} PUBLIC
-  ${Vulkan_LIBRARIES}
   ${MSDFGEN_LIBRARIES}
 )
 
@@ -186,6 +185,7 @@ elseif(APPLE)
   target_link_libraries(${NAME} PUBLIC
     msdf-atlas-gen
     "-framework Cocoa"
+    ${Vulkan_LIBRARIES}
   )
 endif()
 

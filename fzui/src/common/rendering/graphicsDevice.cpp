@@ -15,25 +15,15 @@ namespace fz {
   // ------ DirectX 12 ------
 
   // ------ Vulkan ------
-  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(HWND hWnd) {
-    m_Handle = hWnd;
-
+  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) :
+    m_Window(window)
+  {
     createInstance();
     setupDebugMessenger();
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
     createCommandPool();
-
-    // Cue swap chain creation
-    //createRenderPass(); // TODO: Put into swap chain class
-    //createSyncObjects();
-
-    //createVertexBuffer();
-    //createIndexBuffer();
-    //createUniformBuffers();
-    //createDescriptorPool();
-    //createCommandBuffers();
   }
 
   GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan() {
@@ -145,6 +135,7 @@ namespace fz {
 
   void GraphicsDevice_Vulkan::createSurface()
   {
+    #ifdef FZ_WIN32
     // TODO: Make cross platform
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -154,6 +145,8 @@ namespace fz {
     if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create Win32 window surface!");
     }
+    #endif
+    m_Window.createWindowSurface(m_Instance, &m_Surface);
   }
 
   void GraphicsDevice_Vulkan::pickPhysicalDevice()
@@ -347,33 +340,43 @@ namespace fz {
 
     m_RequiredExtensions.clear();
 
-    // Required Win32 instance extensions
-    bool win32SurfaceExtension = false;
-    bool vkKHRSurfaceExtension = false;
+    std::vector<std::string> requiredExtensions = m_Window.getRequiredVulkanInstanceExtensions();
+    int foundExtensions = 0;
 
     std::cout << "Available Vulkan extensions (* = required):\n";
     for (uint32_t i = 0; i < extensionCount; i++) {
       std::string extensionName = extensionProperties[i].extensionName;
       std::cout << '\t' << extensionName;
 
-      // TODO: WIN32 SPECIFIC, needs to be fixed
-      if (extensionName == "VK_KHR_win32_surface") {
-        win32SurfaceExtension = true;
-        m_RequiredExtensions.push_back(extensionName);
-        std::cout << '*';
-      }
-      else if (extensionName == "VK_KHR_surface") {
-        vkKHRSurfaceExtension = true;
-        m_RequiredExtensions.push_back(extensionName);
-        std::cout << '*';
+      // // TODO: WIN32 SPECIFIC, needs to be fixed
+      // if (extensionName == "VK_KHR_win32_surface") {
+      //   win32SurfaceExtension = true;
+      //   m_RequiredExtensions.push_back(extensionName);
+      //   std::cout << '*';
+      // }
+      // else if (extensionName == "VK_KHR_surface") {
+      //   vkKHRSurfaceExtension = true;
+      //   m_RequiredExtensions.push_back(extensionName);
+      //   std::cout << '*';
+      // }
+
+      for (std::string e : requiredExtensions) {
+        if (extensionName == e) {
+          m_RequiredExtensions.push_back(extensionName);
+          std::cout << '*';
+          foundExtensions++;
+        }
       }
 
       std::cout << '\n';
     }
 
     // TODO: Refactor cross-platform extension requirements
-    if (!win32SurfaceExtension || !vkKHRSurfaceExtension) {
+    if (foundExtensions != requiredExtensions.size()) {
       throw std::runtime_error("VULKAN ERROR: Required extensions not available!");
+    }
+    else {
+      std::cout << "Found required extensions" << std::endl;
     }
 
     // Clear and resize extensionPointers to match requiredExtensions
@@ -536,7 +539,7 @@ namespace fz {
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData) {
-     std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
+     std::cerr << "Validation layer: " << pCallbackData->pMessage << '\n';
      return VK_FALSE;
   }
 

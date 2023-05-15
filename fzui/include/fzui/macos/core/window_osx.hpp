@@ -3,11 +3,17 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/uiElement.hpp"
-#include "fzui/uiContainer.hpp"
-#include "fzui/rendering/renderer2d.hpp"
+#include "fzui/color.hpp"
+
+
+// std
+#include <string>
+#include <memory>
 
 namespace fz {
+  class FZ_API Renderer;
+  class FZ_API UIRenderSystem;
+
   class FZ_API WindowOSX : public WindowBase {
     public:
       WindowOSX(const std::string& name, const int& width, const int& height, WindowOSX* parent = nullptr);
@@ -15,16 +21,15 @@ namespace fz {
 
       int run();
 
+      virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() override;
+      virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
+
       // Event functions
       virtual void onCreate();
       virtual void onResize() {};
       virtual void onUpdate(float dt) override;
       virtual void onRender(float dt) override;
       virtual void onDestroy() {};
-
-      // UI
-      virtual void addElement(UIElement* elem);
-      virtual void addContainer(UIContainer* container);
 
       // Getters
       virtual int getWidth() const override;
@@ -35,17 +40,14 @@ namespace fz {
       void createGraphicsContext();
 
       // Rendering
-      Renderer2D* m_Renderer2D = nullptr;
-      Texture m_MinimizeIcon{};
-      Texture m_MaximizeIcon{};
-      Texture m_CloseIcon{};
-
-      int m_Vsync = 0;
+      std::unique_ptr<Renderer> m_Renderer;
+      std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
+      id m_Object = nullptr;
+      id m_View = nullptr;
+      id m_Layer = nullptr;
       std::string m_Name = "";
       int m_Width = 0;
       int m_Height = 0;
-      std::vector<UIElement*> m_UIElements;
-      std::vector<UIContainer*> m_Containers;
       Color m_BackgroundColor = { 20, 20, 20 };
   };
 }

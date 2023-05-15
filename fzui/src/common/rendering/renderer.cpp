@@ -159,6 +159,7 @@ namespace fz {
 
   void Renderer::recreateSwapChain()
   {
+    #ifdef FZ_WIN32
     int width = 0, height = 0;
     RECT rc;
 
@@ -167,6 +168,7 @@ namespace fz {
       width = rc.right - rc.left;
       height = rc.bottom - rc.top;
     } while (width == 0 || height == 0);
+    #endif
 
     vkDeviceWaitIdle(m_Device.getDevice());
 
@@ -473,6 +475,7 @@ namespace fz {
     if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
       return capabilities.currentExtent;
     }
+    #ifdef FZ_WIN32
     else {
       RECT rc;
       GetClientRect(((WindowWin32&)m_Window).getHandle(), &rc);
@@ -490,6 +493,7 @@ namespace fz {
 
       return actualExtent;
     }
+    #endif
   }
 
 }

@@ -2,13 +2,18 @@
 #define FZ_GRAPHICS_DEVICE_HEADER
 
 // vendor
-#define VK_USE_PLATFORM_WIN32_KHR
+#ifdef FZ_WIN32
+  #define VK_USE_PLATFORM_WIN32_KHR
+  #include <windows.h>
+#elseif FZ_MACOS
+#endif
+
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/rendering/graphicsPipeline.hpp"
+#include "fzui/window.hpp"
 
 // std
 #include <array>
@@ -18,7 +23,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <windows.h>
 
 namespace fz {
   // ------ DirectX 12 ------
@@ -50,7 +54,7 @@ namespace fz {
 
   class FZ_API GraphicsDevice_Vulkan {
     public:
-      GraphicsDevice_Vulkan(HWND hWnd);
+      GraphicsDevice_Vulkan(Window& window);
       ~GraphicsDevice_Vulkan();
 
       void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
@@ -92,7 +96,7 @@ namespace fz {
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
       uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-      HWND m_Handle = NULL;
+      Window& m_Window;
       uint32_t m_CurrentFrame = 0;
       VkInstance m_Instance = VK_NULL_HANDLE;
       VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;

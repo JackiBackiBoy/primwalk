@@ -1,5 +1,6 @@
 #include "fzui/rendering/systems/uiRenderSystem.hpp"
 #include "fzui/rendering/renderer.hpp"
+#include "fzui/rendering/buffer.hpp"
 
 // std
 #include <stdexcept>
@@ -83,7 +84,9 @@ namespace fz {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayouts[0]) != VK_SUCCESS) {
+    VkDescriptorSetLayout layout1;
+
+    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &layoutInfo, nullptr, &layout1) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create descriptor set layout!");
     }
 
@@ -100,9 +103,14 @@ namespace fz {
     storageLayoutInfo.bindingCount = 1;
     storageLayoutInfo.pBindings = &storageLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &storageLayoutInfo, nullptr, &m_DescriptorSetLayouts[1]) != VK_SUCCESS) {
+    VkDescriptorSetLayout layout2;
+
+    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &storageLayoutInfo, nullptr, &layout2) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create render params descriptor set layout!");
     }
+
+    m_DescriptorSetLayouts[0] = layout1;
+    m_DescriptorSetLayouts[1] = layout2;
   }
 
   void UIRenderSystem::createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts)
@@ -223,16 +231,16 @@ namespace fz {
     poolSize.descriptorCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolSize storageSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT);
+    storageSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    storageSize.descriptorCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     std::vector<VkDescriptorPoolSize> poolSizes = { poolSize, storageSize };
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT) * 2;
+    poolInfo.maxSets = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT) * 6;
 
     if (vkCreateDescriptorPool(m_Device.getDevice(), &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create descriptor pool!");
@@ -245,6 +253,7 @@ namespace fz {
       m_DescriptorSetLayouts[0], m_DescriptorSetLayouts[0],
       m_DescriptorSetLayouts[1], m_DescriptorSetLayouts[1]
     };
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = m_DescriptorPool;
@@ -252,6 +261,7 @@ namespace fz {
     allocInfo.pSetLayouts = layouts.data();
 
     m_DescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT * m_DescriptorSetLayouts.size());
+    
     if (vkAllocateDescriptorSets(m_Device.getDevice(), &allocInfo, m_DescriptorSets.data()) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to allocate descriptor sets!");
     }

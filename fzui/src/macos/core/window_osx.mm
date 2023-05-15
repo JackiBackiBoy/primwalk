@@ -6,22 +6,60 @@
 
 // FZUI
 #include "fzui/window.hpp"
-#include "fzui/rendering/vertexArray.hpp"
-#include "fzui/rendering/vertexBuffer.hpp"
-#include "fzui/rendering/indexBuffer.hpp"
-#include "fzui/rendering/bufferLayout.hpp"
-#include "fzui/data/texture.hpp"
-#include "fzui/uiButton.hpp"
-#include "fzui/data/fonts/fontManager.hpp"
 #include "fzui/mouse.hpp"
+#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/rendering/graphicsPipeline.hpp"
+#include "fzui/rendering/renderer.hpp"
+#include "fzui/rendering/frameInfo.hpp"
+#include "fzui/rendering/systems/uiRenderSystem.hpp"
 
 // Vendor
-#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
 // MacOS
 #import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
+
+  @interface FZContentView : NSView <NSTextInputClient>
+  {
+      fz::WindowOSX* window;
+      NSTrackingArea* trackingArea;
+      NSMutableAttributedString* markedText;
+  }
+
+  - (instancetype)initWithFzWindow:(fz::WindowOSX*)initWindow;
+
+  @end
+
+  @implementation FZContentView
+
+  - (instancetype)initWithFzWindow:(fz::WindowOSX*)initWindow
+  {
+      self = [super init];
+      if (self != nil)
+      {
+          window = initWindow;
+          trackingArea = nil;
+          markedText = [[NSMutableAttributedString alloc] init];
+
+          [self updateTrackingAreas];
+          [self registerForDraggedTypes:@[NSPasteboardTypeURL]];
+      }
+
+      return self;
+  }
+
+  - (BOOL)wantsUpdateLayer
+  {
+      return YES;
+  }
+
+  - (NSArray*)validAttributesForMarkedText
+  {
+      return [NSArray array];
+  }
+
+  @end
 
   @interface ApplicationDelegate : NSObject<NSApplicationDelegate>
   @end
@@ -62,14 +100,12 @@ namespace fz {
   }
 
   WindowOSX::~WindowOSX() {
-    delete m_Renderer2D;
   }
 
   int WindowOSX::run() {
     bool shouldQuit = false;
 
-    // Create an instance of NSWindow
-    NSWindow* window = [
+    m_Object = [
       [NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, m_Width, m_Height)
       styleMask:NSWindowStyleMaskResizable |
                 NSWindowStyleMaskTitled |
@@ -79,72 +115,30 @@ namespace fz {
       backing:NSBackingStoreBuffered
       defer:NO];
     
-    //NSAppearance *appearance = [NSAppearance appearanceNamed:NSAppearanceNameVibrantDark];
-    //[window setAppearance:appearance];
-    [window setTitlebarAppearsTransparent:YES];
-    [window setBackgroundColor:[NSColor colorWithRed:33.0 / 255.0
-                                        green:37.0 / 255.0
-                                        blue:42.0 / 255.0
-                                        alpha:0.0]];
-    [window setTitleVisibility:NSWindowTitleHidden]; // hide default title text
+    [m_Object setTitlebarAppearsTransparent:YES];
+    [m_Object setTitleVisibility:NSWindowTitleHidden]; // hide default title text
 
-    
     // TODO: Investigate character encoding (potential issue)
     NSString* titleString = @(m_Name.c_str());
-    [window setTitle:titleString];
-    [window setMinSize:NSMakeSize(100, 100)];
+    [m_Object setTitle:titleString];
+    [m_Object setMinSize:NSMakeSize(200, 100)];
 
     WindowDelegate* windowDelegate = [[WindowDelegate alloc] init];
     windowDelegate.shouldQuit = &shouldQuit;
-    //window.delegate = [[WindowDelegate alloc] init];
-    [window setDelegate:windowDelegate];
+    [m_Object setDelegate:windowDelegate];
+    [m_Object setAcceptsMouseMovedEvents:YES];
 
-    NSOpenGLPixelFormatAttribute attribs[] =
-    {
-      NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core,
-      NSOpenGLPFADoubleBuffer,
-      NSOpenGLPFAAccelerated,
-      NSOpenGLPFAColorSize, 24,
-      NSOpenGLPFAAlphaSize, 8,
-      NSOpenGLPFADepthSize, 16,
-      NSOpenGLPFAStencilSize, 8,
-      0
-    };
-
-    // Create a pixel format with double buffering and other attributes
-    NSOpenGLPixelFormat* pixelFormat =
-      [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
-
-    NSOpenGLContext* openGLContext =
-      [[NSOpenGLContext alloc] initWithFormat:pixelFormat
-                               shareContext:nil];
-
-    CGFloat scaleFactor = [[window screen] backingScaleFactor];
-    std::cout << "Scale factor: " << scaleFactor << std::endl;
-    NSRect contentRect = [window contentRectForFrameRect:[window frame]];
-    NSOpenGLView* glView = [[NSOpenGLView alloc] initWithFrame:contentRect pixelFormat:pixelFormat];
-    [glView setWantsBestResolutionOpenGLSurface:YES];
-    [glView setOpenGLContext:openGLContext];
-    [window setContentView:glView];
-
-    // Make the OpenGL context the current context
-    [openGLContext makeCurrentContext];
-
-    if (!gladLoadGL()) {
-      printf("Could not initialize GLAD \n");
-    }
-    else {
-      printf("OpenGL version: %i.%i\n", GLVersion.major, GLVersion.minor);
-    }
+    // Rendering
+    createGraphicsContext();
+    VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
+    std::vector<VkDescriptorSetLayout> setLayouts;
+    m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
 
     // Show the window
-    [window makeKeyAndOrderFront:nil];
+    [m_Object makeKeyAndOrderFront:nil];
 
-    m_Renderer2D = new Renderer2D();
     static float dt = 0.0f;
     auto currentTime = std::chrono::high_resolution_clock::now();
-
-    onCreate();
 
     // Run the event loop
     while (!shouldQuit) {
@@ -157,20 +151,11 @@ namespace fz {
           [[NSApplication sharedApplication] sendEvent:event];
         }
         else {
-          [openGLContext makeCurrentContext];
-
-          NSRect windowFrame = [[window contentView] frame];
+          NSRect windowFrame = [[m_Object contentView] frame];
           CGFloat width = windowFrame.size.width;
           CGFloat height = windowFrame.size.height;
           m_Width = width;
           m_Height = height;
-
-          glClearColor(m_BackgroundColor.r / 255.0f,
-                       m_BackgroundColor.g / 255.0f,
-                       m_BackgroundColor.b / 255.0f, 1.0f);
-          glClear(GL_COLOR_BUFFER_BIT);
-          glViewport(0, 0, m_Width * 2, m_Height * 2);
-          m_Renderer2D->setViewport(m_Width, m_Height);
 
           // TODO: Make frame timing consistent when resizing window
           auto newTime = std::chrono::high_resolution_clock::now();
@@ -178,38 +163,81 @@ namespace fz {
               newTime - currentTime).count();
           currentTime = newTime;
 
-          // OnUpdate
-          NSPoint mouseLoc = [NSEvent mouseLocation];
-          NSPoint windowOrigin = [window frame].origin;
-          NSPoint relativeMouseLoc = NSMakePoint(mouseLoc.x - windowOrigin.x, NSMaxY([window frame]) - mouseLoc.y);
-          Mouse::Instance().m_RelativePos = { (int)relativeMouseLoc.x, (int)relativeMouseLoc.y };
-          
-          Window::onUpdate(dt);
-          onUpdate(dt);
+          if (auto commandBuffer = m_Renderer->beginFrame()) {
+            int frameIndex = m_Renderer->getFrameIndex();
+            // Update
+            FrameInfo frameInfo{};
+            frameInfo.frameIndex = frameIndex;
+            frameInfo.frameTime = dt;
+            frameInfo.commandBuffer = commandBuffer;
+            frameInfo.windowWidth = (float)m_Renderer->getSwapChainWidth();
+            frameInfo.windowHeight = (float)m_Renderer->getSwapChainHeight();
 
-          // OnRender
-          onRender(dt);
-          Window::onRender(dt);
+            m_UIRenderSystem->onUpdate(frameInfo);
 
-          [openGLContext flushBuffer];
+            // Render
+            m_Renderer->beginSwapChainRenderPass(commandBuffer);
+            m_UIRenderSystem->onRender(frameInfo);
+            m_Renderer->endSwapChainRenderPass(commandBuffer);
+            
+            m_Renderer->endFrame();
+          }
         }
       }
     }
+
+    vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
   }
 
-  // UI
-  void WindowOSX::addElement(UIElement* elem) {
-    m_UIElements.push_back(elem);
+  std::vector<std::string> WindowOSX::getRequiredVulkanInstanceExtensions() {
+    std::vector<std::string> extensions = {
+      "VK_KHR_surface",
+      "VK_EXT_metal_surface"
+    };
+
+    // TODO: Add alternative MVK extension
+
+    return extensions;
   }
 
-  void WindowOSX::addContainer(UIContainer* container) {
-    m_Containers.push_back(container);
+  VkResult WindowOSX::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
+    m_View = [[FZContentView alloc] initWithFzWindow:this];
+    [m_Object setContentView: m_View];
+    [m_Object makeFirstResponder: m_View];
+
+    NSBundle* bundle = [NSBundle bundleWithPath:@"/System/Library/Frameworks/QuartzCore.framework"];
+    m_Layer = [[bundle classNamed:@"CAMetalLayer"] layer];
+    
+    if (!m_Layer) {
+      std::cout << "METAL ERROR: Failed to create layer for view\n";
+    }
+
+    [m_View setLayer:m_Layer];
+    [m_View setWantsLayer:YES];
+
+    VkMetalSurfaceCreateInfoEXT sci;
+
+    PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT;
+    vkCreateMetalSurfaceEXT = (PFN_vkCreateMetalSurfaceEXT)
+        vkGetInstanceProcAddr(instance, "vkCreateMetalSurfaceEXT");
+    if (!vkCreateMetalSurfaceEXT)
+    {
+      std::cout << "Metal ERROR!" << std::endl;
+    }
+
+    memset(&sci, 0, sizeof(sci));
+    sci.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    sci.pLayer = m_Layer;
+
+    return vkCreateMetalSurfaceEXT(instance, &sci, nullptr, surface);
   }
 
   int WindowOSX::init() {
   }
 
   void WindowOSX::createGraphicsContext() {
+    m_GraphicsDevice = std::make_unique<GraphicsDevice_Vulkan>(*this);
+    m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
   }
 
   // ------ Event functions ------
@@ -217,29 +245,9 @@ namespace fz {
   }
 
   void WindowOSX::onUpdate(float dt) {
-    // Update mouse position
-
-    for (UIElement* element : m_UIElements) {
-      element->update(dt); // TODO: Pass delta time instead
-    }
   }
 
   void WindowOSX::onRender(float dt) {
-    m_Renderer2D->begin();
-
-    // Render UI containers
-    for (UIContainer* container : m_Containers) {
-      container->onRender(m_Renderer2D);
-    }
-
-    // Render UI elements
-    for (UIElement* element : m_UIElements) {
-      element->draw(m_Renderer2D);
-    }
-
-    m_Renderer2D->drawRect(m_Width, 30, { 0, 0 }, {33, 37, 43 });
-
-    m_Renderer2D->end();
   }
 
   // Getters

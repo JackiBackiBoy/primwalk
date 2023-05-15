@@ -6,7 +6,7 @@
 
 class FzCoachWindow : public fz::Window {
   public:
-    FzCoachWindow() : fz::Window("Forza Coach", 1080, 720, fz::GraphicsAPI::Vulkan) {};
+    FzCoachWindow() : fz::Window("Forza Coach", 1080, 720) {};
     virtual ~FzCoachWindow() {
     }
 

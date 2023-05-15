@@ -4,11 +4,9 @@ cmake_minimum_required(VERSION 3.20.0)
 if (WIN32)
   set(PLATFORM "windows")
   add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
-  set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/Windows/include)
 elseif(APPLE)
   set(PLATFORM "macos")
   add_definitions(-DFZ_MACOS)
-  set(GLAD_INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/vendor/glad/MacOS/include)
 endif()
 
 set(NAME fzcoach)
@@ -56,17 +54,13 @@ file(GLOB_RECURSE SOURCE_FILES ${SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADER_FILES ${SOURCE_DIR}/*.hpp)
 file(GLOB RESOURCE_FILE ${CMAKE_HOME_DIRECTORY}/resources.o)
 
-find_package(OpenGL REQUIRED)
-
 add_executable(${NAME} ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCE_FILE})
 target_compile_features(${NAME} PUBLIC cxx_std_17)
 
 target_include_directories(${NAME} PRIVATE
   ${CMAKE_HOME_DIRECTORY}/fzui/include
-  ${GLAD_INCLUDE_DIR}
 )
 
 target_link_libraries(${NAME} PUBLIC
   fzui
-  OpenGL::GL
 )

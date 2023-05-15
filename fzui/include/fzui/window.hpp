@@ -5,20 +5,37 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <vector>
 #include <condition_variable>
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/rendering/graphicsDevice.hpp"
-#include "fzui/rendering/graphicsPipeline.hpp"
+
+// Vendor
+#include <vulkan/vulkan.h>
+typedef void* id;
+
+typedef VkFlags VkMetalSurfaceCreateFlagsEXT;
+
+typedef struct VkMetalSurfaceCreateInfoEXT
+{
+    VkStructureType                 sType;
+    const void*                     pNext;
+    VkMetalSurfaceCreateFlagsEXT    flags;
+    const void*                     pLayer;
+} VkMetalSurfaceCreateInfoEXT;
+
+typedef VkResult (*PFN_vkCreateMetalSurfaceEXT)(VkInstance, const VkMetalSurfaceCreateInfoEXT*, const VkAllocationCallbacks*, VkSurfaceKHR*);
 
 namespace fz {
-  class FZ_API WindowBase;
-
+  class FZ_API GraphicsDevice_Vulkan;
   class FZ_API WindowBase {
     public:
       WindowBase() {}
       virtual ~WindowBase() {}
+
+      virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() = 0;
+      virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 
       // Event functions
       virtual void onUpdate(float dt) {};
