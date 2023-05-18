@@ -12,7 +12,13 @@
 #include "fzui/core.hpp"
 
 // Vendor
+#ifdef FZ_WIN32
+  #define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
 #include <vulkan/vulkan.h>
+
+#ifdef FZ_MACOS
 typedef void* id;
 
 typedef VkFlags VkMetalSurfaceCreateFlagsEXT;
@@ -26,6 +32,7 @@ typedef struct VkMetalSurfaceCreateInfoEXT
 } VkMetalSurfaceCreateInfoEXT;
 
 typedef VkResult (*PFN_vkCreateMetalSurfaceEXT)(VkInstance, const VkMetalSurfaceCreateInfoEXT*, const VkAllocationCallbacks*, VkSurfaceKHR*);
+#endif
 
 namespace fz {
   class FZ_API GraphicsDevice_Vulkan;
@@ -49,7 +56,7 @@ namespace fz {
       std::atomic<bool> m_IsMinimized = false;
       std::mutex m_RenderingMutex;
       std::condition_variable m_RenderingCondition;
-      std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice;
+      std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice{};
   };
 }
 

@@ -8,8 +8,11 @@
 #include "fzui/window.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
+#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/rendering/graphicsPipeline.hpp"
 #include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/frameInfo.hpp"
+#include "fzui/rendering/systems/uiRenderSystem.hpp"
 #include "fzui/mouse.hpp"
 
 // Windows
@@ -59,6 +62,24 @@ namespace fz {
     UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
 
     return (int)msg.wParam;
+  }
+
+  std::vector<std::string> WindowWin32::getRequiredVulkanInstanceExtensions() {
+    std::vector<std::string> extensions = {
+      "VK_KHR_surface",
+      "VK_KHR_win32_surface"
+    };
+
+    return extensions;
+  }
+
+  VkResult WindowWin32::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
+    VkWin32SurfaceCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.hwnd = m_Handle;
+    createInfo.hinstance = GetModuleHandle(0);
+
+    return vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, surface);
   }
 
   int WindowWin32::init() {
@@ -127,7 +148,7 @@ namespace fz {
 
   void WindowWin32::createGraphicsContext(const GraphicsAPI& api) {
     m_HDC = GetDC(m_Handle);
-    m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(m_Handle);
+    m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(*this);
     m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
 
     if (api == GraphicsAPI::Vulkan) {
@@ -138,7 +159,6 @@ namespace fz {
   void WindowWin32::renderingThread() {
     bool firstPaint = true;
     createGraphicsContext(m_API);
-    //m_Renderer2D = new Renderer2D();
 
     Window::onCreate();
     onCreate();
@@ -161,9 +181,9 @@ namespace fz {
           newTime - lastTime).count();
         lastTime = newTime;
 
-        if (m_ShouldRender.load(std::memory_order_relaxed)) {
         if (auto commandBuffer = m_Renderer->beginFrame()) {
           int frameIndex = m_Renderer->getFrameIndex();
+
           // Update
           FrameInfo frameInfo{};
           frameInfo.frameIndex = frameIndex;
@@ -190,7 +210,6 @@ namespace fz {
           UpdateWindow(m_Handle);
           firstPaint = false;
         }
-      }
       }
     }
 
@@ -224,7 +243,7 @@ namespace fz {
     // Get the point coordinates for the hit test
     POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
-    // Get the window rectangle.
+    // Get the window rectangle
     RECT rcWindow;
     GetWindowRect(hWnd, &rcWindow);
 
@@ -321,14 +340,37 @@ namespace fz {
           wasHandled = true;
           break;
         }
+        // Handling this event allows us to extend the client area of the window
+        // into the title bar region. Which effectively makes the whole window
+        // region accessible for drawing, including the title bar.
         case WM_NCCALCSIZE:
         {
-          const int cxBorder = 1;
-          const int cyBorder = 1;
-          InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
+          UINT dpi = GetDpiForWindow(hWnd);
+
+          int frameX = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
+          int frameY = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+          int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+
+          NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
+          RECT* requestedClientRect = params->rgrc;
+
+          requestedClientRect->right -= frameY + padding;
+          requestedClientRect->left += frameX + padding;
+          requestedClientRect->bottom -= frameY + padding;
+
+          bool isMaximized = false;
+          WINDOWPLACEMENT placement = { 0 };
+          placement.length = sizeof(WINDOWPLACEMENT);
+          if (GetWindowPlacement(hWnd, &placement)) {
+            isMaximized = placement.showCmd == SW_SHOWMAXIMIZED;
+          }
+
+          if (isMaximized) {
+            int sizeFrameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi);
+            requestedClientRect->top += sizeFrameY + padding;
+          }
 
           return 0;
-          break;
         }
         case WM_NCLBUTTONDOWN:
         {

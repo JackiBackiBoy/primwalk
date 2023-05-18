@@ -29,6 +29,7 @@ namespace fz {
       VkDeviceSize getBufferSize() const;
       VkBufferUsageFlags getUsageFlags() const;
       VkMemoryPropertyFlags getMemoryPropertyFlags() const;
+      VkDescriptorBufferInfo getDescriptorInfo(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
 
     private:
       static VkDeviceSize getAlignment(VkDeviceSize instanceSize, VkDeviceSize minOffsetAlignment);

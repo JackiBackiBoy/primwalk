@@ -6,6 +6,7 @@
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
 #include "fzui/rendering/frameInfo.hpp"
+#include "fzui/rendering/descriptorPool.hpp"
 
 // std
 #include <cstdint>
@@ -37,7 +38,6 @@ namespace fz {
       void createIndexBuffer();
       void createUniformBuffers();
       void createDescriptorPool();
-      void createDescriptorSets();
 
       const std::vector<Vertex> m_Vertices = {
         {{0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}},
@@ -52,17 +52,20 @@ namespace fz {
 
       GraphicsDevice_Vulkan& m_Device;
       std::unique_ptr<GraphicsPipeline> m_Pipeline;
-      VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
       std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
+      std::unique_ptr<DescriptorSetLayout> uniformSetLayout{};
+      std::unique_ptr<DescriptorSetLayout> storageSetLayout{};
+      std::unique_ptr<DescriptorPool> m_DescriptorPool{};
+      
       VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
+      
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;
       std::vector<std::unique_ptr<Buffer>> m_UniformBuffers;
       std::vector<std::unique_ptr<Buffer>> m_StorageBuffers;
-
-      std::vector<VkDescriptorSet> m_DescriptorSets;
-
+      std::vector<VkDescriptorSet> m_UniformDescriptorSets;
+      std::vector<VkDescriptorSet> m_StorageDescriptorSets;
   };
 }
 #endif

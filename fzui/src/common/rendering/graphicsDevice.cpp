@@ -135,17 +135,6 @@ namespace fz {
 
   void GraphicsDevice_Vulkan::createSurface()
   {
-    #ifdef FZ_WIN32
-    // TODO: Make cross platform
-    VkWin32SurfaceCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = m_Handle;
-    createInfo.hinstance = GetModuleHandle(0);
-
-    if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create Win32 window surface!");
-    }
-    #endif
     m_Window.createWindowSurface(m_Instance, &m_Surface);
   }
 

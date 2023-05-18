@@ -5,7 +5,6 @@
 #ifdef FZ_WIN32
   #define VK_USE_PLATFORM_WIN32_KHR
   #include <windows.h>
-#elseif FZ_MACOS
 #endif
 
 #include <vulkan/vulkan.h>
@@ -56,6 +55,12 @@ namespace fz {
     public:
       GraphicsDevice_Vulkan(Window& window);
       ~GraphicsDevice_Vulkan();
+
+      // Forbid copy and move semantics
+      GraphicsDevice_Vulkan(const GraphicsDevice_Vulkan&) = delete;
+      GraphicsDevice_Vulkan& operator=(const GraphicsDevice_Vulkan&) = delete;
+      GraphicsDevice_Vulkan(GraphicsDevice_Vulkan&&) = delete;
+      GraphicsDevice_Vulkan& operator=(GraphicsDevice_Vulkan&&) = delete;
 
       void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
         VkBuffer& buffer, VkDeviceMemory& bufferMemory);

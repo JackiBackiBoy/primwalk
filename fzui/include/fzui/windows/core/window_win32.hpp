@@ -15,21 +15,24 @@
 // FZUI
 #include "fzui/core.hpp"
 #include "fzui/rendering/graphicsAPI.hpp"
-#include "fzui/rendering/systems/uiRenderSystem.hpp"
 
 // Windows
 #include <windows.h>
 
 namespace fz {
   // TODO: Move to base class
+  
   class FZ_API Renderer;
+  class FZ_API UIRenderSystem;
 
   class FZ_API WindowWin32 : public WindowBase {
     public:
-      WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api = GraphicsAPI::OpenGL, WindowWin32* parent = nullptr);
+      WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api = GraphicsAPI::Vulkan, WindowWin32* parent = nullptr);
       virtual ~WindowWin32();
 
       int run();
+      virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() override;
+      virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
 
       // Event functions
       virtual void onCreate();
@@ -52,7 +55,9 @@ namespace fz {
       static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
-      std::unique_ptr<Renderer> m_Renderer;
+      
+      std::unique_ptr<Renderer> m_Renderer{};
+      std::unique_ptr<UIRenderSystem> m_UIRenderSystem{};
       GraphicsAPI m_API;
 
       HDC m_HDC = NULL;
@@ -66,7 +71,7 @@ namespace fz {
       std::atomic<bool> m_Resizing = false;
       std::atomic<bool> m_FrameDone = false;
       std::atomic<bool> m_SplashScreenActive = true;
-      std::atomic<bool> m_FirstPaint = true; // false once the first frame has been renderer
+      std::atomic<bool> m_FirstPaint = true; // false once the first frame has been rendered
 
       HGLRC hglrc = NULL;
       HINSTANCE m_Instance = NULL;
@@ -77,7 +82,7 @@ namespace fz {
       bool m_MinimizeButtonDown = false;
       bool m_MaximizeButtonDown = false;
       bool m_CloseButtonDown = false;
-      std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
+      
   };
 }
 #endif

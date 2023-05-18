@@ -70,6 +70,16 @@ namespace fz {
     return m_MemoryPropertyFlags;
   }
 
+  VkDescriptorBufferInfo Buffer::getDescriptorInfo(VkDeviceSize size /*= VK_WHOLE_SIZE*/, VkDeviceSize offset /*= VK_WHOLE_SIZE*/)
+  {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = m_Buffer;
+    bufferInfo.offset = offset;
+    bufferInfo.range = size;
+
+    return bufferInfo;
+  }
+
   VkDeviceSize Buffer::getAlignment(VkDeviceSize instanceSize, VkDeviceSize minOffsetAlignment)
   {
     if (minOffsetAlignment > 0) {

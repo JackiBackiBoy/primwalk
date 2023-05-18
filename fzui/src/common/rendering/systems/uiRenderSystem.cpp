@@ -12,23 +12,22 @@ namespace fz {
 
   UIRenderSystem::UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts) :
     m_Device(device) {
+    createDescriptorPool();
+    createUniformBuffers();
     createDescriptorSetLayout();
     createPipelineLayout(setLayouts);
     createPipeline(renderPass);
     createVertexBuffer();
     createIndexBuffer();
-    createUniformBuffers();
-    createDescriptorPool();
-    createDescriptorSets();
   }
 
   UIRenderSystem::~UIRenderSystem()
   {
     vkDestroyPipelineLayout(m_Device.getDevice(), m_PipelineLayout, nullptr);
 
-    vkDestroyDescriptorPool(m_Device.getDevice(), m_DescriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[0], nullptr);
-    vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[1], nullptr);
+    //vkDestroyDescriptorPool(m_Device.getDevice(), m_DescriptorPool, nullptr);
+    //vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[0], nullptr);
+    //vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[1], nullptr);
   }
 
   void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
@@ -61,56 +60,40 @@ namespace fz {
     vkCmdBindIndexBuffer(frameInfo.commandBuffer, m_IndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 0, 1, &m_DescriptorSets[frameInfo.frameIndex], 0, nullptr);
+      m_PipelineLayout, 0, 1, &m_UniformDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 1, 1, &m_DescriptorSets[frameInfo.frameIndex + 2], 0, nullptr);
+      m_PipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), 4, 0, 0, 0);
   }
 
   void UIRenderSystem::createDescriptorSetLayout()
   {
-    m_DescriptorSetLayouts.resize(2);
+    uniformSetLayout = DescriptorSetLayout::Builder(m_Device)
+      .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+      .build();
 
-    // TODO: Multiple bindings
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr; // optional
+    storageSetLayout = DescriptorSetLayout::Builder(m_Device)
+      .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+      .build();
 
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboLayoutBinding;
-
-    VkDescriptorSetLayout layout1;
-
-    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &layoutInfo, nullptr, &layout1) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create descriptor set layout!");
+    for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
+      auto bufferInfo = m_UniformBuffers[i]->getDescriptorInfo();
+      DescriptorWriter(*uniformSetLayout, *m_DescriptorPool)
+        .writeBuffer(0, &bufferInfo)
+        .build(m_UniformDescriptorSets[i]);
     }
 
-    // Storage buffer
-    VkDescriptorSetLayoutBinding storageLayoutBinding{};
-    storageLayoutBinding.binding = 0;
-    storageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    storageLayoutBinding.descriptorCount = 1;
-    storageLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    storageLayoutBinding.pImmutableSamplers = nullptr;
-
-    VkDescriptorSetLayoutCreateInfo storageLayoutInfo{};
-    storageLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    storageLayoutInfo.bindingCount = 1;
-    storageLayoutInfo.pBindings = &storageLayoutBinding;
-
-    VkDescriptorSetLayout layout2;
-
-    if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &storageLayoutInfo, nullptr, &layout2) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create render params descriptor set layout!");
+    for (size_t i = 0; i < m_StorageDescriptorSets.size(); i++) {
+      auto bufferInfo = m_StorageBuffers[i]->getDescriptorInfo();
+      DescriptorWriter(*storageSetLayout, *m_DescriptorPool)
+        .writeBuffer(0, &bufferInfo)
+        .build(m_StorageDescriptorSets[i]);
     }
 
-    m_DescriptorSetLayouts[0] = layout1;
-    m_DescriptorSetLayouts[1] = layout2;
+    m_DescriptorSetLayouts = {
+      uniformSetLayout->getDescriptorSetLayout(),
+      storageSetLayout->getDescriptorSetLayout()
+    };
   }
 
   void UIRenderSystem::createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts)
@@ -226,87 +209,14 @@ namespace fz {
 
   void UIRenderSystem::createDescriptorPool()
   {
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_DescriptorPool = DescriptorPool::Builder(m_Device)
+      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 2)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT)
+      .build();
 
-    VkDescriptorPoolSize storageSize{};
-    storageSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    storageSize.descriptorCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT);
-
-    std::vector<VkDescriptorPoolSize> poolSizes = { poolSize, storageSize };
-
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT) * 6;
-
-    if (vkCreateDescriptorPool(m_Device.getDevice(), &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create descriptor pool!");
-    }
-  }
-
-  void UIRenderSystem::createDescriptorSets()
-  {
-    std::vector<VkDescriptorSetLayout> layouts = {
-      m_DescriptorSetLayouts[0], m_DescriptorSetLayouts[0],
-      m_DescriptorSetLayouts[1], m_DescriptorSetLayouts[1]
-    };
-
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_DescriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(Renderer::MAX_FRAMES_IN_FLIGHT * m_DescriptorSetLayouts.size());
-    allocInfo.pSetLayouts = layouts.data();
-
-    m_DescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT * m_DescriptorSetLayouts.size());
-    
-    if (vkAllocateDescriptorSets(m_Device.getDevice(), &allocInfo, m_DescriptorSets.data()) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to allocate descriptor sets!");
-    }
-    
-    // Uniforms buffer
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = m_UniformBuffers[i]->getBuffer();
-      bufferInfo.offset = 0;
-      bufferInfo.range = sizeof(UniformBufferObject);
-
-      VkWriteDescriptorSet descriptorWrite{};
-      descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      descriptorWrite.dstSet = m_DescriptorSets[i];
-      descriptorWrite.dstBinding = 0;
-      descriptorWrite.dstArrayElement = 0;
-      descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      descriptorWrite.descriptorCount = 1;
-      descriptorWrite.pBufferInfo = &bufferInfo;
-      descriptorWrite.pImageInfo = nullptr; // optional
-      descriptorWrite.pTexelBufferView = nullptr; // optional
-
-      vkUpdateDescriptorSets(m_Device.getDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
-
-    // Storage buffer
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
-      VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = m_StorageBuffers[i]->getBuffer();
-      bufferInfo.offset = 0;
-      bufferInfo.range = sizeof(RenderParams) * 100;
-
-      VkWriteDescriptorSet descriptorWrite{};
-      descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      descriptorWrite.dstSet = m_DescriptorSets[i + 2];
-      descriptorWrite.dstBinding = 0;
-      descriptorWrite.dstArrayElement = 0;
-      descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-      descriptorWrite.descriptorCount = 1;
-      descriptorWrite.pBufferInfo = &bufferInfo;
-      descriptorWrite.pImageInfo = nullptr; // optional
-      descriptorWrite.pTexelBufferView = nullptr; // optional
-
-      vkUpdateDescriptorSets(m_Device.getDevice(), 1, &descriptorWrite, 0, nullptr);
-    }
+    m_UniformDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_StorageDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
   }
 
 }
