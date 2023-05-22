@@ -2,6 +2,7 @@
 
 // std
 #include <algorithm>
+#include <iostream>
 
 namespace fz {
 
@@ -13,6 +14,7 @@ namespace fz {
     createImageViews();
     createRenderPass();
     createFramebuffers();
+    createTextureSampler();
     createSyncObjects();
 
     // Command buffers
@@ -21,6 +23,9 @@ namespace fz {
 
   Renderer::~Renderer()
   {
+    // TODO: Check order of deletion of sampler
+    vkDestroySampler(m_Device.getDevice(), m_TextureSampler, nullptr);
+
     // Swap chain cleanup
     for (auto imageView : m_SwapChainImageViews) {
       vkDestroyImageView(m_Device.getDevice(), imageView, nullptr);
@@ -186,6 +191,8 @@ namespace fz {
     return m_SwapChainExtent.height;
   }
 
+  VkSampler Renderer::m_TextureSampler = VK_NULL_HANDLE;
+
   void Renderer::cleanupSwapChain() {
     // Destroy framebuffers
     for (auto frameBuffer : m_SwapChainFramebuffers) {
@@ -289,6 +296,35 @@ namespace fz {
       if (vkCreateImageView(m_Device.getDevice(), &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS) {
         throw std::runtime_error("VULKAN ERROR: Failed to create image view!");
       }
+    }
+  }
+
+  void Renderer::createTextureSampler()
+  {
+    // Device properties
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(m_Device.getPhysicalDevice(), &properties);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    if (vkCreateSampler(m_Device.getDevice(), &samplerInfo, nullptr, &m_TextureSampler) != VK_SUCCESS) {
+      throw std::runtime_error("VULKAN ERROR: Failed to create texture sampler!");
     }
   }
 

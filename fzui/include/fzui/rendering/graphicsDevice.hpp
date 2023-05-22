@@ -65,9 +65,15 @@ namespace fz {
       void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
         VkBuffer& buffer, VkDeviceMemory& bufferMemory);
       void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+      void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+        VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+      void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount);
+      void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+      VkImageView createImageView(VkImage image, VkFormat format);
 
       // Getters
       VkDevice getDevice();
+      VkPhysicalDevice getPhysicalDevice();
       VkCommandPool getCommandPool();
       VkSurfaceKHR getSurface();
       VkQueue getGraphicsQueue();
@@ -100,6 +106,8 @@ namespace fz {
       bool checkDeviceExtensionSupport(VkPhysicalDevice device);
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
       uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+      VkCommandBuffer beginSingleTimeCommands();
+      void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
       Window& m_Window;
       uint32_t m_CurrentFrame = 0;

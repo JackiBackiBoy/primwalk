@@ -1,5 +1,5 @@
 #ifndef FZ_DESCRIPTOR_POOL_HEADER
-#define FZ_DESCRITPOR_POOL_HEADER
+#define FZ_DESCRIPTOR_POOL_HEADER
 
 // FZUI
 #include "fzui/core.hpp"
@@ -94,6 +94,7 @@ namespace fz {
       DescriptorWriter(DescriptorSetLayout& setLayout, DescriptorPool& pool);
 
       DescriptorWriter& writeBuffer(uint32_t binding, VkDescriptorBufferInfo* bufferInfo);
+      DescriptorWriter& writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo);
 
       bool build(VkDescriptorSet& set);
       void overwrite(VkDescriptorSet& set);

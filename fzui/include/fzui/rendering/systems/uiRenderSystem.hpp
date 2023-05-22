@@ -7,6 +7,7 @@
 #include "fzui/rendering/graphicsPipeline.hpp"
 #include "fzui/rendering/frameInfo.hpp"
 #include "fzui/rendering/descriptorPool.hpp"
+#include "fzui/rendering/texture2D.hpp"
 
 // std
 #include <cstdint>
@@ -40,10 +41,10 @@ namespace fz {
       void createDescriptorPool();
 
       const std::vector<Vertex> m_Vertices = {
-        {{0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}},
-        {{1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}},
-        {{1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
-        {{0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}}
+        {{0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, { 1.0f, 0.0f } },
+        {{1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, { 0.0f, 0.0f } },
+        {{1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, { 0.0f, 1.0f } },
+        {{0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, { 1.0f, 1.0f } }
       };
 
       const std::vector<uint16_t> m_Indices = {
@@ -59,7 +60,7 @@ namespace fz {
       
       VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
-      
+      std::unique_ptr<Texture2D> m_Texture;
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;
       std::vector<std::unique_ptr<Buffer>> m_UniformBuffers;

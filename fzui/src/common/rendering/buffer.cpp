@@ -70,7 +70,7 @@ namespace fz {
     return m_MemoryPropertyFlags;
   }
 
-  VkDescriptorBufferInfo Buffer::getDescriptorInfo(VkDeviceSize size /*= VK_WHOLE_SIZE*/, VkDeviceSize offset /*= VK_WHOLE_SIZE*/)
+  VkDescriptorBufferInfo Buffer::getDescriptorInfo(VkDeviceSize size /*= VK_WHOLE_SIZE*/, VkDeviceSize offset /*= 0*/)
   {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = m_Buffer;

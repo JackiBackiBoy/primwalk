@@ -39,7 +39,7 @@ namespace fz {
     m_Device{device}, m_Bindings{bindings}
   {
     std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
-    for (auto kv : bindings) { // TODO: Should probably be auto&
+    for (auto& kv : bindings) { // TODO: Should probably be auto&
       setLayoutBindings.push_back(kv.second);
     }
 
@@ -158,6 +158,21 @@ namespace fz {
     write.descriptorCount = 1;
     write.dstBinding = binding;
     write.pBufferInfo = bufferInfo;
+
+    m_Writes.push_back(write);
+    return *this;
+  }
+
+  DescriptorWriter& DescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo)
+  {
+    auto& bindingDescription = m_SetLayout.m_Bindings[binding];
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.descriptorType = bindingDescription.descriptorType;
+    write.descriptorCount = 1;
+    write.dstBinding = binding;
+    write.pImageInfo = imageInfo;
 
     m_Writes.push_back(write);
     return *this;

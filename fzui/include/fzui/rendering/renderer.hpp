@@ -30,12 +30,14 @@ namespace fz {
       VkRenderPass getSwapChainRenderPass() const;
       uint32_t getSwapChainWidth() const;
       uint32_t getSwapChainHeight() const;
+      static VkSampler m_TextureSampler;
 
     private:
       void recreateSwapChain();
       void cleanupSwapChain();
       void createSwapChain();
       void createImageViews();
+      void createTextureSampler();
       void createRenderPass();
       void createFramebuffers();
       void createSyncObjects();
@@ -54,6 +56,7 @@ namespace fz {
       VkExtent2D m_SwapChainExtent;
       VkSwapchainKHR m_SwapChain = VK_NULL_HANDLE;
       VkRenderPass m_RenderPass = VK_NULL_HANDLE;
+      
       std::vector<VkImage> m_SwapChainImages;
       std::vector<VkImageView> m_SwapChainImageViews;
       std::vector<VkFramebuffer> m_SwapChainFramebuffers;
@@ -62,7 +65,6 @@ namespace fz {
       std::vector<VkFence> m_InFlightFences;
       std::vector<VkFence> m_ImagesInFlight;
       std::vector<VkCommandBuffer> m_CommandBuffers;
-      
 
       uint32_t m_CurrentImageIndex = 0;
       size_t m_CurrentFrame = 0;

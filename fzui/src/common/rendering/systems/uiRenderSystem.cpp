@@ -12,6 +12,10 @@ namespace fz {
 
   UIRenderSystem::UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts) :
     m_Device(device) {
+
+    // TODO: Move to more appropriate location
+    m_Texture = Texture2D::create(m_Device, "assets/textures/test.png");
+
     createDescriptorPool();
     createUniformBuffers();
     createDescriptorSetLayout();
@@ -74,6 +78,7 @@ namespace fz {
 
     storageSetLayout = DescriptorSetLayout::Builder(m_Device)
       .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+      .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
       .build();
 
     for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
@@ -85,8 +90,14 @@ namespace fz {
 
     for (size_t i = 0; i < m_StorageDescriptorSets.size(); i++) {
       auto bufferInfo = m_StorageBuffers[i]->getDescriptorInfo();
+      VkDescriptorImageInfo imageInfo{};
+      imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      imageInfo.imageView = m_Texture->getImageView();
+      imageInfo.sampler = Renderer::m_TextureSampler;
+
       DescriptorWriter(*storageSetLayout, *m_DescriptorPool)
         .writeBuffer(0, &bufferInfo)
+        .writeImage(1, &imageInfo)
         .build(m_StorageDescriptorSets[i]);
     }
 
@@ -176,10 +187,9 @@ namespace fz {
 
   void UIRenderSystem::createUniformBuffers()
   {
+    // Uniform buffer
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
     m_UniformBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
       m_UniformBuffers[i] = std::make_unique<Buffer>(
         m_Device,
@@ -191,6 +201,7 @@ namespace fz {
       m_UniformBuffers[i]->map();
     }
 
+    // Storage buffer (render params)
     // TODO: Move to separate function (or make class)
     bufferSize = sizeof(RenderParams) * 100;
     m_StorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
@@ -205,14 +216,17 @@ namespace fz {
       );
       m_StorageBuffers[i]->map();
     }
+
+    
   }
 
   void UIRenderSystem::createDescriptorPool()
   {
     m_DescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 2)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT)
+      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 6) // TODO: Investigate what max sets really means in terms of allocations
+      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // uniform buffer
+      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
+      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Renderer::MAX_FRAMES_IN_FLIGHT) // image sampler
       .build();
 
     m_UniformDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);

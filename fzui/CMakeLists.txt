@@ -30,6 +30,7 @@ project(${NAME})
 include_directories(
   ${SOURCE_DIR}
   ${INCLUDE_DIR}
+  ${CMAKE_HOME_DIRECTORY}/vendor/stb
 )
 
 # 1. Find Vulkan SDK
@@ -75,7 +76,6 @@ endif()
 
 set(MSDFGEN_LIBRARIES ${CMAKE_HOME_DIRECTORY}/build/vendor/msdf-atlas-gen)
 
-
 # Settings
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -110,7 +110,10 @@ if(WIN32)
   ${INCLUDE_DIR}/uiImage.hpp
   ${INCLUDE_DIR}/uiImageButton.hpp
   ${INCLUDE_DIR}/uiLabel.hpp
-  ${INCLUDE_DIR}/vertex.hpp
+  ${INCLUDE_DIR}/
+  
+  
+  .hpp
   ${INCLUDE_DIR}/window.hpp
   )
 elseif(APPLE)
@@ -149,7 +152,7 @@ elseif(APPLE)
   )
 endif()
 
-add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES} ${STB_FILES})
 
 # Eliminate target prefixes
 set_target_properties(${NAME} PROPERTIES PREFIX "")
@@ -166,6 +169,7 @@ target_include_directories(${NAME} PUBLIC
   ${GLM_INCLUDE_DIR}
   ${Vulkan_INCLUDE_DIRS}
   ${MSDFGEN_INCLUDE_DIR}
+  ${STB_IMAGE_INCLUDE_DIR}
 )
 
 target_link_directories(${NAME} PUBLIC
