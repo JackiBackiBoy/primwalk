@@ -1,5 +1,5 @@
-#ifndef FZ_DESCRIPTOR_POOL_HEADER
-#define FZ_DESCRIPTOR_POOL_HEADER
+#ifndef FZ_DESCRIPTORS_HEADER
+#define FZ_DESCRIPTORS_HEADER
 
 // FZUI
 #include "fzui/core.hpp"
@@ -25,17 +25,23 @@ namespace fz {
             uint32_t binding,
             VkDescriptorType descriptorType,
             VkShaderStageFlags stageFlags,
-            uint32_t count = 1);
+            uint32_t count = 1,
+            VkDescriptorBindingFlags bindingFlags = 0);
+          Builder& setLayoutFlags(VkDescriptorSetLayoutCreateFlags layoutFlags);
           std::unique_ptr<DescriptorSetLayout> build() const;
 
         private:
           GraphicsDevice_Vulkan& m_Device;
           std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> m_Bindings;
+          std::unordered_map<uint32_t, VkDescriptorBindingFlags> m_BindingFlags;
+          VkDescriptorSetLayoutCreateFlags m_LayoutFlags = 0;
       };
 
       DescriptorSetLayout(
         GraphicsDevice_Vulkan& device,
-        std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings);
+        std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings,
+        std::unordered_map<uint32_t, VkDescriptorBindingFlags> bindingFlags,
+        VkDescriptorSetLayoutCreateFlags layoutFlags);
 
       ~DescriptorSetLayout();
 
@@ -46,6 +52,8 @@ namespace fz {
       GraphicsDevice_Vulkan& m_Device;
       VkDescriptorSetLayout m_DescriptorSetLayout;
       std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> m_Bindings;
+      std::unordered_map<uint32_t, VkDescriptorBindingFlags> m_BindingFlags;
+      VkDescriptorSetLayoutCreateFlags m_LayoutFlags;
 
       friend class DescriptorWriter;
   };
@@ -94,7 +102,7 @@ namespace fz {
       DescriptorWriter(DescriptorSetLayout& setLayout, DescriptorPool& pool);
 
       DescriptorWriter& writeBuffer(uint32_t binding, VkDescriptorBufferInfo* bufferInfo);
-      DescriptorWriter& writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo);
+      DescriptorWriter& writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo, uint32_t index = 0);
 
       bool build(VkDescriptorSet& set);
       void overwrite(VkDescriptorSet& set);

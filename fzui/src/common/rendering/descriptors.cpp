@@ -1,5 +1,5 @@
 // FZUI
-#include "fzui/rendering/descriptorPool.hpp"
+#include "fzui/rendering/descriptors.hpp"
 
 // std
 #include <stdexcept>
@@ -14,7 +14,10 @@ namespace fz {
 
   }
 
-  DescriptorSetLayout::Builder& DescriptorSetLayout::Builder::addBinding(uint32_t binding, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags, uint32_t count /*= 1*/)
+  DescriptorSetLayout::Builder& DescriptorSetLayout::Builder::addBinding(
+    uint32_t binding, VkDescriptorType descriptorType,
+    VkShaderStageFlags stageFlags, uint32_t count /*= 1*/,
+    VkDescriptorBindingFlags bindingFlags /*= 0*/)
   {
     VkDescriptorSetLayoutBinding layoutBinding{};
     layoutBinding.binding = binding;
@@ -23,30 +26,55 @@ namespace fz {
     layoutBinding.stageFlags = stageFlags;
 
     m_Bindings[binding] = layoutBinding;
+    m_BindingFlags[binding] = bindingFlags;
+    return *this;
+  }
+
+  DescriptorSetLayout::Builder& DescriptorSetLayout::Builder::setLayoutFlags(VkDescriptorSetLayoutCreateFlags layoutFlags) {
+    m_LayoutFlags = layoutFlags;
     return *this;
   }
 
   std::unique_ptr<DescriptorSetLayout> DescriptorSetLayout::Builder::build() const
   {
-    return std::make_unique<DescriptorSetLayout>(m_Device, m_Bindings);
+    return std::make_unique<DescriptorSetLayout>(m_Device, m_Bindings, m_BindingFlags, m_LayoutFlags);
   }
 
   // ******** Descriptor Set Layout ********
 
   DescriptorSetLayout::DescriptorSetLayout(
     GraphicsDevice_Vulkan& device,
-    std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings) :
-    m_Device{device}, m_Bindings{bindings}
+    std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings,
+    std::unordered_map<uint32_t, VkDescriptorBindingFlags> bindingFlags,
+    VkDescriptorSetLayoutCreateFlags layoutFlags) :
+    m_Device{device}, m_Bindings{bindings}, m_BindingFlags{bindingFlags}, m_LayoutFlags{layoutFlags}
   {
+
     std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
-    for (auto& kv : bindings) { // TODO: Should probably be auto&
+    std::vector<VkDescriptorBindingFlags> setLayoutBindingFlags{};
+
+    for (auto& kv : bindings) {
       setLayoutBindings.push_back(kv.second);
+    }
+
+    for (auto& kv: bindingFlags) {
+      setLayoutBindingFlags.push_back(kv.second);
     }
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
     layoutInfo.pBindings = setLayoutBindings.data();
+    layoutInfo.flags = m_LayoutFlags;
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flagInfo{};
+    flagInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flagInfo.bindingCount = static_cast<uint32_t>(setLayoutBindingFlags.size());
+    flagInfo.pBindingFlags = setLayoutBindingFlags.data();
+
+    if (setLayoutBindingFlags.size() > 0) {
+      layoutInfo.pNext = &flagInfo;
+    }
 
     if (vkCreateDescriptorSetLayout(m_Device.getDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create descriptor set layout!");
@@ -163,7 +191,7 @@ namespace fz {
     return *this;
   }
 
-  DescriptorWriter& DescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo)
+  DescriptorWriter& DescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo* imageInfo, uint32_t index)
   {
     auto& bindingDescription = m_SetLayout.m_Bindings[binding];
 
@@ -172,6 +200,7 @@ namespace fz {
     write.descriptorType = bindingDescription.descriptorType;
     write.descriptorCount = 1;
     write.dstBinding = binding;
+    write.dstArrayElement = index;
     write.pImageInfo = imageInfo;
 
     m_Writes.push_back(write);

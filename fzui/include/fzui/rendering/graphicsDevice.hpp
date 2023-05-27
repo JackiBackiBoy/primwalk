@@ -4,7 +4,6 @@
 // vendor
 #ifdef FZ_WIN32
   #define VK_USE_PLATFORM_WIN32_KHR
-  #include <windows.h>
 #endif
 
 #include <vulkan/vulkan.h>
@@ -24,13 +23,6 @@
 #include <vector>
 
 namespace fz {
-  // ------ DirectX 12 ------
-  class FZ_API GraphicsDevice_DX12 {
-    public:
-      GraphicsDevice_DX12() {};
-      ~GraphicsDevice_DX12() {};
-  };
-
   // ------ Vulkan ------
   struct UniformBufferObject {
     alignas(16) glm::mat4 proj;

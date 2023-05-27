@@ -19,11 +19,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Compiler specification
 if (WIN32)
-  set(CMAKE_CXX_COMPILER "C:/Users/TheGa/mingw64/bin/g++.exe")
   #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lwinpthread")
 endif()
 
 project(${NAME})

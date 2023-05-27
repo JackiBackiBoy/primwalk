@@ -14,20 +14,14 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/rendering/graphicsAPI.hpp"
 
 // Windows
 #include <windows.h>
 
 namespace fz {
-  // TODO: Move to base class
-  
-  class FZ_API Renderer;
-  class FZ_API UIRenderSystem;
-
   class FZ_API WindowWin32 : public WindowBase {
     public:
-      WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api = GraphicsAPI::Vulkan, WindowWin32* parent = nullptr);
+      WindowWin32(const std::string& name, int width, int height);
       virtual ~WindowWin32();
 
       int run();
@@ -38,7 +32,6 @@ namespace fz {
       virtual void onCreate();
       virtual void onResize() {};
       virtual void onUpdate(float dt) override;
-      virtual void onRender(float dt) override;
       virtual void onDestroy() {};
 
       // Getters
@@ -48,24 +41,17 @@ namespace fz {
 
     private:
       int init();
-      void createGraphicsContext(const GraphicsAPI& api);
+      void createGraphicsContext();
       void renderingThread();
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
       static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
-      
-      std::unique_ptr<Renderer> m_Renderer{};
-      std::unique_ptr<UIRenderSystem> m_UIRenderSystem{};
-      GraphicsAPI m_API;
 
       HDC m_HDC = NULL;
       int m_Vsync = 0;
 
-      std::string m_Name = "";
-      std::atomic<int> m_Width = 0;
-      std::atomic<int> m_Height = 0;
       std::atomic<bool> m_ShouldClose = false;
       std::atomic<bool> m_ShouldRender = true;
       std::atomic<bool> m_Resizing = false;
@@ -73,16 +59,15 @@ namespace fz {
       std::atomic<bool> m_SplashScreenActive = true;
       std::atomic<bool> m_FirstPaint = true; // false once the first frame has been rendered
 
-      HGLRC hglrc = NULL;
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;
-      HWND m_MenuHandle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
       bool m_MinimizeButtonDown = false;
       bool m_MaximizeButtonDown = false;
       bool m_CloseButtonDown = false;
-      
   };
+
+  typedef WindowWin32 Window;
 }
 #endif

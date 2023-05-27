@@ -187,17 +187,33 @@ namespace fz {
     }
 
     // Device feature specification
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
+    descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    descriptorIndexingFeatures.pNext = nullptr;
+
+    VkPhysicalDeviceFeatures2 deviceFeatures;
+    deviceFeatures.features.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures.pNext = &descriptorIndexingFeatures;
+    vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &deviceFeatures);
+
+    // TODO: If descriptor indexing is not available, use another approach
+    assert(descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing);
+    assert(descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind);
+    assert(descriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing);
+    assert(descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind);
+    assert(descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing);
+    assert(descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind);
 
     // Logical device creation
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    createInfo.pEnabledFeatures = &deviceFeatures;
+    //createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(m_DeviceExtensions.size());
     createInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
+    createInfo.pNext = &deviceFeatures;
 
     if (m_EnableValidationLayers) {
       createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());

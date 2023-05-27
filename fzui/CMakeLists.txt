@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20.0)
 # Platform specifics
 if (WIN32)
   set(PLATFORM "windows")
-  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
+  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX)
 elseif(APPLE)
   set(PLATFORM "macos")
   enable_language(OBJCXX CXX)
@@ -21,8 +21,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Compiler specification
 if (WIN32)
-  set(CMAKE_CXX_COMPILER "C:/Users/TheGa/mingw64/bin/g++.exe")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
 endif()
 
 project(${NAME})
@@ -110,10 +108,6 @@ if(WIN32)
   ${INCLUDE_DIR}/uiImage.hpp
   ${INCLUDE_DIR}/uiImageButton.hpp
   ${INCLUDE_DIR}/uiLabel.hpp
-  ${INCLUDE_DIR}/
-  
-  
-  .hpp
   ${INCLUDE_DIR}/window.hpp
   )
 elseif(APPLE)
@@ -163,6 +157,7 @@ target_compile_definitions(${NAME} PRIVATE
   FZ_BUILD_LIB
   BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
   GLM_FORCE_RADIANS
+  WINVER=0x0A00
 )
 
 target_include_directories(${NAME} PUBLIC
@@ -178,10 +173,6 @@ target_link_directories(${NAME} PUBLIC
 
 if (WIN32)
   target_link_libraries(${NAME} PUBLIC
-    comctl32.lib
-    msimg32.lib
-    Dwmapi.lib
-    UxTheme
     msdf-atlas-gen
     ${Vulkan_LIBRARIES}
   )

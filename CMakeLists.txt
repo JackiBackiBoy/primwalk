@@ -23,7 +23,7 @@ if(MSVC)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
   add_compile_options(
     $<$<CONFIG:>:/MT> #---------|
-    $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
+    $<$<CONFIG:Debug>:/MDd> #---|-- Statically link the runtime libraries
     $<$<CONFIG:Release>:/MT> #--|
   )
 endif()

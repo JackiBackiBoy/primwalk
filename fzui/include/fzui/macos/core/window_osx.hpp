@@ -50,6 +50,8 @@ namespace fz {
       int m_Height = 0;
       Color m_BackgroundColor = { 20, 20, 20 };
   };
+
+  typedef WindowOSX Window;
 }
 
 #endif

@@ -8,34 +8,19 @@
 #include "fzui/window.hpp"
 #include "fzui/windows/resource.hpp"
 #include "fzui/windows/win32/win32Utilities.hpp"
+#include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
-#include "fzui/rendering/renderer.hpp"
-#include "fzui/rendering/frameInfo.hpp"
-#include "fzui/rendering/systems/uiRenderSystem.hpp"
-#include "fzui/mouse.hpp"
 
-// Windows
-#include <sdkddkver.h>
-#include <uxtheme.h>
-#include <olectl.h>
-#include <dwmapi.h>
-#include <windowsx.h>
+#include "fzui/rendering/frameInfo.hpp"
+#include "fzui/mouse.hpp"
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace fz {
-  WindowWin32::WindowWin32(const std::string& name, const int& width, const int& height, const GraphicsAPI& api, WindowWin32* parent)
-    : WindowBase() {
-    assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
-    assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
-
-    m_Name = name;
-    m_Width.store(width, std::memory_order_relaxed);
-    m_Height.store(height, std::memory_order_relaxed);
-    m_API = api;
-
+  WindowWin32::WindowWin32(const std::string& name, int width, int height)
+    : WindowBase(name, width, height) {
     init();
   }
 
@@ -44,10 +29,9 @@ namespace fz {
 
   int WindowWin32::run() {
     // Create separate rendering thread
-    std::thread renderThread([this]() {
-      renderingThread();
-    });
+    std::thread renderThread([this]() { renderingThread(); });
 
+    // Message loop
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
     {
@@ -60,7 +44,6 @@ namespace fz {
 
     // Convert string name to wide string
     UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
-
     return (int)msg.wParam;
   }
 
@@ -98,14 +81,14 @@ namespace fz {
     wcex.lpszClassName = wName.c_str();             // Window class name
     wcex.hbrBackground = NULL;                      // Window background brush color
     wcex.hCursor       = LoadIcon(NULL, IDC_ARROW); // Window cursor
-    wcex.lpfnWndProc   = WindowProc;                // Window procedure associated to this window class
-    wcex.hInstance     = m_Instance;                // The application instance
-    wcex.hIcon         = m_Icon;                    // Application icon
-    wcex.hIconSm       = m_IconSmall;               // Application small icon
+    wcex.lpfnWndProc   = WindowProc;                // Window procedure (message handler)
+    wcex.hInstance     = m_Instance;                // Window application instance
+    wcex.hIcon         = m_Icon;                    // Window application icon
+    wcex.hIconSm       = m_IconSmall;               // Window application small icon
 
     // 2. Register window and ensure registration success.
     if (!RegisterClassEx(&wcex)) {
-      std::cout << "ERROR: Could not create main window!" << std::endl;
+      std::cout << "ERROR: Could not create window!\n";
       return 0;
     }
 
@@ -113,17 +96,17 @@ namespace fz {
     POINT screenCenter = Win32Utilities::getScreenCenter();
     CREATESTRUCT cs;
     ZeroMemory(&cs, sizeof(cs));
-    cs.x              = screenCenter.x - m_Width.load(std::memory_order_relaxed) / 2;                            // Window X position
-    cs.y              = screenCenter.y - m_Height.load(std::memory_order_relaxed) / 2;                            // Window Y position
-    cs.cx             = m_Width.load(std::memory_order_relaxed);  // Window width
-    cs.cy             = m_Height.load(std::memory_order_relaxed); // Window height
-    cs.hInstance      = m_Instance;                               // Window instance
-    cs.lpszClass      = wcex.lpszClassName;                       // Window class name
-    cs.lpszName       = wName.c_str();                            // Window title
-    cs.style          = WS_OVERLAPPEDWINDOW;                      // Window style
-    cs.dwExStyle      = 0;                                        // Window extended styles
-    cs.hMenu          = NULL;                                     // Window menu
-    cs.lpCreateParams = this;                                     // Window creation parameters
+    cs.x              = screenCenter.x - m_Width / 2;  // Window X position
+    cs.y              = screenCenter.y - m_Height / 2; // Window Y position
+    cs.cx             = m_Width;                       // Window width
+    cs.cy             = m_Height;                      // Window height
+    cs.hInstance      = m_Instance;                    // Window instance
+    cs.lpszClass      = wcex.lpszClassName;            // Window class name
+    cs.lpszName       = wName.c_str();                 // Window title
+    cs.style          = WS_OVERLAPPEDWINDOW;           // Window style
+    cs.dwExStyle      = 0;                             // Window extended styles
+    cs.hMenu          = NULL;                          // Window menu
+    cs.lpCreateParams = this;                          // Window creation parameters
 
     // Create the window
     m_Handle = CreateWindowEx(
@@ -135,7 +118,7 @@ namespace fz {
       cs.y,
       cs.cx,
       cs.cy,
-      NULL,
+      NULL, // Window parent
       cs.hMenu,
       cs.hInstance,
       this);
@@ -146,27 +129,23 @@ namespace fz {
     return 1;
   }
 
-  void WindowWin32::createGraphicsContext(const GraphicsAPI& api) {
+  void WindowWin32::createGraphicsContext() {
     m_HDC = GetDC(m_Handle);
     m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(*this);
-    m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
-
-    if (api == GraphicsAPI::Vulkan) {
-      
-    }
+    m_Renderer = std::make_shared<Renderer>(*this, *m_GraphicsDevice);
   }
 
   void WindowWin32::renderingThread() {
     bool firstPaint = true;
-    createGraphicsContext(m_API);
-
-    Window::onCreate();
-    onCreate();
+    createGraphicsContext();
 
     // TODO: Move to onCreate
     VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
     std::vector<VkDescriptorSetLayout> setLayouts;
     m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
+
+    Window::onCreate();
+    onCreate();
 
     auto lastTime = std::chrono::high_resolution_clock::now();
 
@@ -192,6 +171,8 @@ namespace fz {
           frameInfo.windowWidth = (float)m_Renderer->getSwapChainWidth();
           frameInfo.windowHeight = (float)m_Renderer->getSwapChainHeight();
 
+          Window::onUpdate(dt);
+          onUpdate(dt);
           m_UIRenderSystem->onUpdate(frameInfo);
 
           // Render
@@ -226,22 +207,19 @@ namespace fz {
   void WindowWin32::onUpdate(float dt) {
   }
 
-  void WindowWin32::onRender(float dt) {
-  }
-
   int WindowWin32::getWidth() const {
-    return m_Width.load(std::memory_order_relaxed);
+    return m_Width;
   }
 
   int WindowWin32::getHeight() const {
-    return m_Height.load(std::memory_order_relaxed);
+    return m_Height;
   }
 
   // Hit test the frame for resizing and moving.
   LRESULT WindowWin32::HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
   {
     // Get the point coordinates for the hit test
-    POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+    POINT ptMouse = { LOWORD(lParam), HIWORD(lParam) };
 
     // Get the window rectangle
     RECT rcWindow;
@@ -332,7 +310,7 @@ namespace fz {
       switch (message) {
         case WM_ERASEBKGND:
         {
-          return 0;
+          return 1;
         }
         case WM_NCHITTEST:
         {
@@ -447,8 +425,8 @@ namespace fz {
           // safely render a frame until WM_SIZING is sent again.
           // Calculate new window dimensions if resized
           window->m_Resizing.store(false, std::memory_order_relaxed);
-          window->m_Width.store(LOWORD(lParam), std::memory_order_relaxed);
-          window->m_Height.store(HIWORD(lParam), std::memory_order_relaxed);
+          window->m_Width = LOWORD(lParam);
+          window->m_Height = HIWORD(lParam);
           
           
           if (window->m_GraphicsDevice != nullptr) {

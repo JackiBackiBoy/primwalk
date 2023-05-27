@@ -1,6 +1,13 @@
 #include "fzui/rendering/systems/uiRenderSystem.hpp"
 #include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/buffer.hpp"
+#include "fzui/uiElement.hpp"
+#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/rendering/graphicsPipeline.hpp"
+
+#include "fzui/rendering/descriptors.hpp"
+#include "fzui/rendering/texture2D.hpp"
+#include "fzui/data/font.hpp"
 
 // std
 #include <stdexcept>
@@ -14,7 +21,11 @@ namespace fz {
     m_Device(device) {
 
     // TODO: Move to more appropriate location
-    m_Texture = Texture2D::create(m_Device, "assets/textures/test.png");
+    m_Fonts.push_back(Font::createFromFile(m_Device, "assets/fonts/segoeui.ttf", 20));
+
+    m_Textures.push_back(Texture2D::create(m_Device, 1, 1, std::vector<unsigned char>(4, 255).data())); // default 1x1 white texture
+    m_Textures.push_back(Texture2D::create(m_Device, "assets/textures/test.png"));
+    m_Textures.push_back(Texture2D::create(m_Device, "assets/textures/fh5_banner.jpg"));
 
     createDescriptorPool();
     createUniformBuffers();
@@ -28,10 +39,6 @@ namespace fz {
   UIRenderSystem::~UIRenderSystem()
   {
     vkDestroyPipelineLayout(m_Device.getDevice(), m_PipelineLayout, nullptr);
-
-    //vkDestroyDescriptorPool(m_Device.getDevice(), m_DescriptorPool, nullptr);
-    //vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[0], nullptr);
-    //vkDestroyDescriptorSetLayout(m_Device.getDevice(), m_DescriptorSetLayouts[1], nullptr);
   }
 
   void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
@@ -43,20 +50,17 @@ namespace fz {
     //memcpy(m_UniformBuffersMapped[frameInfo.frameIndex], &ubo, sizeof(ubo));
     m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
-    std::vector<RenderParams> renderParams = {
-      { { 0, 0 }, { 200, 100 }, { 1.0f, 1.0f, 1.0f, 1.0f }  },
-      { { 300, 0 }, { 50, 50 }, { 1.0f, 0.0f, 1.0f, 1.0f } },
-      { { 0, 300 }, { 25, 25 }, { 0.0f, 1.0f, 1.0f, 1.0f } },
-      { { 300, 300 }, { 10, 10 }, { 1.0f, 0.0f, 0.0f, 1.0f } }
-    };
-    //memcpy(m_StorageBuffersMapped[frameInfo.frameIndex], renderParams.data(), sizeof(RenderParams) * 4);
+    m_RenderParams.clear();
+    for (auto& e : m_Elements) {
+      e->onRender(*this);
+    }
 
-    m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(renderParams.data());
+    m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data());
   }
 
   void UIRenderSystem::onRender(const FrameInfo& frameInfo)
   {
-    m_Pipeline->bind(frameInfo.commandBuffer);
+    m_BasePipeline->bind(frameInfo.commandBuffer);
 
     VkBuffer vertexBuffers[] = { m_VertexBuffer->getBuffer() };
     VkDeviceSize offsets[] = { 0 };
@@ -67,7 +71,29 @@ namespace fz {
       m_PipelineLayout, 0, 1, &m_UniformDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_PipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_PipelineLayout, 2, 1, &m_TextureDescriptorSet, 0, nullptr);
     vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), 4, 0, 0, 0);
+  }
+
+  void UIRenderSystem::submitElement(std::unique_ptr<UIElement> element)
+  {
+    m_Elements.push_back(std::move(element));
+  }
+
+  void UIRenderSystem::drawRect(glm::vec2 position, int width, int height, Color color)
+  {
+    RenderParams params{};
+    params.position = position;
+    params.size = { width, height };
+    params.color = Color::normalize(color);
+    params.texIndex = 0;
+
+    m_RenderParams.push_back(params);
+  }
+
+  void UIRenderSystem::drawText(glm::vec2 position, const std::string& text, Color color)
+  {
   }
 
   void UIRenderSystem::createDescriptorSetLayout()
@@ -78,9 +104,15 @@ namespace fz {
 
     storageSetLayout = DescriptorSetLayout::Builder(m_Device)
       .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-      .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
       .build();
 
+    textureSetLayout = DescriptorSetLayout::Builder(m_Device)
+      .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
+      .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
+      VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
+      .build();
+
+    // Uniform buffer
     for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
       auto bufferInfo = m_UniformBuffers[i]->getDescriptorInfo();
       DescriptorWriter(*uniformSetLayout, *m_DescriptorPool)
@@ -88,22 +120,41 @@ namespace fz {
         .build(m_UniformDescriptorSets[i]);
     }
 
+    // Render params storage buffer
     for (size_t i = 0; i < m_StorageDescriptorSets.size(); i++) {
       auto bufferInfo = m_StorageBuffers[i]->getDescriptorInfo();
-      VkDescriptorImageInfo imageInfo{};
-      imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      imageInfo.imageView = m_Texture->getImageView();
-      imageInfo.sampler = Renderer::m_TextureSampler;
 
       DescriptorWriter(*storageSetLayout, *m_DescriptorPool)
         .writeBuffer(0, &bufferInfo)
-        .writeImage(1, &imageInfo)
         .build(m_StorageDescriptorSets[i]);
     }
 
+    // Textures
+    VkDescriptorImageInfo imageInfo1{};
+    imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo1.imageView = m_Textures[0]->getImageView();
+    imageInfo1.sampler = Renderer::m_TextureSampler;
+
+    VkDescriptorImageInfo imageInfo2{};
+    imageInfo2.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo2.imageView = m_Textures[1]->getImageView();
+    imageInfo2.sampler = Renderer::m_TextureSampler;
+
+    VkDescriptorImageInfo imageInfo3{};
+    imageInfo3.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo3.imageView = m_Fonts[0]->getTextureAtlas().getImageView();
+    imageInfo3.sampler = Renderer::m_TextureSampler;
+
+    DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+      .writeImage(0, &imageInfo1, 0)
+      .writeImage(0, &imageInfo2, 1)
+      .writeImage(0, &imageInfo3, 2)
+      .build(m_TextureDescriptorSet);
+
     m_DescriptorSetLayouts = {
       uniformSetLayout->getDescriptorSetLayout(),
-      storageSetLayout->getDescriptorSetLayout()
+      storageSetLayout->getDescriptorSetLayout(),
+      textureSetLayout->getDescriptorSetLayout()
     };
   }
 
@@ -125,15 +176,27 @@ namespace fz {
   {
     assert(m_PipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
 
+    // Base pipeline
     PipelineConfigInfo pipelineConfig{};
     GraphicsPipeline::defaultPipelineConfigInfo(pipelineConfig);
     pipelineConfig.renderPass = renderPass;
     pipelineConfig.pipelineLayout = m_PipelineLayout;
-    m_Pipeline = std::make_unique<GraphicsPipeline>(
+    m_BasePipeline = std::make_unique<GraphicsPipeline>(
       m_Device,
       "assets/shaders/shader.vert.spv",
       "assets/shaders/shader.frag.spv",
       pipelineConfig);
+
+    //// Font pipeline
+    //PipelineConfigInfo pipelineConfig{};
+    //GraphicsPipeline::defaultPipelineConfigInfo(pipelineConfig);
+    //pipelineConfig.renderPass = renderPass;
+    //pipelineConfig.pipelineLayout = m_PipelineLayout;
+    //m_BasePipeline = std::make_unique<GraphicsPipeline>(
+    //  m_Device,
+    //  "assets/shaders/glyphShader.vert.spv",
+    //  "assets/shaders/glyphShader.frag.spv",
+    //  pipelineConfig);
   }
 
   void UIRenderSystem::createVertexBuffer()
@@ -216,17 +279,20 @@ namespace fz {
       );
       m_StorageBuffers[i]->map();
     }
-
-    
   }
 
   void UIRenderSystem::createDescriptorPool()
   {
     m_DescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 6) // TODO: Investigate what max sets really means in terms of allocations
+      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 6)
       .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // uniform buffer
       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
-      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Renderer::MAX_FRAMES_IN_FLIGHT) // image sampler
+      .build();
+
+    m_BindlessDescriptorPool = DescriptorPool::Builder(m_Device)
+      .setMaxSets(1)
+      .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
       .build();
 
     m_UniformDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);

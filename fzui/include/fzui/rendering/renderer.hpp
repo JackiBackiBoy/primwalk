@@ -44,7 +44,6 @@ namespace fz {
       void createCommandBuffers();
 
       VkResult submitCommandBuffers(const VkCommandBuffer* buffers, uint32_t* imageIndex);
-
       VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
       VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
       VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
