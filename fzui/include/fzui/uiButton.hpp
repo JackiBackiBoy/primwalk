@@ -12,8 +12,8 @@
 namespace fz {
   class FZ_API UIButton : public UIElement {
     public:
-      UIButton(const std::string& text, glm::vec2 position, int width, int height) :
-        UIElement(position), m_Text(text), m_Width(width), m_Height(height) {};
+      UIButton(const std::string& text, glm::vec2 position, int width, int height, const std::string& fontName = "SegoeUI") :
+        UIElement(position), m_Text(text), m_Width(width), m_Height(height), m_FontName(fontName) {};
       virtual ~UIButton() {};
 
       virtual void onRender(UIRenderSystem& renderer);
@@ -24,6 +24,7 @@ namespace fz {
 
     private:
       std::string m_Text;
+      std::string m_FontName;
       int m_Width;
       int m_Height;
 

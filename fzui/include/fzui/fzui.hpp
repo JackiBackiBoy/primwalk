@@ -8,3 +8,4 @@
 // UI
 #include "uiElement.hpp"
 #include "uiButton.hpp"
+#include "uiLabel.hpp"

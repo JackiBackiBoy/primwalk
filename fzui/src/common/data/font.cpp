@@ -1,4 +1,10 @@
 #include "fzui/data/font.hpp"
+#include "fzui/math/math.hpp"
+
+// std
+#include <cstdint>
+#include <fstream>
+#include <iostream>
 
 namespace fz {
 
@@ -9,13 +15,13 @@ namespace fz {
     m_FontSize = fontSize;
     std::string truePath = BASE_DIR + path;
 
+    loadMetadata(truePath);
+
     bool success = false;
     // Initialize instance of FreeType library
     if (msdfgen::FreetypeHandle* ft = msdfgen::initializeFreetype()) {
       // Load font file
       if (msdfgen::FontHandle* font = msdfgen::loadFont(ft, truePath.c_str())) {
-        // Storage for glyph geometry and their coordinates in the atlas
-        // FontGeometry is a helper class that loads a set of glyphs from a single font.
         msdf_atlas::FontGeometry fontGeometry(&glyphs);
         fontGeometry.loadCharset(font, 1.0, msdf_atlas::Charset::ASCII);
 
@@ -32,19 +38,15 @@ namespace fz {
         packer.setScale(m_FontSize); // TODO: Make dynamic scale
         packer.setPixelRange(2.5);
         packer.setMiterLimit(1.0);
+        //packer.setPadding(1);
 
         // Compute atlas layout - pack glyphs
         packer.pack(glyphs.data(), glyphs.size());
         // Get final atlas dimensions
-        int width = 0, height = 0;
         packer.getDimensions(width, height);
         // The ImmediateAtlasGenerator class facilitates the generation of the atlas bitmap.
-        msdf_atlas::ImmediateAtlasGenerator<
-          float, // pixel type of buffer for individual glyphs depends on generator function
-          4, // number of atlas color channels
-          &msdf_atlas::mtsdfGenerator, // function to generate bitmaps for individual glyphs
-          msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4> // class that stores the atlas bitmap
-          // For example, a custom atlas storage class that stores it in VRAM can be used.
+        msdf_atlas::ImmediateAtlasGenerator<float, 4, &msdf_atlas::mtsdfGenerator,
+          msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>
         > generator(width, height);
         // GeneratorAttributes can be modified to change the generator's default settings.
         msdf_atlas::GeneratorAttributes attributes;
@@ -60,11 +62,49 @@ namespace fz {
       }
       msdfgen::deinitializeFreetype(ft);
     }
+
+    std::cout << "Successfully loaded font at: " << truePath << '\n';
+    std::cout << '\t' << "Family: " << m_MetaData.family << '\n';
+    std::cout << '\t' << "Sub-Family: " << m_MetaData.subFamily << '\n';
   }
 
   const Texture2D& Font::getTextureAtlas() const
   {
     return *m_TextureAtlas;
+  }
+
+  int Font::getTextWidth(const std::string& text, const float& fontSize)
+  {
+    float width = 0.0f;
+    float scaling = fontSize / m_FontSize;
+
+    for (size_t i = 0; i < text.length(); i++) {
+      GlyphData glyph = m_GlyphData[static_cast<uint32_t>(text[i])];
+
+      if (i < text.length() - 1) {
+        width += glyph.advanceX * scaling;
+      }
+      else {
+        width += (glyph.bearingX + glyph.width) * scaling;
+      }
+    }
+
+    return static_cast<int>(width);
+  }
+
+  int Font::getMaxHeight() const
+  {
+    return m_MaxHeight;
+  }
+
+  GlyphData Font::getGlyph(const msdf_atlas::unicode_t& c)
+  {
+    return m_GlyphData[c];
+  }
+
+  double Font::getFontSize() const
+  {
+    return m_FontSize;
   }
 
   std::unique_ptr<Font> Font::createFromFile(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize)
@@ -80,23 +120,23 @@ namespace fz {
 
     uint32_t code = 0;
 
+    auto fWidth = static_cast<float>(width);
+    auto fHeight = static_cast<float>(height);
+
     //glyph
     for (msdf_atlas::GlyphGeometry g : glyphs) {
+      GlyphData glyphData = GlyphData();
+
       double pLeft, pBottom, pRight, pTop;
       double aLeft, aBottom, aRight, aTop;
       g.getQuadPlaneBounds(pLeft, pBottom, pRight, pTop);
       g.getQuadAtlasBounds(aLeft, aBottom, aRight, aTop);
-
-      GlyphData glyphData = GlyphData();
-      glyphData.advanceX = g.getAdvance() * m_FontSize;
+      
+      glyphData.atlasBounds = { aLeft, aBottom, aRight, aTop };
+      glyphData.planeBounds = { pLeft, pBottom, pRight, pTop };
+      glyphData.advanceX = static_cast<float>(g.getAdvance());
       glyphData.width = aRight - aLeft;
-      glyphData.height = aTop - aBottom;
-      glyphData.texLeftX = static_cast<float>(aLeft) / bitmap.width;
-      glyphData.texTopY = static_cast<float>(aTop) / bitmap.height;
-      glyphData.texRightX = static_cast<float>(aRight) / bitmap.width;
-      glyphData.texBottomY = static_cast<float>(aBottom) / bitmap.height;
-      glyphData.bearingX = pLeft * m_FontSize;
-      glyphData.bearingY = pTop * m_FontSize;
+      glyphData.height = aBottom - aTop;
       glyphData.bearingUnderline = pBottom * m_FontSize;
 
       m_GlyphData.insert({ g.getCodepoint(), glyphData });
@@ -111,6 +151,87 @@ namespace fz {
     m_TextureAtlas = Texture2D::create(m_Device, atlasWidth, atlasHeight, (unsigned char*)bitmap.pixels);
 
     return true; // TODO: Make return value actually reflect whether it worked or not
+  }
+
+  void Font::loadMetadata(const std::string& path)
+  {
+    OffsetTableTTF offsetTable{};
+    TableDirTTF tableDir{};
+    NameTableTTF nameTableHeader{};
+    NameRecordTTF nameRecord{};
+
+    std::ifstream file;
+    file.open(path, std::ios_base::binary);
+
+    if (!file.is_open()) {
+      std::cout << "Failed to open TTF file\n";
+      return;
+    }
+
+    // Header data
+    file.read(reinterpret_cast<char*>(&offsetTable), sizeof(offsetTable));
+    uint16_t* ptr = reinterpret_cast<uint16_t*>(&offsetTable);
+
+    for (size_t i = 0; i < sizeof(offsetTable) / sizeof(uint16_t); i++) {
+      *(ptr++) = Math::byteSwap(*ptr); // big endian to little endian
+    }
+
+    // Offsets table
+    bool nameTableFound = false;
+    for (size_t i = 0; i < offsetTable.numTables; i++) {
+      file.read(reinterpret_cast<char*>(&tableDir), sizeof(tableDir));
+      std::string name = std::string(tableDir.szTag.begin(), tableDir.szTag.end());
+
+      if (name == "name") { // found the font name table
+        nameTableFound = true;
+        tableDir.length = Math::byteSwap(tableDir.length);
+        tableDir.offset = Math::byteSwap(tableDir.offset);
+        break;
+      }
+    }
+
+    if (!nameTableFound) {
+      file.close();
+      return;
+    }
+
+    // Read names table header
+    file.seekg(tableDir.offset); // jump to the names table header
+    file.read(reinterpret_cast<char*>(&nameTableHeader), sizeof(nameTableHeader));
+    nameTableHeader.numNameRecords = Math::byteSwap(nameTableHeader.numNameRecords);
+    nameTableHeader.storageOffset = Math::byteSwap(nameTableHeader.storageOffset);
+
+    // Run through all records to find font metadata
+    MetadataTTF fontMetadata{};
+    std::string* dataPtr = reinterpret_cast<std::string*>(&fontMetadata);
+
+    for (uint16_t i = 0; i < nameTableHeader.numNameRecords; i++) {
+      file.read(reinterpret_cast<char*>(&nameRecord), sizeof(nameRecord));
+      nameRecord.nameID = Math::byteSwap(nameRecord.nameID);
+      nameRecord.stringLength = Math::byteSwap(nameRecord.stringLength);
+      nameRecord.stringOffset = Math::byteSwap(nameRecord.stringOffset);
+
+      // Save file position for later continuation of search
+      std::streampos nPos = file.tellg();
+      file.seekg(tableDir.offset + nameRecord.stringOffset + nameTableHeader.storageOffset);
+
+      std::vector<char> name;
+      name.resize(nameRecord.stringLength);
+      file.read(name.data(), nameRecord.stringLength);
+
+      std::string trueName = std::string(name.begin(), name.end());
+      trueName.erase(std::remove(trueName.begin(), trueName.end(), '\0'), trueName.end());
+
+      if (nameRecord.nameID < 15) { // TODO: Add more font metadata beyond NameID 14
+        *(dataPtr + nameRecord.nameID) = trueName;
+      }
+
+      file.seekg(nPos);
+    }
+
+    file.close();
+
+    m_MetaData = fontMetadata;
   }
 
 }

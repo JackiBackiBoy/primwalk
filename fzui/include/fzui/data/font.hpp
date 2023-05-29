@@ -7,6 +7,7 @@
 #include "fzui/rendering/texture2D.hpp"
 
 // std
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -18,16 +19,14 @@
 
 namespace fz {
   struct FZ_API GlyphData {
-    unsigned int width = 0;
-    unsigned int height = 0;
+    int width = 0;
+    int height = 0;
     double bearingX = 0;
     double bearingY = 0;
     double advanceX = 0;
-    float texLeftX = 0.0f;
-    float texTopY = 0.0f;
-    float texRightX = 0.0f;
-    float texBottomY = 0.0f;
     double bearingUnderline = 0.0;
+    glm::vec4 atlasBounds;
+    glm::vec4 planeBounds;
   };
 
   class FZ_API Font {
@@ -37,15 +36,74 @@ namespace fz {
 
       // Getters
       const Texture2D& getTextureAtlas() const;
+      int getTextWidth(const std::string& text, const float& fontSize);
+      int getMaxHeight() const;
+      GlyphData getGlyph(const msdf_atlas::unicode_t& c);
+      double getFontSize() const;
 
+      int atlasWidth = 0;
+      int atlasHeight = 0;
       static std::unique_ptr<Font> createFromFile(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize);
 
     private:
+      struct OffsetTableTTF {
+        uint16_t majorVersion;
+        uint16_t minorVersion;
+        uint16_t numTables;
+        uint16_t searchRange;
+        uint16_t entrySelector;
+        uint16_t rangeShift;
+      };
+
+      struct TableDirTTF {
+        std::array<char, 4> szTag; // table name
+        uint32_t checkSum;         // check sum
+        uint32_t offset;           // offset from beginning of file
+        uint32_t length;           // length of the table in bytes
+      };
+
+      struct NameTableTTF {
+        uint16_t formatSelector;
+        uint16_t numNameRecords;
+        uint16_t storageOffset;
+      };
+
+      struct NameRecordTTF {
+        uint16_t platformID;
+        uint16_t encodingID;
+        uint16_t languageID;
+        uint16_t nameID;
+        uint16_t stringLength;
+        uint16_t stringOffset; //from start of storage area
+      };
+
+      struct MetadataTTF {
+        std::string copyright;
+        std::string family;
+        std::string subFamily;
+        std::string uniqueSubFamilyID;
+        std::string fullName;
+        std::string nameTableVersion;
+        std::string postScriptName;
+        std::string trademarkNotice;
+        std::string manufacturerName;
+        std::string designerName;
+        std::string description;
+        std::string vendorURL;
+        std::string designerURL;
+        std::string licenseDescription;
+        std::string licenseInfoURL;
+      };
+
       GraphicsDevice_Vulkan& m_Device;
+      std::string m_FamilyName;
+      std::string m_SubFamilyName;
+      MetadataTTF m_MetaData;
 
       bool submitAtlasBitmapAndLayout(
         const msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>& atlas,
         std::vector<msdf_atlas::GlyphGeometry> glyphs);
+      void loadMetadata(const std::string& path);
 
       std::unordered_map<msdf_atlas::unicode_t, GlyphData> m_GlyphData;
       glm::ivec2 m_BoundingBox = { 0, 0 };
@@ -55,8 +113,9 @@ namespace fz {
       double m_FontSize = 0.0f;
       std::unique_ptr<Texture2D> m_TextureAtlas;
       std::vector<msdf_atlas::GlyphGeometry> glyphs;
-      int atlasWidth = 0;
-      int atlasHeight = 0;
+      
+      int width = 0;
+      int height = 0;
   };
 }
 

@@ -4,6 +4,7 @@
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in float fragTexIndex;
 layout(location = 2) in vec4 fragColor;
+layout(location = 3) flat in uint fragTexCoordIndex;
 
 layout(set = 2, binding = 0) uniform sampler2D vGlobalTextures[];
 

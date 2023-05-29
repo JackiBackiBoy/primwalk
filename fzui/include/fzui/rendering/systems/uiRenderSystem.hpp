@@ -22,6 +22,14 @@ namespace fz {
     alignas(4) uint32_t texIndex;
   };
 
+  struct FZ_API FontRenderParams {
+    alignas(8) glm::vec2 position;
+    alignas(8) glm::vec2 size;
+    alignas(16) glm::vec4 color;
+    alignas(4) uint32_t texIndex;
+    alignas(8) glm::vec2 texCoords[4];
+  };
+
   // Forward declarations
   class FZ_API GraphicsDevice_Vulkan;
   class FZ_API GraphicsPipeline;
@@ -42,7 +50,7 @@ namespace fz {
       void submitElement(std::unique_ptr<UIElement> element);
 
       void drawRect(glm::vec2 position, int width, int height, Color color);
-      void drawText(glm::vec2 position, const std::string& text, Color color);
+      void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, const std::string& fontName = "segoeui");
 
     private:
       void createDescriptorSetLayout();
@@ -54,12 +62,13 @@ namespace fz {
       void createDescriptorPool();
 
       std::vector<RenderParams> m_RenderParams;
+      std::vector<FontRenderParams> m_FontRenderParams;
 
       const std::vector<Vertex> m_Vertices = {
-        {{0.0f, 0.0f}, { 0.0f, 0.0f } },
-        {{1.0f, 0.0f}, { 1.0f, 0.0f } },
-        {{1.0f, 1.0f}, { 1.0f, 1.0f } },
-        {{0.0f, 1.0f}, { 0.0f, 1.0f } }
+        {{0.0f, 0.0f}, { 0.0f, 0.0f }, 0 },
+        {{1.0f, 0.0f}, { 1.0f, 0.0f }, 1 },
+        {{1.0f, 1.0f}, { 1.0f, 1.0f }, 2 },
+        {{0.0f, 1.0f}, { 0.0f, 1.0f }, 3 }
       };
 
       const std::vector<uint16_t> m_Indices = {
@@ -67,18 +76,19 @@ namespace fz {
       };
 
       GraphicsDevice_Vulkan& m_Device;
+
       std::unique_ptr<GraphicsPipeline> m_BasePipeline;
       std::unique_ptr<GraphicsPipeline> m_FontPipeline;
+      VkPipelineLayout m_BasePipelineLayout = VK_NULL_HANDLE;
+      VkPipelineLayout m_FontPipelineLayout = VK_NULL_HANDLE;
 
-      std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
-
+      std::vector<VkDescriptorSetLayout> m_BaseDescriptorSetLayouts;
+      std::vector<VkDescriptorSetLayout> m_FontDescriptorSetLayouts;
       std::unique_ptr<DescriptorSetLayout> uniformSetLayout{};
       std::unique_ptr<DescriptorSetLayout> storageSetLayout{};
       std::unique_ptr<DescriptorSetLayout> textureSetLayout{};
       std::unique_ptr<DescriptorPool> m_DescriptorPool{};
       std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
-      
-      VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
       std::vector<std::unique_ptr<Texture2D>> m_Textures;
       std::vector<std::unique_ptr<Font>> m_Fonts;
@@ -86,8 +96,10 @@ namespace fz {
       std::unique_ptr<Buffer> m_IndexBuffer;
       std::vector<std::unique_ptr<Buffer>> m_UniformBuffers;
       std::vector<std::unique_ptr<Buffer>> m_StorageBuffers;
+      std::vector<std::unique_ptr<Buffer>> m_FontStorageBuffers;
       std::vector<VkDescriptorSet> m_UniformDescriptorSets;
       std::vector<VkDescriptorSet> m_StorageDescriptorSets;
+      std::vector<VkDescriptorSet> m_FontStorageDescriptorSets;
       VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
 
       std::vector<std::unique_ptr<UIElement>> m_Elements;

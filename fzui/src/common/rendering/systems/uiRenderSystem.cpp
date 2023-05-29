@@ -21,7 +21,7 @@ namespace fz {
     m_Device(device) {
 
     // TODO: Move to more appropriate location
-    m_Fonts.push_back(Font::createFromFile(m_Device, "assets/fonts/segoeui.ttf", 20));
+    m_Fonts.push_back(Font::createFromFile(m_Device, "assets/fonts/catamaranb.ttf", 15));
 
     m_Textures.push_back(Texture2D::create(m_Device, 1, 1, std::vector<unsigned char>(4, 255).data())); // default 1x1 white texture
     m_Textures.push_back(Texture2D::create(m_Device, "assets/textures/test.png"));
@@ -38,7 +38,8 @@ namespace fz {
 
   UIRenderSystem::~UIRenderSystem()
   {
-    vkDestroyPipelineLayout(m_Device.getDevice(), m_PipelineLayout, nullptr);
+    vkDestroyPipelineLayout(m_Device.getDevice(), m_BasePipelineLayout, nullptr);
+    vkDestroyPipelineLayout(m_Device.getDevice(), m_FontPipelineLayout, nullptr);
   }
 
   void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
@@ -51,29 +52,39 @@ namespace fz {
     m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
     m_RenderParams.clear();
+    m_FontRenderParams.clear();
     for (auto& e : m_Elements) {
       e->onRender(*this);
     }
 
     m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data());
+    m_FontStorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_FontRenderParams.data());
   }
 
   void UIRenderSystem::onRender(const FrameInfo& frameInfo)
   {
+    // Base pipeline rendering
     m_BasePipeline->bind(frameInfo.commandBuffer);
 
     VkBuffer vertexBuffers[] = { m_VertexBuffer->getBuffer() };
     VkDeviceSize offsets[] = { 0 };
+
     vkCmdBindVertexBuffers(frameInfo.commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(frameInfo.commandBuffer, m_IndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 0, 1, &m_UniformDescriptorSets[frameInfo.frameIndex], 0, nullptr);
+      m_BasePipelineLayout, 0, 1, &m_UniformDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
+      m_BasePipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 2, 1, &m_TextureDescriptorSet, 0, nullptr);
-    vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), 4, 0, 0, 0);
+      m_BasePipelineLayout, 2, 1, &m_TextureDescriptorSet, 0, nullptr);
+    vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), static_cast<uint32_t>(m_RenderParams.size()), 0, 0, 0);
+
+    // Font pipeline rendering
+    m_FontPipeline->bind(frameInfo.commandBuffer);
+    vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_BasePipelineLayout, 1, 1, &m_FontStorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
+    vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), static_cast<uint32_t>(m_FontRenderParams.size()), 0, 0, 0);
   }
 
   void UIRenderSystem::submitElement(std::unique_ptr<UIElement> element)
@@ -92,8 +103,41 @@ namespace fz {
     m_RenderParams.push_back(params);
   }
 
-  void UIRenderSystem::drawText(glm::vec2 position, const std::string& text, Color color)
+  void UIRenderSystem::drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, const std::string& fontName)
   {
+    float xPos = position.x;
+    float yPos = position.y;
+    float scale = fontSize / m_Fonts[0]->getFontSize();
+
+    for (size_t i = 0; i < text.length(); i++) {
+      GlyphData glyph = m_Fonts[0]->getGlyph(static_cast<uint32_t>(text[i]));
+
+      if (text[i] != ' ') {
+        // Quad Coordinates
+        float x0 = xPos + glyph.planeBounds.x * fontSize;
+        float y0 = yPos - glyph.planeBounds.y * fontSize;
+
+        // UV Coordinates
+        float s0 = glyph.atlasBounds.x / m_Fonts[0]->atlasWidth;
+        float t0 = glyph.atlasBounds.w / m_Fonts[0]->atlasHeight;
+        float s1 = glyph.atlasBounds.z / m_Fonts[0]->atlasWidth;
+        float t1 = glyph.atlasBounds.y / m_Fonts[0]->atlasHeight;
+
+        FontRenderParams fontParams{};
+        fontParams.position = { x0, y0 };
+        fontParams.size = { static_cast<float>(glyph.width) * scale, static_cast<float>(glyph.height) * scale };
+        fontParams.color = Color::normalize(color);
+        fontParams.texIndex = 2;
+        fontParams.texCoords[0] = { s0, t1 }; // top right
+        fontParams.texCoords[1] = { s1, t1 }; // bottom right
+        fontParams.texCoords[2] = { s1, t0 }; // bottom left
+        fontParams.texCoords[3] = { s0, t0 }; // top left
+
+        m_FontRenderParams.emplace_back(fontParams);
+      }
+
+      xPos += glyph.advanceX * fontSize;
+    }
   }
 
   void UIRenderSystem::createDescriptorSetLayout()
@@ -129,6 +173,15 @@ namespace fz {
         .build(m_StorageDescriptorSets[i]);
     }
 
+    // Font render params storage buffer
+    for (size_t i = 0; i < m_FontStorageDescriptorSets.size(); i++) {
+      auto bufferInfo = m_FontStorageBuffers[i]->getDescriptorInfo();
+
+      DescriptorWriter(*storageSetLayout, *m_BindlessDescriptorPool)
+        .writeBuffer(0, &bufferInfo)
+        .build(m_FontStorageDescriptorSets[i]);
+    }
+
     // Textures
     VkDescriptorImageInfo imageInfo1{};
     imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -151,7 +204,13 @@ namespace fz {
       .writeImage(0, &imageInfo3, 2)
       .build(m_TextureDescriptorSet);
 
-    m_DescriptorSetLayouts = {
+    m_BaseDescriptorSetLayouts = {
+      uniformSetLayout->getDescriptorSetLayout(),
+      storageSetLayout->getDescriptorSetLayout(),
+      textureSetLayout->getDescriptorSetLayout()
+    };
+
+    m_FontDescriptorSetLayouts = {
       uniformSetLayout->getDescriptorSetLayout(),
       storageSetLayout->getDescriptorSetLayout(),
       textureSetLayout->getDescriptorSetLayout()
@@ -160,43 +219,55 @@ namespace fz {
 
   void UIRenderSystem::createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts)
   {
-    // Pipeline layout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_DescriptorSetLayouts.size());
-    pipelineLayoutInfo.pSetLayouts = m_DescriptorSetLayouts.data();
+    // Base pipeline layout
+    VkPipelineLayoutCreateInfo basePipelineLayoutInfo{};
+    basePipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    basePipelineLayoutInfo.pushConstantRangeCount = 0;
+    basePipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_BaseDescriptorSetLayouts.size());
+    basePipelineLayoutInfo.pSetLayouts = m_BaseDescriptorSetLayouts.data();
 
-    if (vkCreatePipelineLayout(m_Device.getDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(m_Device.getDevice(), &basePipelineLayoutInfo, nullptr, &m_BasePipelineLayout) != VK_SUCCESS) {
+      throw std::runtime_error("VULKAN ERROR: Failed to create pipeline layout!");
+    }
+
+    // Font pipeline layout
+    VkPipelineLayoutCreateInfo fontPipelineLayoutInfo{};
+    fontPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    fontPipelineLayoutInfo.pushConstantRangeCount = 0;
+    fontPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_FontDescriptorSetLayouts.size());
+    fontPipelineLayoutInfo.pSetLayouts = m_FontDescriptorSetLayouts.data();
+
+    if (vkCreatePipelineLayout(m_Device.getDevice(), &fontPipelineLayoutInfo, nullptr, &m_FontPipelineLayout) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create pipeline layout!");
     }
   }
 
   void UIRenderSystem::createPipeline(VkRenderPass renderPass)
   {
-    assert(m_PipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
+    assert(m_BasePipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
+    assert(m_FontPipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
 
     // Base pipeline
-    PipelineConfigInfo pipelineConfig{};
-    GraphicsPipeline::defaultPipelineConfigInfo(pipelineConfig);
-    pipelineConfig.renderPass = renderPass;
-    pipelineConfig.pipelineLayout = m_PipelineLayout;
+    PipelineConfigInfo basePipelineConfig{};
+    GraphicsPipeline::defaultPipelineConfigInfo(basePipelineConfig);
+    basePipelineConfig.renderPass = renderPass;
+    basePipelineConfig.pipelineLayout = m_BasePipelineLayout;
     m_BasePipeline = std::make_unique<GraphicsPipeline>(
       m_Device,
       "assets/shaders/shader.vert.spv",
       "assets/shaders/shader.frag.spv",
-      pipelineConfig);
+      basePipelineConfig);
 
-    //// Font pipeline
-    //PipelineConfigInfo pipelineConfig{};
-    //GraphicsPipeline::defaultPipelineConfigInfo(pipelineConfig);
-    //pipelineConfig.renderPass = renderPass;
-    //pipelineConfig.pipelineLayout = m_PipelineLayout;
-    //m_BasePipeline = std::make_unique<GraphicsPipeline>(
-    //  m_Device,
-    //  "assets/shaders/glyphShader.vert.spv",
-    //  "assets/shaders/glyphShader.frag.spv",
-    //  pipelineConfig);
+    // Font pipeline
+    PipelineConfigInfo fontPipelineConfig{};
+    GraphicsPipeline::defaultPipelineConfigInfo(fontPipelineConfig);
+    fontPipelineConfig.renderPass = renderPass;
+    fontPipelineConfig.pipelineLayout = m_FontPipelineLayout;
+    m_FontPipeline = std::make_unique<GraphicsPipeline>(
+      m_Device,
+      "assets/shaders/glyphShader.vert.spv",
+      "assets/shaders/glyphShader.frag.spv",
+      fontPipelineConfig);
   }
 
   void UIRenderSystem::createVertexBuffer()
@@ -265,7 +336,6 @@ namespace fz {
     }
 
     // Storage buffer (render params)
-    // TODO: Move to separate function (or make class)
     bufferSize = sizeof(RenderParams) * 100;
     m_StorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
 
@@ -279,6 +349,21 @@ namespace fz {
       );
       m_StorageBuffers[i]->map();
     }
+
+    // Storage buffer (font render params)
+    bufferSize = sizeof(FontRenderParams) * 100;
+    m_FontStorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
+      m_FontStorageBuffers[i] = std::make_unique<Buffer>(
+        m_Device,
+        sizeof(FontRenderParams),
+        100,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      );
+      m_FontStorageBuffers[i]->map();
+    }
   }
 
   void UIRenderSystem::createDescriptorPool()
@@ -290,13 +375,15 @@ namespace fz {
       .build();
 
     m_BindlessDescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(1)
+      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT + 1)
       .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
       .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
+      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
       .build();
 
     m_UniformDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
     m_StorageDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_FontStorageDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
   }
 
 }
