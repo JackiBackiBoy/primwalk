@@ -1,16 +1,18 @@
 #include "fzui/rendering/systems/uiRenderSystem.hpp"
 #include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/buffer.hpp"
-#include "fzui/uiElement.hpp"
+#include "fzui/ui/uiElement.hpp"
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
 
 #include "fzui/rendering/descriptors.hpp"
 #include "fzui/rendering/texture2D.hpp"
+#include "fzui/managers/resourceManager.hpp"
 #include "fzui/data/font.hpp"
 
 // std
 #include <stdexcept>
+#include <iostream>
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
@@ -20,12 +22,13 @@ namespace fz {
   UIRenderSystem::UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts) :
     m_Device(device) {
 
-    // TODO: Move to more appropriate location
-    m_Fonts.push_back(Font::createFromFile(m_Device, "assets/fonts/catamaranb.ttf", 15));
+    // Fonts
+    m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
 
-    m_Textures.push_back(Texture2D::create(m_Device, 1, 1, std::vector<unsigned char>(4, 255).data())); // default 1x1 white texture
-    m_Textures.push_back(Texture2D::create(m_Device, "assets/textures/test.png"));
-    m_Textures.push_back(Texture2D::create(m_Device, "assets/textures/fh5_banner.jpg"));
+    // Textures
+    m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<unsigned char>(4, 255).data())); // default 1x1 white texture
+    m_Textures.push_back(std::make_shared<Texture2D>("assets/textures/test.png"));
+    m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/fh5_banner.jpg"));
 
     createDescriptorPool();
     createUniformBuffers();
@@ -42,6 +45,56 @@ namespace fz {
     vkDestroyPipelineLayout(m_Device.getDevice(), m_FontPipelineLayout, nullptr);
   }
 
+  void UIRenderSystem::processEvent(const UIEvent& event)
+  {
+    switch (event.getType()) {
+    case UIEventType::MouseDown:
+    case UIEventType::MouseUp:
+    case UIEventType::MouseMove:
+    case UIEventType::MouseExitWindow:
+      {
+        // Perform hit tests
+        glm::vec2 mousePos = event.getMouseData().position;
+        bool elementFound = false;
+
+        for (auto& e = m_Elements.rbegin(); e != m_Elements.rend(); ++e) {
+          Hitbox hitbox = e->second->hitboxTest(mousePos);
+
+          if (hitbox.getTarget() != nullptr) {
+            elementFound = true;
+
+            if (hitbox.getTarget() != m_TargetElement) {
+              if (m_TargetElement != nullptr) {
+                m_TargetElement->handleEvent({ UIEventType::MouseExit });
+              }
+
+              m_TargetElement = hitbox.getTarget();
+              m_TargetElement->handleEvent({ UIEventType::MouseEnter });
+            }
+            else if (event.getType() == UIEventType::MouseDown) {
+              m_TargetElement->handleEvent({ UIEventType::MouseDown });
+            }
+            else if (event.getType() == UIEventType::MouseUp) {
+              m_TargetElement->handleEvent({ UIEventType::MouseUp });
+            }
+
+            break;
+          }
+        }
+
+        // If no elements were hit, set target element as nullptr
+        if (!elementFound) {
+          if (m_TargetElement != nullptr) {
+            m_TargetElement->handleEvent({ UIEventType::MouseExit });
+          }
+
+          m_TargetElement = nullptr;
+        }
+      }
+      break;
+    }
+  }
+
   void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
   {
     // TODO: Update uniform buffers
@@ -54,11 +107,16 @@ namespace fz {
     m_RenderParams.clear();
     m_FontRenderParams.clear();
     for (auto& e : m_Elements) {
-      e->onRender(*this);
+      e.second->onRender(*this);
     }
 
-    m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data());
-    m_FontStorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_FontRenderParams.data());
+    if (m_RenderParams.size() > 0) {
+      m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data());
+    }
+
+    if (m_FontRenderParams.size() > 0) {
+      m_FontStorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_FontRenderParams.data());
+    }
   }
 
   void UIRenderSystem::onRender(const FrameInfo& frameInfo)
@@ -89,28 +147,84 @@ namespace fz {
 
   void UIRenderSystem::submitElement(std::unique_ptr<UIElement> element)
   {
-    m_Elements.push_back(std::move(element));
+    m_Elements.insert({ m_ElementCount++, std::move(element) });
   }
 
-  void UIRenderSystem::drawRect(glm::vec2 position, int width, int height, Color color)
+  void UIRenderSystem::drawRect(glm::vec2 position, int width, int height, Color color, uint32_t borderRadius, std::shared_ptr<Texture2D> texture)
   {
+    uint32_t texIndex = 0;
+
     RenderParams params{};
     params.position = position;
     params.size = { width, height };
     params.color = Color::normalize(color);
-    params.texIndex = 0;
+
+    if (texture != nullptr) {
+      auto idSearch = m_TextureIDs.find(texture.get());
+
+      if (idSearch == m_TextureIDs.end()) { // texture does not exist
+        texIndex = m_TextureIDs.size() + 3;
+        m_TextureIDs[texture.get()] = texIndex;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = texture->getImageView();
+        imageInfo.sampler = Renderer::m_TextureSampler;
+
+        DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+          .writeImage(0, &imageInfo, texIndex)
+          .overwrite(m_TextureDescriptorSet);
+      }
+      else {
+        texIndex = idSearch->second;
+      }
+    }
+
+    params.texIndex = texIndex;
+    params.borderRadius = borderRadius;
 
     m_RenderParams.push_back(params);
   }
 
-  void UIRenderSystem::drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, const std::string& fontName)
+  void UIRenderSystem::drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font)
   {
+    if (font == nullptr) {
+      font = m_Fonts[0];
+    }
+
     float xPos = position.x;
     float yPos = position.y;
-    float scale = fontSize / m_Fonts[0]->getFontSize();
+
+    if (fontSize == 0) { // 0 indicates that we want to use the standard size
+      fontSize = font->getFontSize();
+    }
+
+    float scale = fontSize / font->getFontSize();
+    float texIndex = 2;
+
+    if (font != nullptr) {
+      auto idSearch = m_TextureIDs.find(&font->getTextureAtlas());
+
+      if (idSearch == m_TextureIDs.end()) { // texture does not exist
+        texIndex = m_TextureIDs.size() + 3;
+        m_TextureIDs[&font->getTextureAtlas()] = texIndex;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = font->getTextureAtlas().getImageView();
+        imageInfo.sampler = Renderer::m_TextureSampler;
+
+        DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+          .writeImage(0, &imageInfo, texIndex)
+          .overwrite(m_TextureDescriptorSet);
+      }
+      else {
+        texIndex = idSearch->second;
+      }
+    }
 
     for (size_t i = 0; i < text.length(); i++) {
-      GlyphData glyph = m_Fonts[0]->getGlyph(static_cast<uint32_t>(text[i]));
+      GlyphData glyph = font->getGlyph(static_cast<uint32_t>(text[i]));
 
       if (text[i] != ' ') {
         // Quad Coordinates
@@ -118,16 +232,16 @@ namespace fz {
         float y0 = yPos - glyph.planeBounds.y * fontSize;
 
         // UV Coordinates
-        float s0 = glyph.atlasBounds.x / m_Fonts[0]->atlasWidth;
-        float t0 = glyph.atlasBounds.w / m_Fonts[0]->atlasHeight;
-        float s1 = glyph.atlasBounds.z / m_Fonts[0]->atlasWidth;
-        float t1 = glyph.atlasBounds.y / m_Fonts[0]->atlasHeight;
+        float s0 = glyph.atlasBounds.x / font->atlasWidth;
+        float t0 = glyph.atlasBounds.w / font->atlasHeight;
+        float s1 = glyph.atlasBounds.z / font->atlasWidth;
+        float t1 = glyph.atlasBounds.y / font->atlasHeight;
 
         FontRenderParams fontParams{};
-        fontParams.position = { x0, y0 };
-        fontParams.size = { static_cast<float>(glyph.width) * scale, static_cast<float>(glyph.height) * scale };
+        fontParams.position = { x0, y0 + font->getMaxHeight()};
+        fontParams.size = { static_cast<float>(glyph.width) * scale, static_cast<float>(-glyph.height) * scale };
         fontParams.color = Color::normalize(color);
-        fontParams.texIndex = 2;
+        fontParams.texIndex = texIndex;
         fontParams.texCoords[0] = { s0, t1 }; // top right
         fontParams.texCoords[1] = { s1, t1 }; // bottom right
         fontParams.texCoords[2] = { s1, t0 }; // bottom left

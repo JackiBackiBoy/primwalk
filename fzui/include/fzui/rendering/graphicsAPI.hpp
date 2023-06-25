@@ -5,7 +5,7 @@
 #include "fzui/core.hpp" 
 
 namespace fz {
-  enum class FZ_API GraphicsAPI {
+  enum class GraphicsAPI {
     OpenGL,
     Vulkan,
     DX11,

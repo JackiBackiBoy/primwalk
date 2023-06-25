@@ -6,10 +6,13 @@
 #include "fzui/color.hpp"
 #include "fzui/rendering/frameInfo.hpp"
 #include "fzui/rendering/vertex.hpp"
+#include "fzui/ui/uiEvent.hpp"
 
 // std
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
@@ -20,6 +23,7 @@ namespace fz {
     alignas(8) glm::vec2 size;
     alignas(16) glm::vec4 color;
     alignas(4) uint32_t texIndex;
+    alignas(4) uint32_t borderRadius;
   };
 
   struct FZ_API FontRenderParams {
@@ -45,12 +49,14 @@ namespace fz {
       UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts);
       ~UIRenderSystem();
 
+      // Events
+      void processEvent(const UIEvent& event);
       void onUpdate(const FrameInfo& frameInfo);
       void onRender(const FrameInfo& frameInfo);
       void submitElement(std::unique_ptr<UIElement> element);
 
-      void drawRect(glm::vec2 position, int width, int height, Color color);
-      void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, const std::string& fontName = "segoeui");
+      void drawRect(glm::vec2 position, int width, int height, Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr);
+      void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
 
     private:
       void createDescriptorSetLayout();
@@ -90,8 +96,10 @@ namespace fz {
       std::unique_ptr<DescriptorPool> m_DescriptorPool{};
       std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
 
-      std::vector<std::unique_ptr<Texture2D>> m_Textures;
-      std::vector<std::unique_ptr<Font>> m_Fonts;
+      std::vector<std::shared_ptr<Texture2D>> m_Textures;
+      std::vector<std::shared_ptr<Font>> m_Fonts;
+      std::unordered_map<Texture2D*, uint32_t> m_TextureIDs;
+
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;
       std::vector<std::unique_ptr<Buffer>> m_UniformBuffers;
@@ -102,7 +110,9 @@ namespace fz {
       std::vector<VkDescriptorSet> m_FontStorageDescriptorSets;
       VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
 
-      std::vector<std::unique_ptr<UIElement>> m_Elements;
+      std::map<int, std::unique_ptr<UIElement>> m_Elements;
+      int m_ElementCount = 0;
+      UIElement* m_TargetElement = nullptr;
   };
 }
 #endif

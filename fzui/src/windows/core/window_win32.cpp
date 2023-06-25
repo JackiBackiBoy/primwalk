@@ -11,12 +11,15 @@
 #include "fzui/rendering/renderer.hpp"
 #include "fzui/rendering/graphicsDevice.hpp"
 #include "fzui/rendering/graphicsPipeline.hpp"
-
 #include "fzui/rendering/frameInfo.hpp"
 #include "fzui/mouse.hpp"
+#include "fzui/ui/uiEvent.hpp"
+#include "fzui/ui/uiIconButton.hpp"
+#include "fzui/rendering/texture2D.hpp"
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
+#include <dwmapi.h>
 
 namespace fz {
   WindowWin32::WindowWin32(const std::string& name, int width, int height)
@@ -73,11 +76,11 @@ namespace fz {
     // Convert string name to wide string
     std::wstring wName = Win32Utilities::stringToWideString(m_Name);
 
-    // 1. Setup window class attributes.
+    // 1. Setup window class attributes
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
     wcex.cbSize        = sizeof(wcex);              // WNDCLASSEX size in bytes
-    wcex.style         = CS_OWNDC;                  // Window class styles
+    wcex.style         = CS_OWNDC | CS_DBLCLKS;     // Window class styles
     wcex.lpszClassName = wName.c_str();             // Window class name
     wcex.hbrBackground = NULL;                      // Window background brush color
     wcex.hCursor       = LoadIcon(NULL, IDC_ARROW); // Window cursor
@@ -86,42 +89,28 @@ namespace fz {
     wcex.hIcon         = m_Icon;                    // Window application icon
     wcex.hIconSm       = m_IconSmall;               // Window application small icon
 
-    // 2. Register window and ensure registration success.
+    // 2. Register window and ensure registration success
     if (!RegisterClassEx(&wcex)) {
-      std::cout << "ERROR: Could not create window!\n";
+      std::cout << "WIN32 ERROR: Could not create window!\n";
       return 0;
     }
 
-    // 3. Setup window initialization attributes
+    // 3. Setup window initialization attributes and create window
     POINT screenCenter = Win32Utilities::getScreenCenter();
-    CREATESTRUCT cs;
-    ZeroMemory(&cs, sizeof(cs));
-    cs.x              = screenCenter.x - m_Width / 2;  // Window X position
-    cs.y              = screenCenter.y - m_Height / 2; // Window Y position
-    cs.cx             = m_Width;                       // Window width
-    cs.cy             = m_Height;                      // Window height
-    cs.hInstance      = m_Instance;                    // Window instance
-    cs.lpszClass      = wcex.lpszClassName;            // Window class name
-    cs.lpszName       = wName.c_str();                 // Window title
-    cs.style          = WS_OVERLAPPEDWINDOW;           // Window style
-    cs.dwExStyle      = 0;                             // Window extended styles
-    cs.hMenu          = NULL;                          // Window menu
-    cs.lpCreateParams = this;                          // Window creation parameters
-
-    // Create the window
     m_Handle = CreateWindowEx(
-      cs.dwExStyle,
-      cs.lpszClass,
-      cs.lpszName,
-      cs.style,
-      cs.x,
-      cs.y,
-      cs.cx,
-      cs.cy,
-      NULL, // Window parent
-      cs.hMenu,
-      cs.hInstance,
-      this);
+      0,                             // Window extended styles
+      wcex.lpszClassName,            // Window class name
+      wName.c_str(),                 // Window title
+      WS_OVERLAPPEDWINDOW,           // Window style
+      screenCenter.x - m_Width / 2,  // Window X position
+      screenCenter.y - m_Height / 2, // Window Y position
+      m_Width,                       // Window width
+      m_Height,                      // Window height
+      NULL,                          // Window parent
+      NULL,                          // Window menu
+      m_Instance,                    // Window instance
+      this                           // Window creation parameters
+    );
 
     // Validate window
     if (!m_Handle) { return 0; }
@@ -132,20 +121,25 @@ namespace fz {
   void WindowWin32::createGraphicsContext() {
     m_HDC = GetDC(m_Handle);
     m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(*this);
-    m_Renderer = std::make_shared<Renderer>(*this, *m_GraphicsDevice);
+    fz::GetDevice() = m_GraphicsDevice.get();
+
+    m_Renderer = std::make_shared<Renderer>(*this);
+    m_Renderer->setClearColor(m_BackgroundColor);
   }
 
   void WindowWin32::renderingThread() {
     bool firstPaint = true;
     createGraphicsContext();
 
+
     // TODO: Move to onCreate
     VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
     std::vector<VkDescriptorSetLayout> setLayouts;
     m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
 
-    Window::onCreate();
+    
     onCreate();
+    Window::onCreate();
 
     auto lastTime = std::chrono::high_resolution_clock::now();
 
@@ -174,6 +168,7 @@ namespace fz {
           Window::onUpdate(dt);
           onUpdate(dt);
           m_UIRenderSystem->onUpdate(frameInfo);
+          // ...
 
           // Render
           m_Renderer->beginSwapChainRenderPass(commandBuffer);
@@ -187,6 +182,8 @@ namespace fz {
 
         if (firstPaint) {
           // Shows window
+          /*COLORREF DARK_COLOR = RGB(32, 32, 32);
+          BOOL SET_CAPTION_COLOR = DwmSetWindowAttribute(m_Handle, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR, &DARK_COLOR, sizeof(DARK_COLOR));*/
           ShowWindow(m_Handle, SW_SHOW);
           UpdateWindow(m_Handle);
           firstPaint = false;
@@ -197,14 +194,157 @@ namespace fz {
     vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
   }
 
+  UIEvent WindowWin32::createMouseEvent(unsigned int message, uint64_t wParam, int64_t lParam)
+  {
+    UIEvent event = UIEvent(UIEventType::MouseMove);
+    MouseEventData& mouse = event.getMouseData();
+
+    // Acquire mouse position
+    int x = LOWORD(lParam);
+    int y = HIWORD(lParam);
+
+    mouse.position = { x, y };
+    std::cout << "mouse pos: " << x << ", " << y << std::endl;
+
+    // Acquire mouse button states
+    mouse.downButtons.leftButton = (GET_KEYSTATE_WPARAM(wParam) & MK_LBUTTON) > 0;
+    mouse.downButtons.middleButton = (GET_KEYSTATE_WPARAM(wParam) & MK_MBUTTON) > 0;
+    mouse.downButtons.rightButton = (GET_KEYSTATE_WPARAM(wParam) & MK_RBUTTON) > 0;
+
+    // Check which mouse buttons caused the mouse event (if any)
+    switch (message) {
+    case WM_LBUTTONUP:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONDBLCLK:
+      mouse.causeButtons.leftButton = true;
+      break;
+    case WM_RBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONDBLCLK:
+      mouse.causeButtons.rightButton = true;
+      break;
+    case WM_MBUTTONUP:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONDBLCLK:
+      mouse.causeButtons.middleButton = true;
+      break;
+    }
+
+    bool buttonPressed = mouse.downButtons.leftButton || mouse.downButtons.middleButton || mouse.downButtons.rightButton;
+
+    // Set event types accordingly
+    switch (message) {
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_XBUTTONUP:
+      event.setType(UIEventType::MouseUp);
+      event.getMouseData().clickCount = 0;
+      break;
+    case WM_LBUTTONDBLCLK:
+    case WM_MBUTTONDBLCLK:
+    case WM_RBUTTONDBLCLK:
+    case WM_XBUTTONDBLCLK:
+      event.setType(UIEventType::MouseDown);
+      event.getMouseData().clickCount = 2;
+      break;
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_XBUTTONDOWN:
+      event.setType(UIEventType::MouseDown);
+      event.getMouseData().clickCount = 1;
+      break;
+    case WM_MOUSELEAVE:
+    case WM_NCMOUSELEAVE:
+      {
+      event.setType(UIEventType::MouseExitWindow);
+      m_TrackingMouseLeave = false;
+      }
+      break;
+    }
+
+    if (!m_TrackingMouseLeave && message != WM_MOUSELEAVE && message != WM_NCMOUSELEAVE && message != WM_NCMOUSEMOVE) {
+      TRACKMOUSEEVENT tme{};
+      tme.cbSize = sizeof(tme);
+      tme.dwFlags = TME_LEAVE;
+      tme.hwndTrack = m_Handle;
+      tme.dwHoverTime = HOVER_DEFAULT;
+
+      TrackMouseEvent(&tme);
+      m_TrackingMouseLeave = true;
+    }
+
+    return event;
+  }
+
   // ------ Event functions ------
   void WindowWin32::onCreate() {
-    //m_MinimizeIcon.loadFromFile("assets/icons/minimize.png");
-    //m_MaximizeIcon.loadFromFile("assets/icons/maximize.png");
-    //m_CloseIcon.loadFromFile("assets/icons/close.png");
+    auto minimizeIcon = Texture2D::create("assets/icons/minimize.png");
+    auto maximizeIcon = Texture2D::create("assets/icons/maximize.png");
+    auto closeIcon = Texture2D::create("assets/icons/close.png");
+
+    m_MinimizeButton = &makeElement<UIIconButton>("Minimize", glm::vec2(m_Width - 90, 0), 30, 30, minimizeIcon);
+    m_MinimizeButton->setOnClick([this]() { SendMessage(m_Handle, WM_SYSCOMMAND, SC_MINIMIZE, NULL); });
+
+    m_MaximizeButton = &makeElement<UIIconButton>("Maximize", glm::vec2(m_Width - 60, 0), 30, 30, maximizeIcon);
+    m_MaximizeButton->setOnClick([this]() {
+      WINDOWPLACEMENT wp{};
+      GetWindowPlacement(m_Handle, &wp);
+      ShowWindow(m_Handle, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+    });
+
+    m_CloseButton = &makeElement<UIIconButton>("Close", glm::vec2(m_Width - 30, 0), 30, 30, closeIcon);
+    m_CloseButton->setBackgroundHoverColor({ 200, 0, 0 });
+    m_CloseButton->setBackgroundClickColor({ 128, 0, 0 });
+    m_CloseButton->setOnClick([this]() { SendMessage(m_Handle, WM_CLOSE, NULL, NULL); });
   }
 
   void WindowWin32::onUpdate(float dt) {
+    m_MinimizeButton->setPosition({ m_Width - 90, 0 });
+    m_MaximizeButton->setPosition({ m_Width - 60, 0 });
+    m_CloseButton->setPosition({ m_Width - 30, 0 });
+  }
+
+  void WindowWin32::processEvent(const UIEvent& event)
+  {
+    WindowBase::processEvent(event);
+
+    switch (event.getType()) {
+    case UIEventType::MouseDown:
+      {
+        auto& mouse = event.getMouseData();
+        if (isCursorInTitleBar(mouse.position.x, mouse.position.y)) {
+          if (mouse.causeButtons.leftButton) {
+            if (mouse.clickCount == 1) {
+              SendMessage(m_Handle, WM_SYSCOMMAND, 0xf012, 0); // Hack: Use of undocumented flag "SC_DRAGMOVE"
+            }
+            else if (mouse.clickCount == 2) { // caption bar double click)
+              WINDOWPLACEMENT wp{};
+              GetWindowPlacement(m_Handle, &wp);
+              ShowWindow(m_Handle, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+            }
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  bool WindowWin32::isCursorInTitleBar(int x, int y)
+  {
+    return x < m_Width - 90 && y < 29;
+  }
+
+  bool WindowWin32::isCursorOnBorder(int x, int y)
+  {
+    RECT windowRect;
+    GetWindowRect(m_Handle, &windowRect);
+
+    return (x <= windowRect.right && x > windowRect.right - 8) ||
+           (x >= windowRect.left && x < windowRect.left + 8) ||
+           (y >= windowRect.top && y < windowRect.top + 8) ||
+           (y <= windowRect.bottom && y > windowRect.bottom + 8);
   }
 
   int WindowWin32::getWidth() const {
@@ -253,13 +393,13 @@ namespace fz {
 
     // Maximize button
     if (uRow == 0 && ptMouse.x >= rcWindow.right - 30 && ptMouse.x < rcWindow.right) {
-      return HTCLOSE;
+      //return HTCLOSE;
     }
     else if (uRow == 0 && ptMouse.x >= rcWindow.right - 60 && ptMouse.x < rcWindow.right - 30) {
-      return HTMAXBUTTON;
+      //return HTMAXBUTTON;
     }
     else if (uRow == 0 && ptMouse.x >= rcWindow.right - 90 && ptMouse.x < rcWindow.right - 60) {
-      return HTMINBUTTON;
+      //return HTMINBUTTON;
     }
 
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.right &&
@@ -269,9 +409,9 @@ namespace fz {
     }
 
     // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
-    LRESULT hitTests[3][3] = 
+    LRESULT hitTests[3][3] =
     {
-      { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCAPTION,    HTTOPRIGHT },
+      { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCLIENT,    HTTOPRIGHT },
       { HTLEFT,       HTNOWHERE,     HTRIGHT },
       { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
     };
@@ -283,7 +423,6 @@ namespace fz {
     LRESULT result = 0;
     WindowWin32* window = nullptr;
     window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-    //WindowProperties windowProperties = window->getProperties();
 
     if (message == WM_NCCREATE) {
       // Set window pointer on create
@@ -296,11 +435,7 @@ namespace fz {
       GetWindowRect(hWnd, &rcClient);
 
       // Inform the application of the frame change
-      SetWindowPos(hWnd, 
-                   NULL, 
-                   rcClient.left, rcClient.top,
-                   rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
-                   SWP_FRAMECHANGED);
+      SetWindowPos(hWnd, NULL, rcClient.left, rcClient.top, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, SWP_FRAMECHANGED);
 
       result = DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -312,29 +447,54 @@ namespace fz {
         {
           return 1;
         }
+        case WM_GETMINMAXINFO:
+        {
+          if (window != nullptr) {
+            LPMINMAXINFO minMaxInfo = reinterpret_cast<LPMINMAXINFO>(lParam);
+            minMaxInfo->ptMinTrackSize.x = window->m_MinWidth;
+            minMaxInfo->ptMinTrackSize.y = window->m_MinHeight;
+          }
+          break;
+        }
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_XBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP:
+        case WM_XBUTTONUP:
+        case WM_LBUTTONDBLCLK:
+        case WM_MBUTTONDBLCLK:
+        case WM_RBUTTONDBLCLK:
+        case WM_XBUTTONDBLCLK:
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL:
+        case WM_MOUSEMOVE:
+        case WM_MOUSELEAVE:
+          if (message == WM_MOUSELEAVE) { std::cout << "Mouse leave" << std::endl; }
+          window->processEvent(window->createMouseEvent(message, wParam, lParam));
+          break;
         case WM_NCHITTEST:
         {
+          std::cout << "Hittest: ";
           result = HitTestNCA(hWnd, wParam, lParam);
+          std::cout << result << std::endl;
           wasHandled = true;
           break;
         }
-        // Handling this event allows us to extend the client area of the window
+        // Handling this message allows us to extend the client area of the window
         // into the title bar region. Which effectively makes the whole window
         // region accessible for drawing, including the title bar.
         case WM_NCCALCSIZE:
         {
           UINT dpi = GetDpiForWindow(hWnd);
-
           int frameX = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
           int frameY = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
           int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
 
           NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
           RECT* requestedClientRect = params->rgrc;
-
-          requestedClientRect->right -= frameY + padding;
-          requestedClientRect->left += frameX + padding;
-          requestedClientRect->bottom -= frameY + padding;
 
           bool isMaximized = false;
           WINDOWPLACEMENT placement = { 0 };
@@ -345,7 +505,27 @@ namespace fz {
 
           if (isMaximized) {
             int sizeFrameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi);
+            requestedClientRect->right -= frameY + padding;
+            requestedClientRect->left += frameX + padding;
             requestedClientRect->top += sizeFrameY + padding;
+            requestedClientRect->bottom -= frameY + padding;
+          }
+          else {
+            // ------ Hack to remove the title bar (non-client) area ------
+            // In order to hide the standard title bar we must change
+            // the NCCALCSIZE_PARAMS, which dictates the title bar area.
+            //
+            // In Windows 10 we can set the top component to '0', which
+            // in effect hides the default title bar.
+            // However, for unknown reasons this does not work in
+            // Windows 11, instead we are required to set the top
+            // component to '1' in order to get the same effect.
+            //
+            // Thus, we must first check the Windows version before
+            // altering the NCCALCSIZE_PARAMS structure.
+            const int cxBorder = 1;
+            const int cyBorder = 1;
+            InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
           }
 
           return 0;
@@ -375,7 +555,6 @@ namespace fz {
         {
           LRESULT result = 0;
           bool down = window->m_MaximizeButtonDown;
-          
 
           if (wParam == HTMINBUTTON) {
             window->m_IsMinimized.store(true, std::memory_order_relaxed);
@@ -494,4 +673,18 @@ namespace fz {
   HWND WindowWin32::getHandle() const {
     return m_Handle;
   }
+
+  void WindowWin32::setMinimumSize(uint32_t width, uint32_t height)
+  {
+    UINT dpi = GetDpiForWindow(m_Handle);
+    int minWidth = GetSystemMetricsForDpi(SM_CXMINTRACK, dpi);
+    int minHeight = GetSystemMetricsForDpi(SM_CYMINTRACK, dpi);
+
+    assert(width >= minWidth && "ASSERTION FAILED: Requested minimum width is too small!");
+    assert(height >= minHeight && "ASSERTION FAILED: Requested minimum height is too small!");
+
+    m_MinWidth = width;
+    m_MinHeight = height;
+  }
+
 }

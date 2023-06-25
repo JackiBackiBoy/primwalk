@@ -5,6 +5,7 @@ struct RenderParams {
     vec2 size;
     vec4 color;
     uint texIndex;
+    uint borderRadius;
 };
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
@@ -23,6 +24,7 @@ layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out float fragTexIndex;
 layout(location = 2) out vec4 fragColor;
 layout(location = 3) out uint fragTexCoordIndex;
+layout(location = 4) out uint fragBorderRadius;
 
 void main() {
     RenderParams params = in_render_params.params[gl_InstanceIndex];
@@ -31,4 +33,5 @@ void main() {
     fragTexIndex = float(params.texIndex);
     fragTexCoordIndex = inTexCoordIndex;
     fragColor = params.color;
+    fragBorderRadius = params.borderRadius;
 }

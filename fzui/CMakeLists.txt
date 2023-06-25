@@ -91,10 +91,12 @@ if(WIN32)
   ${INCLUDE_DIR}/data/*.h
   ${INCLUDE_DIR}/windows/*.hpp
   ${INCLUDE_DIR}/windows/*.h
+  ${INCLUDE_DIR}/managers/*.hpp
   ${INCLUDE_DIR}/math/*.hpp
   ${INCLUDE_DIR}/math/*.h
   ${INCLUDE_DIR}/rendering/*.hpp
   ${INCLUDE_DIR}/rendering/*.h
+  ${INCLUDE_DIR}/ui/*.hpp
   ${INCLUDE_DIR}/vendor/*.hpp
   ${INCLUDE_DIR}/vendor/*.h
   ${INCLUDE_DIR}/application.hpp
@@ -102,12 +104,8 @@ if(WIN32)
   ${INCLUDE_DIR}/core.hpp
   ${INCLUDE_DIR}/fzui.hpp
   ${INCLUDE_DIR}/mouse.hpp
-  ${INCLUDE_DIR}/uiButton.hpp
-  ${INCLUDE_DIR}/uiContainer.hpp
-  ${INCLUDE_DIR}/uiElement.hpp
-  ${INCLUDE_DIR}/uiImage.hpp
-  ${INCLUDE_DIR}/uiImageButton.hpp
-  ${INCLUDE_DIR}/uiLabel.hpp
+  ${INCLUDE_DIR}/mouseButtons.hpp
+  ${INCLUDE_DIR}/hitbox.hpp
   ${INCLUDE_DIR}/window.hpp
   )
 elseif(APPLE)
@@ -128,6 +126,7 @@ elseif(APPLE)
     ${INCLUDE_DIR}/math/*.h
     ${INCLUDE_DIR}/rendering/*.hpp
     ${INCLUDE_DIR}/rendering/*.h
+    ${INCLUDE_DIR}/ui/*.hpp
     ${INCLUDE_DIR}/vendor/*.hpp
     ${INCLUDE_DIR}/vendor/*.h
     ${INCLUDE_DIR}/application.hpp
@@ -141,6 +140,8 @@ elseif(APPLE)
     ${INCLUDE_DIR}/uiImage.hpp
     ${INCLUDE_DIR}/uiImageButton.hpp
     ${INCLUDE_DIR}/uiLabel.hpp
+    ${INCLUDE_DIR}/uiEvent.hpp
+    ${INCLUDE_DIR}/hitbox.hpp
     ${INCLUDE_DIR}/vertex.hpp
     ${INCLUDE_DIR}/window.hpp
   )
@@ -173,6 +174,7 @@ target_link_directories(${NAME} PUBLIC
 
 if (WIN32)
   target_link_libraries(${NAME} PUBLIC
+    Dwmapi.lib
     msdf-atlas-gen
     ${Vulkan_LIBRARIES}
   )

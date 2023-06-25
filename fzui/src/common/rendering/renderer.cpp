@@ -1,4 +1,5 @@
 #include "fzui/rendering/renderer.hpp"
+#include "fzui/rendering/graphicsDevice.hpp"
 
 // std
 #include <algorithm>
@@ -6,8 +7,8 @@
 
 namespace fz {
 
-  Renderer::Renderer(Window& window, GraphicsDevice_Vulkan& device) :
-    m_Window(window), m_Device(device)
+  Renderer::Renderer(Window& window) :
+    m_Window(window)
   {
     // Swap chain
     createSwapChain();
@@ -23,37 +24,39 @@ namespace fz {
 
   Renderer::~Renderer()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     // TODO: Check order of deletion of sampler
-    vkDestroySampler(m_Device.getDevice(), m_TextureSampler, nullptr);
+    vkDestroySampler(device->getDevice(), m_TextureSampler, nullptr);
 
     // Swap chain cleanup
     for (auto imageView : m_SwapChainImageViews) {
-      vkDestroyImageView(m_Device.getDevice(), imageView, nullptr);
+      vkDestroyImageView(device->getDevice(), imageView, nullptr);
     }
     m_SwapChainImageViews.clear();
 
     if (m_SwapChain != nullptr) {
-      vkDestroySwapchainKHR(m_Device.getDevice(), m_SwapChain, nullptr);
+      vkDestroySwapchainKHR(device->getDevice(), m_SwapChain, nullptr);
       m_SwapChain = nullptr;
     }
 
-    for (auto framebuffer : m_SwapChainFramebuffers) {
-      vkDestroyFramebuffer(m_Device.getDevice(), framebuffer, nullptr);
+    for (auto& framebuffer : m_SwapChainFramebuffers) {
+      framebuffer->destroy();
     }
 
-    vkDestroyRenderPass(m_Device.getDevice(), m_RenderPass, nullptr);
+    vkDestroyRenderPass(device->getDevice(), m_RenderPass, nullptr);
 
     // Cleanup synchronization objects
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-      vkDestroySemaphore(m_Device.getDevice(), m_RenderFinishedSemaphores[i], nullptr);
-      vkDestroySemaphore(m_Device.getDevice(), m_ImageAvailableSemaphores[i], nullptr);
-      vkDestroyFence(m_Device.getDevice(), m_InFlightFences[i], nullptr);
+      vkDestroySemaphore(device->getDevice(), m_RenderFinishedSemaphores[i], nullptr);
+      vkDestroySemaphore(device->getDevice(), m_ImageAvailableSemaphores[i], nullptr);
+      vkDestroyFence(device->getDevice(), m_InFlightFences[i], nullptr);
     }
 
     // Renderer cleanup
     vkFreeCommandBuffers(
-      m_Device.getDevice(),
-      m_Device.getCommandPool(),
+      device->getDevice(),
+      device->getCommandPool(),
       static_cast<uint32_t>(m_CommandBuffers.size()),
       m_CommandBuffers.data());
     m_CommandBuffers.clear();
@@ -61,10 +64,11 @@ namespace fz {
 
   VkCommandBuffer Renderer::beginFrame()
   {
-    vkWaitForFences(m_Device.getDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+    vkWaitForFences(device->getDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
     // Acquire image from the swap chain
-    VkResult result = vkAcquireNextImageKHR(m_Device.getDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_CurrentImageIndex);
+    VkResult result = vkAcquireNextImageKHR(device->getDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_CurrentImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       recreateSwapChain();
@@ -118,12 +122,13 @@ namespace fz {
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = m_RenderPass;
-    renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_CurrentImageIndex];
+    renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_CurrentImageIndex]->getRawFramebuffer();
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = m_SwapChainExtent;
 
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = { 0.01f, 0.01f, 0.01f, 1.0f };
+    glm::vec4 normColor = Color::normalize(m_ClearColor);
+    clearValues[0].color = { normColor.r, normColor.g, normColor.b, 1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
@@ -164,6 +169,8 @@ namespace fz {
 
   void Renderer::recreateSwapChain()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     #ifdef FZ_WIN32
     int width = 0, height = 0;
     RECT rc;
@@ -175,7 +182,7 @@ namespace fz {
     } while (width == 0 || height == 0);
     #endif
 
-    vkDeviceWaitIdle(m_Device.getDevice());
+    vkDeviceWaitIdle(device->getDevice());
 
     cleanupSwapChain();
     createSwapChain();
@@ -194,23 +201,27 @@ namespace fz {
   VkSampler Renderer::m_TextureSampler = VK_NULL_HANDLE;
 
   void Renderer::cleanupSwapChain() {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     // Destroy framebuffers
-    for (auto frameBuffer : m_SwapChainFramebuffers) {
-      vkDestroyFramebuffer(m_Device.getDevice(), frameBuffer, nullptr);
+    for (auto& framebuffer : m_SwapChainFramebuffers) {
+      framebuffer->destroy();
     }
 
     // Destroy image views
     for (auto imageView : m_SwapChainImageViews) {
-      vkDestroyImageView(m_Device.getDevice(), imageView, nullptr);
+      vkDestroyImageView(device->getDevice(), imageView, nullptr);
     }
 
-    vkDestroySwapchainKHR(m_Device.getDevice(), m_SwapChain, nullptr);
+    vkDestroySwapchainKHR(device->getDevice(), m_SwapChain, nullptr);
   }
 
   void Renderer::createSwapChain()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     //SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_PhysicalDevice);
-    SwapChainSupportDetails swapChainSupport = m_Device.getSwapChainSupport();
+    SwapChainSupportDetails swapChainSupport = device->getSwapChainSupport();
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -225,7 +236,7 @@ namespace fz {
     // Creation info
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_Device.getSurface();
+    createInfo.surface = device->getSurface();
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -234,7 +245,7 @@ namespace fz {
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Swap chain handling specification across queue families
-    QueueFamilyIndices indices = m_Device.findPhysicalQueueFamilies();
+    QueueFamilyIndices indices = device->findPhysicalQueueFamilies();
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
     if (indices.graphicsFamily != indices.presentFamily) {
@@ -254,14 +265,14 @@ namespace fz {
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(m_Device.getDevice(), &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(device->getDevice(), &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create swap chain!");
     }
 
     // Retrieve swap chain images
-    vkGetSwapchainImagesKHR(m_Device.getDevice(), m_SwapChain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(device->getDevice(), m_SwapChain, &imageCount, nullptr);
     m_SwapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_Device.getDevice(), m_SwapChain, &imageCount, m_SwapChainImages.data());
+    vkGetSwapchainImagesKHR(device->getDevice(), m_SwapChain, &imageCount, m_SwapChainImages.data());
 
     m_SwapChainImageFormat = surfaceFormat.format;
     m_SwapChainExtent = extent;
@@ -269,6 +280,8 @@ namespace fz {
 
   void Renderer::createImageViews()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     m_SwapChainImageViews.resize(m_SwapChainImages.size());
 
     // Create an accompanying image view for each swap chain image
@@ -293,7 +306,7 @@ namespace fz {
       createInfo.subresourceRange.layerCount = 1;
 
       // Create the image view
-      if (vkCreateImageView(m_Device.getDevice(), &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS) {
+      if (vkCreateImageView(device->getDevice(), &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS) {
         throw std::runtime_error("VULKAN ERROR: Failed to create image view!");
       }
     }
@@ -301,9 +314,11 @@ namespace fz {
 
   void Renderer::createTextureSampler()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     // Device properties
     VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(m_Device.getPhysicalDevice(), &properties);
+    vkGetPhysicalDeviceProperties(device->getPhysicalDevice(), &properties);
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -323,13 +338,15 @@ namespace fz {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
 
-    if (vkCreateSampler(m_Device.getDevice(), &samplerInfo, nullptr, &m_TextureSampler) != VK_SUCCESS) {
+    if (vkCreateSampler(device->getDevice(), &samplerInfo, nullptr, &m_TextureSampler) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create texture sampler!");
     }
   }
 
   void Renderer::createRenderPass()
   {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     // Attachment description
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = m_SwapChainImageFormat;
@@ -371,36 +388,34 @@ namespace fz {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(m_Device.getDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create render pass!");
     }
   }
 
   void Renderer::createFramebuffers() {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     m_SwapChainFramebuffers.resize(m_SwapChainImages.size());
 
     // Create framebuffers for image views
     for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
-      VkImageView attachments[] = {
+      std::vector<VkImageView> attachments = {
         m_SwapChainImageViews[i]
       };
 
-      VkFramebufferCreateInfo framebufferInfo{};
-      framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      framebufferInfo.renderPass = m_RenderPass;
-      framebufferInfo.attachmentCount = 1;
-      framebufferInfo.pAttachments = attachments;
+      FramebufferInfo framebufferInfo;
       framebufferInfo.width = m_SwapChainExtent.width;
       framebufferInfo.height = m_SwapChainExtent.height;
-      framebufferInfo.layers = 1;
-
-      if (vkCreateFramebuffer(m_Device.getDevice(), &framebufferInfo, nullptr, &m_SwapChainFramebuffers[i]) != VK_SUCCESS) {
-        throw std::runtime_error("VULKAN ERROR: Failed to create framebuffer!");
-      }
+      framebufferInfo.renderPass = m_RenderPass;
+      framebufferInfo.attachments = attachments;
+      m_SwapChainFramebuffers[i] = std::make_unique<Framebuffer>(framebufferInfo);
     }
   }
 
   void Renderer::createSyncObjects() {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     m_ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -414,32 +429,35 @@ namespace fz {
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-      if (vkCreateSemaphore(m_Device.getDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) != VK_SUCCESS ||
-        vkCreateSemaphore(m_Device.getDevice(), &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]) != VK_SUCCESS ||
-        vkCreateFence(m_Device.getDevice(), &fenceInfo, nullptr, &m_InFlightFences[i]) != VK_SUCCESS) {
+      if (vkCreateSemaphore(device->getDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) != VK_SUCCESS ||
+        vkCreateSemaphore(device->getDevice(), &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]) != VK_SUCCESS ||
+        vkCreateFence(device->getDevice(), &fenceInfo, nullptr, &m_InFlightFences[i]) != VK_SUCCESS) {
         throw std::runtime_error("VULKAN ERROR: Failed to create synchronization objects for a frame!");
       }
     }
   }
 
   void Renderer::createCommandBuffers() {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_Device.getCommandPool();
+    allocInfo.commandPool = device->getCommandPool();
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = static_cast<uint32_t>(m_CommandBuffers.size());
 
-    if (vkAllocateCommandBuffers(m_Device.getDevice(), &allocInfo, m_CommandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(device->getDevice(), &allocInfo, m_CommandBuffers.data()) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to allocate command buffers!");
     }
   }
 
-  VkResult Renderer::submitCommandBuffers(
-    const VkCommandBuffer* buffers, uint32_t* imageIndex) {
+  VkResult Renderer::submitCommandBuffers(const VkCommandBuffer* buffers, uint32_t* imageIndex) {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     if (m_ImagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
-      vkWaitForFences(m_Device.getDevice(), 1, &m_ImagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
+      vkWaitForFences(device->getDevice(), 1, &m_ImagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
     }
     m_ImagesInFlight[*imageIndex] = m_InFlightFences[m_CurrentFrame];
 
@@ -459,8 +477,8 @@ namespace fz {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    vkResetFences(m_Device.getDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
-    if (vkQueueSubmit(m_Device.getGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) !=
+    vkResetFences(device->getDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
+    if (vkQueueSubmit(device->getGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) !=
       VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to submit draw command buffer!");
     }
@@ -477,7 +495,7 @@ namespace fz {
 
     presentInfo.pImageIndices = imageIndex;
 
-    auto result = vkQueuePresentKHR(m_Device.getPresentQueue(), &presentInfo);
+    auto result = vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
 
     m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
@@ -487,7 +505,7 @@ namespace fz {
   VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
   {
     for (const auto& availableFormat : availableFormats) {
-      if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+      if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM) {
         return availableFormat;
       }
     }

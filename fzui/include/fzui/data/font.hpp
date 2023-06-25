@@ -3,11 +3,12 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/data/fontWeight.hpp"
 #include "fzui/rendering/texture2D.hpp"
 
 // std
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -31,19 +32,21 @@ namespace fz {
 
   class FZ_API Font {
     public:
-      Font(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize);
+      Font(const std::string& path, double fontSize, FontWeight weight = FontWeight::Regular);
       ~Font() {};
 
       // Getters
-      const Texture2D& getTextureAtlas() const;
-      int getTextWidth(const std::string& text, const float& fontSize);
+      Texture2D& getTextureAtlas() const;
+      int getTextWidth(const std::string& text, float fontSize) const;
       int getMaxHeight() const;
-      GlyphData getGlyph(const msdf_atlas::unicode_t& c);
+      GlyphData getGlyph(const msdf_atlas::unicode_t& c) const;
       double getFontSize() const;
+      inline FontWeight getWeight() const { return m_FontWeight; }
+      inline std::string getFamily() const { return m_MetaData.family; }
 
       int atlasWidth = 0;
       int atlasHeight = 0;
-      static std::unique_ptr<Font> createFromFile(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize);
+      static std::shared_ptr<Font> create(const std::string& path, double fontSize, FontWeight weight = FontWeight::Regular);
 
     private:
       struct OffsetTableTTF {
@@ -95,9 +98,9 @@ namespace fz {
         std::string licenseInfoURL;
       };
 
-      GraphicsDevice_Vulkan& m_Device;
       std::string m_FamilyName;
       std::string m_SubFamilyName;
+      FontWeight m_FontWeight;
       MetadataTTF m_MetaData;
 
       bool submitAtlasBitmapAndLayout(
@@ -111,11 +114,15 @@ namespace fz {
       int m_FontBoundingBoxY = 0;
       int m_FontLowestOffsetY = 0;
       double m_FontSize = 0.0f;
+      bool m_IsVariableWeight = false;
+
       std::unique_ptr<Texture2D> m_TextureAtlas;
       std::vector<msdf_atlas::GlyphGeometry> glyphs;
       
       int width = 0;
       int height = 0;
+
+      friend class FontManager;
   };
 }
 

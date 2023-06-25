@@ -3,8 +3,9 @@
 
 // FZUI
 #include "fzui/core.hpp"
+#include "fzui/color.hpp"
 #include "fzui/window.hpp"
-#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/rendering/framebuffer.hpp"
 
 // std
 #include <vector>
@@ -15,7 +16,7 @@ namespace fz {
     public:
       static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-      Renderer(Window& window, GraphicsDevice_Vulkan& device);
+      Renderer(Window& window);
       ~Renderer();
 
       VkCommandBuffer beginFrame();
@@ -31,6 +32,9 @@ namespace fz {
       uint32_t getSwapChainWidth() const;
       uint32_t getSwapChainHeight() const;
       static VkSampler m_TextureSampler;
+
+      // Setters
+      inline void setClearColor(Color color) { m_ClearColor = color; }
 
     private:
       void recreateSwapChain();
@@ -49,7 +53,6 @@ namespace fz {
       VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
       Window& m_Window;
-      GraphicsDevice_Vulkan& m_Device;
 
       VkFormat m_SwapChainImageFormat;
       VkExtent2D m_SwapChainExtent;
@@ -58,13 +61,13 @@ namespace fz {
       
       std::vector<VkImage> m_SwapChainImages;
       std::vector<VkImageView> m_SwapChainImageViews;
-      std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+      std::vector<std::unique_ptr<Framebuffer>> m_SwapChainFramebuffers;
       std::vector<VkSemaphore> m_ImageAvailableSemaphores;
       std::vector<VkSemaphore> m_RenderFinishedSemaphores;
       std::vector<VkFence> m_InFlightFences;
       std::vector<VkFence> m_ImagesInFlight;
       std::vector<VkCommandBuffer> m_CommandBuffers;
-
+      Color m_ClearColor = { 0, 0, 0 };
       uint32_t m_CurrentImageIndex = 0;
       size_t m_CurrentFrame = 0;
       int m_CurrentFrameIndex{};

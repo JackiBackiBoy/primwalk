@@ -5,6 +5,7 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
+// vendor
 #include <vulkan/vulkan.h>
 
 // std
@@ -17,12 +18,11 @@
 
 // FZUI
 #include "fzui/core.hpp"
-#include "fzui/uiElement.hpp"
-#include "fzui/uiButton.hpp"
+#include "fzui/color.hpp"
+#include "fzui/ui/uiElement.hpp"
+#include "fzui/ui/uiEvent.hpp"
+#include "fzui/ui/uiButton.hpp"
 #include "fzui/rendering/systems/uiRenderSystem.hpp"
-
-// Vendor
-
 
 #ifdef FZ_MACOS
 typedef void* id;
@@ -51,9 +51,16 @@ namespace fz {
 
       virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() = 0;
       virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
+      virtual bool isCursorInTitleBar(int x, int y) = 0;
+      virtual bool isCursorOnBorder(int x, int y) = 0;
 
       // Event functions
       virtual void onUpdate(float dt) {};
+
+      virtual void processEvent(const UIEvent& event) {
+        m_UIRenderSystem->processEvent(event);
+      }
+
       template<typename UIType, typename Key, typename... Args>
       UIType& makeElement(Key const& key, Args&&...args) {
         auto tmp = std::make_unique<UIType>(std::forward<Args>(args)...);
@@ -67,10 +74,17 @@ namespace fz {
       virtual int getWidth() const = 0;
       virtual int getHeight() const = 0;
 
+      // Setters
+      inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
+      virtual void setMinimumSize(uint32_t width, uint32_t height) = 0;
+
     protected:
       std::string m_Name;
       int m_Width;
       int m_Height;
+      uint32_t m_MinWidth = 200;
+      uint32_t m_MinHeight = 200;
+      Color m_BackgroundColor;
 
       std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice{};
       std::shared_ptr<Renderer> m_Renderer{};

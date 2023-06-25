@@ -1,5 +1,7 @@
 #include "fzui/data/font.hpp"
 #include "fzui/math/math.hpp"
+#include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/managers/resourceManager.hpp"
 
 // std
 #include <cstdint>
@@ -8,8 +10,12 @@
 
 namespace fz {
 
-  Font::Font(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize) : m_Device{device}
+  Font::Font(const std::string& path, double fontSize, FontWeight weight)
   {
+    m_FontWeight = weight;
+
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+
     glyphs = std::vector<msdf_atlas::GlyphGeometry>();
     m_GlyphData = std::unordered_map<msdf_atlas::unicode_t, GlyphData>();
     m_FontSize = fontSize;
@@ -22,8 +28,26 @@ namespace fz {
     if (msdfgen::FreetypeHandle* ft = msdfgen::initializeFreetype()) {
       // Load font file
       if (msdfgen::FontHandle* font = msdfgen::loadFont(ft, truePath.c_str())) {
+        // Set variable width (if applicable)
+        std::vector<msdfgen::FontVariationAxis> axes;
+        msdfgen::listFontVariationAxes(axes, ft, font);
+
+        if (!axes.empty()) {
+          bool success = msdfgen::setFontVariationAxis(ft, font, "Weight", (int)m_FontWeight);
+
+          if (success) {
+            m_IsVariableWeight = true;
+          }
+        }
+        else {
+          m_FontWeight = getWeightFromString(m_MetaData.subFamily);
+        }
+
         msdf_atlas::FontGeometry fontGeometry(&glyphs);
         fontGeometry.loadCharset(font, 1.0, msdf_atlas::Charset::ASCII);
+
+        
+
 
         // Apply MSDF edge coloring. See edge-coloring.h for other coloring strategies.
         const double maxCornerAngle = 3.0;
@@ -36,9 +60,8 @@ namespace fz {
         packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
         packer.setMinimumScale(m_FontSize);
         packer.setScale(m_FontSize); // TODO: Make dynamic scale
-        packer.setPixelRange(2.5);
+        packer.setPixelRange(2.0);
         packer.setMiterLimit(1.0);
-        //packer.setPadding(1);
 
         // Compute atlas layout - pack glyphs
         packer.pack(glyphs.data(), glyphs.size());
@@ -68,21 +91,21 @@ namespace fz {
     std::cout << '\t' << "Sub-Family: " << m_MetaData.subFamily << '\n';
   }
 
-  const Texture2D& Font::getTextureAtlas() const
+  Texture2D& Font::getTextureAtlas() const
   {
     return *m_TextureAtlas;
   }
 
-  int Font::getTextWidth(const std::string& text, const float& fontSize)
+  int Font::getTextWidth(const std::string& text, float fontSize) const
   {
     float width = 0.0f;
     float scaling = fontSize / m_FontSize;
 
     for (size_t i = 0; i < text.length(); i++) {
-      GlyphData glyph = m_GlyphData[static_cast<uint32_t>(text[i])];
+      GlyphData glyph = m_GlyphData.at(static_cast<uint32_t>(text[i]));
 
       if (i < text.length() - 1) {
-        width += glyph.advanceX * scaling;
+        width += glyph.advanceX * fontSize;
       }
       else {
         width += (glyph.bearingX + glyph.width) * scaling;
@@ -97,9 +120,9 @@ namespace fz {
     return m_MaxHeight;
   }
 
-  GlyphData Font::getGlyph(const msdf_atlas::unicode_t& c)
+  GlyphData Font::getGlyph(const msdf_atlas::unicode_t& c) const
   {
-    return m_GlyphData[c];
+    return m_GlyphData.at(c);
   }
 
   double Font::getFontSize() const
@@ -107,12 +130,13 @@ namespace fz {
     return m_FontSize;
   }
 
-  std::unique_ptr<Font> Font::createFromFile(GraphicsDevice_Vulkan& device, const std::string& path, double fontSize)
+  std::shared_ptr<Font> Font::create(const std::string& path, double fontSize, FontWeight weight)
   {
-    return std::make_unique<Font>(device, path, fontSize);
+    return ResourceManager::Get().loadFont(path, fontSize, weight);
   }
 
-  bool Font::submitAtlasBitmapAndLayout(const msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>& atlas, std::vector<msdf_atlas::GlyphGeometry> glyphs)
+  bool Font::submitAtlasBitmapAndLayout(
+    const msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>& atlas, std::vector<msdf_atlas::GlyphGeometry> glyphs)
   {
     msdfgen::BitmapConstRef<unsigned char, 4> bitmap = (msdfgen::BitmapConstRef<unsigned char, 4>)atlas;
     atlasWidth = bitmap.width;
@@ -136,7 +160,7 @@ namespace fz {
       glyphData.planeBounds = { pLeft, pBottom, pRight, pTop };
       glyphData.advanceX = static_cast<float>(g.getAdvance());
       glyphData.width = aRight - aLeft;
-      glyphData.height = aBottom - aTop;
+      glyphData.height = aTop - aBottom;
       glyphData.bearingUnderline = pBottom * m_FontSize;
 
       m_GlyphData.insert({ g.getCodepoint(), glyphData });
@@ -148,7 +172,7 @@ namespace fz {
       m_MaxHeight = std::max(m_MaxHeight, (int)((float)glyphData.height + glyphData.bearingUnderline));
     }
 
-    m_TextureAtlas = Texture2D::create(m_Device, atlasWidth, atlasHeight, (unsigned char*)bitmap.pixels);
+    m_TextureAtlas = std::make_unique<Texture2D>(atlasWidth, atlasHeight, (unsigned char*)bitmap.pixels, 4, VK_FORMAT_R8G8B8A8_UNORM);
 
     return true; // TODO: Make return value actually reflect whether it worked or not
   }
@@ -215,8 +239,7 @@ namespace fz {
       std::streampos nPos = file.tellg();
       file.seekg(tableDir.offset + nameRecord.stringOffset + nameTableHeader.storageOffset);
 
-      std::vector<char> name;
-      name.resize(nameRecord.stringLength);
+      std::vector<char> name(nameRecord.stringLength);
       file.read(name.data(), nameRecord.stringLength);
 
       std::string trueName = std::string(name.begin(), name.end());

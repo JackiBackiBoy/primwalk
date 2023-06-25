@@ -198,12 +198,10 @@ namespace fz {
     vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &deviceFeatures);
 
     // TODO: If descriptor indexing is not available, use another approach
-    assert(descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing);
-    assert(descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind);
-    assert(descriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing);
-    assert(descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind);
-    assert(descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing);
-    assert(descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind);
+    if (descriptorIndexingFeatures.descriptorBindingPartiallyBound && descriptorIndexingFeatures.runtimeDescriptorArray) {
+      m_BindlessSupported = true;
+      std::cout << "Bindless supported!\n";
+    }
 
     // Logical device creation
     VkDeviceCreateInfo createInfo{};
@@ -353,9 +351,8 @@ namespace fz {
     }
   }
 
-  void GraphicsDevice_Vulkan::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount)
+  void GraphicsDevice_Vulkan::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount)
   {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -375,14 +372,10 @@ namespace fz {
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       1,
       &region);
-
-    endSingleTimeCommands(commandBuffer);
   }
 
-  void GraphicsDevice_Vulkan::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+  void GraphicsDevice_Vulkan::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
   {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -416,6 +409,13 @@ namespace fz {
       sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
       destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
+    else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+      barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+      sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
     else {
       throw std::invalid_argument("VULKAN ERROR: Unsupported layout transition!");
     }
@@ -428,8 +428,6 @@ namespace fz {
       0, nullptr,
       1, &barrier
     );
-
-    endSingleTimeCommands(commandBuffer);
   }
 
   VkImageView GraphicsDevice_Vulkan::createImageView(VkImage image, VkFormat format)

@@ -10,7 +10,7 @@
 namespace fz {
   class FZ_API Math {
     public:
-      static float lerp(const float& a, const float&b, float percentage);
+      static float lerp(float a, float b, float percentage);
 
       static inline uint16_t byteSwap(uint16_t value)
       {
