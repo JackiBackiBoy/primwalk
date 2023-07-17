@@ -4,14 +4,162 @@
 #include <memory>
 #include <windows.h>
 #include <vector>
+#include <string>
+#include <fstream>
+#include "formats/bc7decomp.h"
 
 // FZUI
 #include "fzui/fzui.hpp"
+
+// Forza Coach
+#include "formats/swatchbin.hpp"
+
+int BC7_Decode(const uint8_t* pBlock, uint8_t* pPixelsRGBA, int pPixelsRGBAWidth, int pPixelsRGBAHeight)
+{
+  uint8_t block[4 * 4 * 4]{};
+
+  for (int y = 0; y < pPixelsRGBAHeight; y += 4)
+  {
+    for (int x = 0; x < pPixelsRGBAWidth; x += 4)
+    {
+      int maxJ = std::min(pPixelsRGBAHeight - y, 4);
+      int maxI = std::min(pPixelsRGBAWidth - x, 4);
+
+      bc7decomp::unpack_bc7(pBlock, (bc7decomp::color_rgba*)block);
+
+      for (int j = 0; j < maxJ; j++)
+      {
+        for (int i = 0; i < maxI; i++)
+        {
+          int currentJ = j;
+          int currentI = i;
+
+          int sourceOffset = (y + currentJ) * pPixelsRGBAWidth * 4 + (x + currentI) * 4;
+          int destinationOffset = j * 4 * 4 + i * 4;
+
+          *(unsigned int*)(pPixelsRGBA + sourceOffset) = *(unsigned int*)(block + destinationOffset);
+
+          pPixelsRGBA[sourceOffset + 2] = block[destinationOffset + 0];
+          pPixelsRGBA[sourceOffset + 0] = block[destinationOffset + 2];
+        }
+      }
+
+      pBlock += 16;
+    }
+  }
+
+  return 0;
+}
 
 class FzCoachWindow : public fz::Window {
   public:
     FzCoachWindow() : fz::Window("Forza Coach", 1080, 720) {};
     virtual ~FzCoachWindow() {}
+
+    void loadSwatchbinFile(const std::string& path) {
+      std::string truePath = "C:/Code/fzcoach/" + path;
+      std::ifstream file(truePath, std::ios_base::binary);
+
+      if (!file.is_open()) {
+        std::cout << "Could not open swatchbin file!\n";
+        return;
+      }
+
+      /* --- File validity checks --- */
+      // Header file identifier
+      uint32_t fileID;
+      file.read(reinterpret_cast<char*>(&fileID), sizeof(uint32_t));
+
+      uint32_t reqID;
+      char reqChars[] = "burG";
+      memcpy(&reqID, &reqChars, sizeof(uint32_t));
+
+      if (fileID ^ reqID) {
+        std::cout << "Header tags are NOT the same" << std::endl;
+        file.close();
+        return;
+      }
+
+      // TXQU
+      int8_t compression;
+      uint8_t mipmapCount;
+      uint32_t dataOffset; // tells the index of beginning of image data
+      uint32_t width;
+      uint32_t height;
+      uint32_t numPixels;
+      uint32_t bc16LinearSize;
+
+      file.seekg(SB_COMPRESSION.startIndex);
+      file.read(reinterpret_cast<char*>(&compression), SB_COMPRESSION.byteCount());
+
+      file.seekg(SB_MIPMAPCOUNT.startIndex);
+      file.read(reinterpret_cast<char*>(&mipmapCount), SB_MIPMAPCOUNT.byteCount());
+
+      file.seekg(SB_HEADERLENGTH.startIndex);
+      file.read(reinterpret_cast<char*>(&dataOffset), SB_HEADERLENGTH.byteCount());
+
+      file.seekg(SB_WIDTH.startIndex);
+      file.read(reinterpret_cast<char*>(&width), SB_WIDTH.byteCount());
+
+      file.seekg(SB_HEIGHT.startIndex);
+      file.read(reinterpret_cast<char*>(&height), SB_HEIGHT.byteCount());
+
+      file.seekg(SB_LINEARSIZE.startIndex);
+      file.read(reinterpret_cast<char*>(&numPixels), SB_LINEARSIZE.byteCount());
+
+      file.seekg(SB_BC16LINEARSIZE.startIndex);
+      file.read(reinterpret_cast<char*>(&bc16LinearSize), SB_BC16LINEARSIZE.byteCount());
+      
+      swatchWidth = width;
+      swatchHeight = height;
+      SwatchbinCompression trueCompression = swatchbinCompressions.at(compression);
+
+      swatchData = std::vector<unsigned char>(numPixels * 4, 255);
+
+      if (isBlockType(trueCompression)) {
+        std::vector<uint8_t> block(16); // 16 byte block
+        file.seekg(dataOffset);
+
+        int readPixels = 0;
+        while (file.tellg() != -1) {
+          file.read(reinterpret_cast<char*>(block.data()), 16);
+
+          std::vector<uint8_t> texel(4 * 4 * 4); // 4x4 pixel cluster
+          BC7_Decode(block.data(), texel.data(), 4, 4);
+          
+          if (readPixels < numPixels) {
+            size_t offset = readPixels % (swatchWidth * 4) + (readPixels / (swatchWidth * 4)) * swatchWidth * 16;
+            size_t swatchIndex = 0;
+            size_t iTimes4 = 0;
+
+            for (size_t i = 0; i < 16; i++) {
+              iTimes4 = i << 2;
+              swatchIndex = ((i >> 2) << 2) * swatchWidth - ((i >> 2) << 4) + (i << 2);
+
+              swatchData[offset + swatchIndex + 0] = texel[iTimes4 + 2];
+              swatchData[offset + swatchIndex + 1] = texel[iTimes4 + 1];
+              swatchData[offset + swatchIndex + 2] = texel[iTimes4 + 0];
+              swatchData[offset + swatchIndex + 3] = texel[iTimes4 + 3];
+            }
+          }
+
+          readPixels += 16;
+        }
+      }
+      else {
+        file.seekg(dataOffset); // jump to offset
+        std::vector<unsigned char> data(numPixels);
+        file.read(reinterpret_cast<char*>(data.data()), numPixels);
+
+        for (size_t i = 0; i < numPixels; i++) {
+          swatchData[i] = data[i];
+        }
+      }
+
+      std::cout << "Swatchbin file read complete\n";
+
+      file.close();
+    }
 
     void captureFH5Window() {
       HDC hScreenDC = GetDC(NULL);
@@ -66,9 +214,10 @@ class FzCoachWindow : public fz::Window {
     }
 
     void onCreate() override {
+      loadSwatchbinFile("assets/other/test2.swatchbin");
+
       // Setup
-      captureFH5Window();
-      auto gameframe = std::make_shared<fz::Texture2D>(bitmapWidth, bitmapHeight, pixelData.data(), 4, VK_FORMAT_B8G8R8A8_UNORM);
+      auto gameframe = std::make_shared<fz::Texture2D>(swatchWidth, swatchHeight, swatchData.data(), 4, VK_FORMAT_R8G8B8A8_UNORM);
       m_GameFrame = gameframe.get();
 
       // Textures
@@ -78,8 +227,7 @@ class FzCoachWindow : public fz::Window {
       auto settingsIcon = fz::Texture2D::create("assets/icons/settings.png");
       auto logoIcon = fz::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
 
-      float aspectRatio = (float)gameframe->getWidth() / gameframe->getHeight();
-      auto& test = makeElement<fz::UIIconButton>("h", glm::vec2(150, 300), 500 * aspectRatio, 500, gameframe);
+      textureView = &makeElement<fz::UIIconButton>("h", glm::vec2(150, 120), gameframe->getWidth(), gameframe->getHeight(), gameframe);
 
       // Fonts
       auto headerFont = fz::Font::create("assets/fonts/opensans.ttf", 32, fz::FontWeight::ExtraBold);
@@ -105,6 +253,8 @@ class FzCoachWindow : public fz::Window {
 
       auto& settingsButton = dashboardGroup->makeElement<fz::UIIconButton>("D5", glm::vec2(10, 310), 30, 30, settingsIcon);
       settingsButton.setBackgroundColor({ 70, 70, 70, 0 });
+
+      slider = &makeElement<fz::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
     }
 
     void onUpdate(float dt) override {
@@ -112,6 +262,10 @@ class FzCoachWindow : public fz::Window {
         captureFH5Window();
         m_GameFrame->updateData(pixelData.data());
       }
+
+      float ratio = swatchWidth / swatchHeight;
+      textureView->setHeight(swatchHeight * slider->getSliderValue());
+      textureView->setWidth(textureView->getHeight() * ratio);
 
       titleBar->setWidth(m_Width + 100);
       dashboardGroup->setHeight(m_Height + 100); // add some margins to prevent resize artifacts
@@ -121,15 +275,23 @@ class FzCoachWindow : public fz::Window {
       fz::UIContainer* dashboardGroup = nullptr;
       fz::UIContainer* mainView = nullptr;
       fz::UIContainer* titleBar = nullptr;
+      fz::UISlider* slider = nullptr;
+      fz::UIIconButton* textureView = nullptr;
       HWND m_FH5Handle = NULL;
       int bitmapWidth;
       int bitmapHeight;
+      int swatchWidth;
+      int swatchHeight;
       std::vector<unsigned char> pixelData;
+      std::vector<unsigned char> swatchData;
       fz::Texture2D* m_GameFrame;
       bool m_ShowPreview = false;
 };
 
 int main() {
+  
+  //loadSwatchbinFile("assets/other/test5.swatchbin");
+
   fz::Application& app = fz::Application::Instance(); // acquire app instance
   FzCoachWindow* fzMain = new FzCoachWindow();
   fzMain->setBackgroundColor({ 20, 20, 20 });

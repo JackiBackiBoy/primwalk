@@ -4,6 +4,7 @@
 // FZUI
 #include "fzui/core.hpp"
 #include "fzui/rendering/graphicsDevice.hpp"
+#include "fzui/rendering/image.hpp"
 
 // vendor
 #include <vulkan/vulkan.h>
@@ -23,6 +24,7 @@ namespace fz {
       void map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
       void unmap();
       void writeToBuffer(void* data, VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+      void copyToImage(VkCommandBuffer commandBuffer, Image& image);
 
       // Getters
       VkBuffer getBuffer();

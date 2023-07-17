@@ -16,4 +16,10 @@
 #include "fzui/ui/uiElement.hpp"
 #include "fzui/ui/uiIconButton.hpp"
 #include "fzui/ui/uiLabel.hpp"
+#include "fzui/ui/uiSlider.hpp"
+
+
+// Math
+#include "fzui/math/math.hpp"
+
 #endif

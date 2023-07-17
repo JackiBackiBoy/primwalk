@@ -3,6 +3,7 @@
 
 // FZUI
 #include "fzui/core.hpp"
+#include "fzui/rendering/image.hpp"
 
 // std
 #include <cstdint>
@@ -17,7 +18,7 @@ namespace fz {
     uint32_t width = 0;
     uint32_t height = 0;
     VkRenderPass renderPass = VK_NULL_HANDLE;
-    std::vector<VkImageView> attachments;
+    const std::vector<std::reference_wrapper<std::unique_ptr<Image>>>& attachments;
   };
 
   class FZ_API Framebuffer {

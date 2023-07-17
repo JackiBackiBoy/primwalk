@@ -15,8 +15,6 @@
 #include <glm/glm.hpp>
 
 namespace fz {
- 
-
   struct FZ_API PipelineConfigInfo {
     PipelineConfigInfo(const PipelineConfigInfo&) = delete;
     PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
@@ -38,7 +36,7 @@ namespace fz {
     uint32_t subpass = 0;
   };
 
-  class FZ_API GraphicsDevice_Vulkan;
+  class GraphicsDevice_Vulkan;
 
   class FZ_API GraphicsPipeline {
     public:

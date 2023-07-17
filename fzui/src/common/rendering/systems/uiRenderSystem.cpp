@@ -51,14 +51,23 @@ namespace fz {
     case UIEventType::MouseDown:
     case UIEventType::MouseUp:
     case UIEventType::MouseMove:
+    case UIEventType::MouseDrag:
     case UIEventType::MouseExitWindow:
       {
         // Perform hit tests
         glm::vec2 mousePos = event.getMouseData().position;
         bool elementFound = false;
 
-        for (auto& e = m_Elements.rbegin(); e != m_Elements.rend(); ++e) {
+        for (auto e = m_Elements.rbegin(); e != m_Elements.rend(); ++e) {
           Hitbox hitbox = e->second->hitboxTest(mousePos);
+
+          if (event.getType() == UIEventType::MouseDrag && m_TargetElement != nullptr) {
+            if (m_TargetElement->isDraggable()) {
+              m_TargetElement->handleEvent(event);
+              return;
+            }
+            
+          }
 
           if (hitbox.getTarget() != nullptr) {
             elementFound = true;
@@ -72,10 +81,13 @@ namespace fz {
               m_TargetElement->handleEvent({ UIEventType::MouseEnter });
             }
             else if (event.getType() == UIEventType::MouseDown) {
-              m_TargetElement->handleEvent({ UIEventType::MouseDown });
+              m_TargetElement->handleEvent(event);
             }
             else if (event.getType() == UIEventType::MouseUp) {
               m_TargetElement->handleEvent({ UIEventType::MouseUp });
+            }
+            else if (event.getType() == UIEventType::MouseMove) {
+              m_TargetElement->handleEvent(event);
             }
 
             break;

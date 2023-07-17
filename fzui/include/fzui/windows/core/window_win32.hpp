@@ -15,6 +15,7 @@
 
 // FZUI
 #include "fzui/core.hpp"
+#include "fzui/ui/uiEvent.hpp"
 
 // Windows
 #include <windows.h>
@@ -43,8 +44,6 @@ namespace fz {
       virtual bool isCursorOnBorder(int x, int y) override;
 
       // Getters
-      virtual int getWidth() const;
-      virtual int getHeight() const;
       virtual HWND getHandle() const;
 
       // Setters
@@ -60,7 +59,6 @@ namespace fz {
       static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
-
       HDC m_HDC = NULL;
       std::atomic<bool> m_ShouldClose = false;
       std::atomic<bool> m_ShouldRender = true;
@@ -72,13 +70,11 @@ namespace fz {
       HWND m_Handle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
-      bool m_MinimizeButtonDown = false;
-      bool m_MaximizeButtonDown = false;
-      bool m_CloseButtonDown = false;
       bool m_TrackingMouseLeave = false;
       UIIconButton* m_MinimizeButton = nullptr;
       UIIconButton* m_MaximizeButton = nullptr;
       UIIconButton* m_CloseButton = nullptr;
+      UIEvent m_MouseButtonEvent = { UIEventType::None };
   };
 
   typedef WindowWin32 Window;

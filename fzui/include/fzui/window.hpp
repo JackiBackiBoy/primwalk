@@ -71,8 +71,8 @@ namespace fz {
       }
 
       // Getters
-      virtual int getWidth() const = 0;
-      virtual int getHeight() const = 0;
+      inline constexpr int getWidth() const { return m_Width; }
+      inline constexpr int getHeight() const { return m_Height; }
 
       // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }

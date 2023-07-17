@@ -141,6 +141,7 @@ elseif(APPLE)
     ${INCLUDE_DIR}/uiImageButton.hpp
     ${INCLUDE_DIR}/uiLabel.hpp
     ${INCLUDE_DIR}/uiEvent.hpp
+    ${INCLUDE_DIR}/uiSlider.hpp
     ${INCLUDE_DIR}/hitbox.hpp
     ${INCLUDE_DIR}/vertex.hpp
     ${INCLUDE_DIR}/window.hpp

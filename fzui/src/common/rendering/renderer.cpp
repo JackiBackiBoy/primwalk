@@ -12,7 +12,7 @@ namespace fz {
   {
     // Swap chain
     createSwapChain();
-    createImageViews();
+    createImages();
     createRenderPass();
     createFramebuffers();
     createTextureSampler();
@@ -30,10 +30,10 @@ namespace fz {
     vkDestroySampler(device->getDevice(), m_TextureSampler, nullptr);
 
     // Swap chain cleanup
-    for (auto imageView : m_SwapChainImageViews) {
-      vkDestroyImageView(device->getDevice(), imageView, nullptr);
+    for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
+      m_SwapChainImages[i]->destroy();
     }
-    m_SwapChainImageViews.clear();
+    m_SwapChainImages.clear();
 
     if (m_SwapChain != nullptr) {
       vkDestroySwapchainKHR(device->getDevice(), m_SwapChain, nullptr);
@@ -44,7 +44,7 @@ namespace fz {
       framebuffer->destroy();
     }
 
-    vkDestroyRenderPass(device->getDevice(), m_RenderPass, nullptr);
+    vkDestroyRenderPass(device->getDevice(), m_RenderPass->getVulkanRenderPass(), nullptr);
 
     // Cleanup synchronization objects
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -119,17 +119,21 @@ namespace fz {
 
   void Renderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer)
   {
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_RenderPass;
-    renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_CurrentImageIndex]->getRawFramebuffer();
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = m_SwapChainExtent;
+    VkExtent2D extent{};
+    extent.width = m_SwapChainFramebuffers[m_CurrentImageIndex]->getWidth();
+    extent.height = m_SwapChainFramebuffers[m_CurrentImageIndex]->getHeight();
 
     std::array<VkClearValue, 2> clearValues{};
     glm::vec4 normColor = Color::normalize(m_ClearColor);
     clearValues[0].color = { normColor.r, normColor.g, normColor.b, 1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_RenderPass->getVulkanRenderPass();
+    renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_CurrentImageIndex]->getRawFramebuffer();
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = extent;
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
@@ -138,11 +142,11 @@ namespace fz {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_SwapChainExtent.width);
-    viewport.height = static_cast<float>(m_SwapChainExtent.height);
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    VkRect2D scissor{ {0, 0}, m_SwapChainExtent };
+    VkRect2D scissor{ { 0, 0 }, extent };
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
   }
@@ -164,7 +168,7 @@ namespace fz {
 
   VkRenderPass Renderer::getSwapChainRenderPass() const
   {
-    return m_RenderPass;
+    return m_RenderPass->getVulkanRenderPass();
   }
 
   void Renderer::recreateSwapChain()
@@ -175,6 +179,7 @@ namespace fz {
     int width = 0, height = 0;
     RECT rc;
 
+    // TODO: Eliminate nasty loop
     do {
       GetClientRect(((WindowWin32&)m_Window).getHandle(), &rc);
       width = rc.right - rc.left;
@@ -186,16 +191,16 @@ namespace fz {
 
     cleanupSwapChain();
     createSwapChain();
-    createImageViews();
+    createImages();
     createFramebuffers();
   }
 
   uint32_t Renderer::getSwapChainWidth() const {
-    return m_SwapChainExtent.width;
+    return m_Extent.width;
   }
 
   uint32_t Renderer::getSwapChainHeight() const {
-    return m_SwapChainExtent.height;
+    return m_Extent.height;
   }
 
   VkSampler Renderer::m_TextureSampler = VK_NULL_HANDLE;
@@ -209,8 +214,8 @@ namespace fz {
     }
 
     // Destroy image views
-    for (auto imageView : m_SwapChainImageViews) {
-      vkDestroyImageView(device->getDevice(), imageView, nullptr);
+    for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
+      m_SwapChainImages[i]->destroy();
     }
 
     vkDestroySwapchainKHR(device->getDevice(), m_SwapChain, nullptr);
@@ -223,9 +228,9 @@ namespace fz {
     //SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_PhysicalDevice);
     SwapChainSupportDetails swapChainSupport = device->getSwapChainSupport();
 
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+    m_BestSurfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+    m_Extent = chooseSwapExtent(swapChainSupport.capabilities);
 
     // Decide swap chain image count
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -238,11 +243,15 @@ namespace fz {
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = device->getSurface();
     createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
+    createInfo.imageFormat = m_BestSurfaceFormat.format;
+    createInfo.imageColorSpace = m_BestSurfaceFormat.colorSpace;
+    createInfo.imageExtent = m_Extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
 
     // Swap chain handling specification across queue families
     QueueFamilyIndices indices = device->findPhysicalQueueFamilies();
@@ -258,57 +267,35 @@ namespace fz {
       createInfo.queueFamilyIndexCount = 0; // optional
       createInfo.pQueueFamilyIndices = nullptr; // optional
     }
-
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
+    
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(device->getDevice(), &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create swap chain!");
     }
+  }
+
+  void Renderer::createImages()
+  {
+    GraphicsDevice_Vulkan* device = fz::GetDevice();
+    uint32_t imageCount;
 
     // Retrieve swap chain images
     vkGetSwapchainImagesKHR(device->getDevice(), m_SwapChain, &imageCount, nullptr);
+    std::vector<VkImage> vulkanSwapchainImages(imageCount);
+    vkGetSwapchainImagesKHR(device->getDevice(), m_SwapChain, &imageCount, vulkanSwapchainImages.data());
+
     m_SwapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device->getDevice(), m_SwapChain, &imageCount, m_SwapChainImages.data());
 
-    m_SwapChainImageFormat = surfaceFormat.format;
-    m_SwapChainExtent = extent;
-  }
+    for (size_t i = 0; i < imageCount; i++) {
+      SwapchainImageInfo swapchainInfo{};
+      swapchainInfo.image = vulkanSwapchainImages[i];
+      swapchainInfo.format = m_BestSurfaceFormat.format;
+      swapchainInfo.width = m_Extent.width;
+      swapchainInfo.height = m_Extent.height;
+      swapchainInfo.depth = 1;
 
-  void Renderer::createImageViews()
-  {
-    GraphicsDevice_Vulkan* device = fz::GetDevice();
-
-    m_SwapChainImageViews.resize(m_SwapChainImages.size());
-
-    // Create an accompanying image view for each swap chain image
-    for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
-      VkImageViewCreateInfo createInfo{};
-      createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      createInfo.image = m_SwapChainImages[i];
-      createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      createInfo.format = m_SwapChainImageFormat;
-
-      // Color channel mapping
-      createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-      // Describe image's purpose
-      createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      createInfo.subresourceRange.baseMipLevel = 0;
-      createInfo.subresourceRange.levelCount = 1;
-      createInfo.subresourceRange.baseArrayLayer = 0;
-      createInfo.subresourceRange.layerCount = 1;
-
-      // Create the image view
-      if (vkCreateImageView(device->getDevice(), &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS) {
-        throw std::runtime_error("VULKAN ERROR: Failed to create image view!");
-      }
+      m_SwapChainImages[i] = Image::create(swapchainInfo);
     }
   }
 
@@ -345,52 +332,71 @@ namespace fz {
 
   void Renderer::createRenderPass()
   {
-    GraphicsDevice_Vulkan* device = fz::GetDevice();
+    RenderPassAttachment attachment = {
+      m_SwapChainImages[0],
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_STORE,
+      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
 
-    // Attachment description
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = m_SwapChainImageFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    SubpassInfo subpass{};
+    subpass.renderTargets = { 0 };
 
-    // Attachment references
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    std::vector<RenderPassAttachment> attachments = { attachment };
+    RenderPassInfo renderPassInfo = {
+      attachments,
+      { subpass }
+    };
 
-    // Subpass
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
+    m_RenderPass = std::make_unique<RenderPass>(renderPassInfo);
 
-    // Dependency
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    // Render pass
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
+    //GraphicsDevice_Vulkan* device = fz::GetDevice();
 
-    if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
-      throw std::runtime_error("VULKAN ERROR: Failed to create render pass!");
-    }
+    //// Attachment description
+    //VkAttachmentDescription colorAttachment{};
+    //colorAttachment.format = m_SwapChainImageFormat;
+    //colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    //colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    //colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    //colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    //colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    //colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    //colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    //// Attachment references
+    //VkAttachmentReference colorAttachmentRef{};
+    //colorAttachmentRef.attachment = 0;
+    //colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    //// Subpass
+    //VkSubpassDescription subpass{};
+    //subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //subpass.colorAttachmentCount = 1;
+    //subpass.pColorAttachments = &colorAttachmentRef;
+
+    //// Dependency
+    //VkSubpassDependency dependency{};
+    //dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    //dependency.dstSubpass = 0;
+    //dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //dependency.srcAccessMask = 0;
+    //dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    //// Render pass
+    //VkRenderPassCreateInfo renderPassInfo{};
+    //renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    //renderPassInfo.attachmentCount = 1;
+    //renderPassInfo.pAttachments = &colorAttachment;
+    //renderPassInfo.subpassCount = 1;
+    //renderPassInfo.pSubpasses = &subpass;
+    //renderPassInfo.dependencyCount = 1;
+    //renderPassInfo.pDependencies = &dependency;
+
+    //if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
+    //  throw std::runtime_error("VULKAN ERROR: Failed to create render pass!");
+    //}
   }
 
   void Renderer::createFramebuffers() {
@@ -400,15 +406,12 @@ namespace fz {
 
     // Create framebuffers for image views
     for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
-      std::vector<VkImageView> attachments = {
-        m_SwapChainImageViews[i]
+      FramebufferInfo framebufferInfo = {
+      m_Extent.width,
+      m_Extent.height,
+      m_RenderPass->getVulkanRenderPass(),
+      { { m_SwapChainImages[i] } }
       };
-
-      FramebufferInfo framebufferInfo;
-      framebufferInfo.width = m_SwapChainExtent.width;
-      framebufferInfo.height = m_SwapChainExtent.height;
-      framebufferInfo.renderPass = m_RenderPass;
-      framebufferInfo.attachments = attachments;
       m_SwapChainFramebuffers[i] = std::make_unique<Framebuffer>(framebufferInfo);
     }
   }

@@ -38,11 +38,12 @@ namespace fz {
 
   Texture2D::~Texture2D()
   {
-    GraphicsDevice_Vulkan* device = fz::GetDevice();
+    m_Image->destroy();
+    //GraphicsDevice_Vulkan* device = fz::GetDevice();
 
-    vkDestroyImageView(device->getDevice(), m_TextureImageView, nullptr);
-    vkDestroyImage(device->getDevice(), m_TextureImage, nullptr);
-    vkFreeMemory(device->getDevice(), m_TextureImageMemory, nullptr);
+    //vkDestroyImageView(device->getDevice(), m_TextureImageView, nullptr);
+    //vkDestroyImage(device->getDevice(), m_TextureImage, nullptr);
+    //vkFreeMemory(device->getDevice(), m_TextureImageMemory, nullptr);
   }
 
   std::shared_ptr<Texture2D> Texture2D::create(const std::string& path, int channels /*= 4*/, VkFormat imageFormat /*= VK_FORMAT_R8G8B8A8_SRGB*/)
@@ -52,52 +53,52 @@ namespace fz {
 
   VkImageView Texture2D::getImageView() const
   {
-    return m_TextureImageView;
+    return m_Image->getVulkanImageView();
   }
 
   void Texture2D::updateData(unsigned char* pixels)
   {
-    GraphicsDevice_Vulkan* device = fz::GetDevice();
-    VkDeviceSize imageSize = m_Width * m_Height * 4;
+    /* GraphicsDevice_Vulkan* device = fz::GetDevice();
+     VkDeviceSize imageSize = m_Width * m_Height * 4;
 
-    void* data = nullptr;
-    Buffer stagingBuffer = {
-      *device,
-      imageSize,
-      1,
-      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      0
-    };
+     void* data = nullptr;
+     Buffer stagingBuffer = {
+       *device,
+       imageSize,
+       1,
+       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+       0
+     };
 
-    stagingBuffer.map(imageSize);
-    stagingBuffer.writeToBuffer(pixels);
-    stagingBuffer.unmap();
+     stagingBuffer.map(imageSize);
+     stagingBuffer.writeToBuffer(pixels);
+     stagingBuffer.unmap();
 
-    VkCommandBuffer commandBuffer = device->beginSingleTimeCommands();
-    device->transitionImageLayout(
-      commandBuffer,
-      m_TextureImage,
-      m_Format,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+     VkCommandBuffer commandBuffer = device->beginSingleTimeCommands();
+     device->transitionImageLayout(
+       commandBuffer,
+       m_TextureImage,
+       m_Format,
+       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    device->copyBufferToImage(
-      commandBuffer,
-      stagingBuffer.getBuffer(),
-      m_TextureImage,
-      static_cast<uint32_t>(m_Width),
-      static_cast<uint32_t>(m_Height),
-      1);
+     device->copyBufferToImage(
+       commandBuffer,
+       stagingBuffer.getBuffer(),
+       m_TextureImage,
+       static_cast<uint32_t>(m_Width),
+       static_cast<uint32_t>(m_Height),
+       1);
 
-    device->transitionImageLayout(
-      commandBuffer,
-      m_TextureImage,
-      m_Format,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+     device->transitionImageLayout(
+       commandBuffer,
+       m_TextureImage,
+       m_Format,
+       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    device->endSingleTimeCommands(commandBuffer);
+     device->endSingleTimeCommands(commandBuffer);*/
   }
 
   void Texture2D::createImage(void* pixels, VkDeviceSize imageSize, VkFormat imageFormat)
@@ -119,40 +120,22 @@ namespace fz {
     stagingBuffer.unmap();
 
     // Vulkan image creation
-    device->createImage(
-      m_Width, m_Height,
-      imageFormat, VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      m_TextureImage, m_TextureImageMemory);
+    ImageInfo createInfo{};
+    createInfo.width = m_Width;
+    createInfo.height = m_Height;
+    createInfo.format = imageFormat;
+    createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    createInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    createInfo.sampling = VK_SAMPLE_COUNT_1_BIT;
+    m_Image = Image::create(createInfo);
 
     VkCommandBuffer commandBuffer = device->beginSingleTimeCommands();
-    device->transitionImageLayout(
-      commandBuffer,
-      m_TextureImage,
-      imageFormat,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    device->copyBufferToImage(
-      commandBuffer,
-      stagingBuffer.getBuffer(),
-      m_TextureImage,
-      static_cast<uint32_t>(m_Width),
-      static_cast<uint32_t>(m_Height),
-      1);
-
-    device->transitionImageLayout(
-      commandBuffer,
-      m_TextureImage,
-      imageFormat,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    m_Image->transitionLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    stagingBuffer.copyToImage(commandBuffer, *m_Image);
+    m_Image->transitionLayout(commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     device->endSingleTimeCommands(commandBuffer);
-
-    // Vulkan image view
-    m_TextureImageView = device->createImageView(m_TextureImage, imageFormat);
   }
 
 }

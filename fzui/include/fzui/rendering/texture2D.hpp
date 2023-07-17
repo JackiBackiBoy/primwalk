@@ -3,6 +3,7 @@
 
 // FZUI
 #include "fzui/core.hpp"
+#include "fzui/rendering/image.hpp"
 #include <vulkan/vulkan.h>
 
 // std
@@ -31,10 +32,7 @@ namespace fz {
       int m_Width = 0;
       int m_Height = 0;
       int m_Channels = 0;
-      VkImage m_TextureImage = VK_NULL_HANDLE;
-      VkDeviceMemory m_TextureImageMemory = VK_NULL_HANDLE;
-      VkImageView m_TextureImageView = VK_NULL_HANDLE;
-      VkFormat m_Format = VK_FORMAT_UNDEFINED;
+      std::unique_ptr<Image> m_Image;
   };
 }
 #endif

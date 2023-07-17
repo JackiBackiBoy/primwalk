@@ -13,13 +13,13 @@
 #include "fzui/rendering/graphicsPipeline.hpp"
 #include "fzui/rendering/frameInfo.hpp"
 #include "fzui/mouse.hpp"
-#include "fzui/ui/uiEvent.hpp"
 #include "fzui/ui/uiIconButton.hpp"
 #include "fzui/rendering/texture2D.hpp"
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
 #include <dwmapi.h>
+#include <windowsx.h>
 
 namespace fz {
   WindowWin32::WindowWin32(const std::string& name, int width, int height)
@@ -181,9 +181,6 @@ namespace fz {
         m_FrameDone.store(true, std::memory_order_relaxed);
 
         if (firstPaint) {
-          // Shows window
-          /*COLORREF DARK_COLOR = RGB(32, 32, 32);
-          BOOL SET_CAPTION_COLOR = DwmSetWindowAttribute(m_Handle, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR, &DARK_COLOR, sizeof(DARK_COLOR));*/
           ShowWindow(m_Handle, SW_SHOW);
           UpdateWindow(m_Handle);
           firstPaint = false;
@@ -200,8 +197,8 @@ namespace fz {
     MouseEventData& mouse = event.getMouseData();
 
     // Acquire mouse position
-    int x = LOWORD(lParam);
-    int y = HIWORD(lParam);
+    int x = GET_X_LPARAM(lParam);
+    int y = GET_Y_LPARAM(lParam);
 
     mouse.position = { x, y };
     std::cout << "mouse pos: " << x << ", " << y << std::endl;
@@ -228,6 +225,10 @@ namespace fz {
     case WM_MBUTTONDBLCLK:
       mouse.causeButtons.middleButton = true;
       break;
+    case WM_MOUSEMOVE:
+      if (m_MouseButtonEvent.getType() == UIEventType::MouseDown) {
+        mouse.causeButtons = m_MouseButtonEvent.getMouseData().causeButtons;
+      }
     }
 
     bool buttonPressed = mouse.downButtons.leftButton || mouse.downButtons.middleButton || mouse.downButtons.rightButton;
@@ -240,6 +241,10 @@ namespace fz {
     case WM_XBUTTONUP:
       event.setType(UIEventType::MouseUp);
       event.getMouseData().clickCount = 0;
+
+      if (!buttonPressed) {
+        ReleaseCapture();
+      }
       break;
     case WM_LBUTTONDBLCLK:
     case WM_MBUTTONDBLCLK:
@@ -254,6 +259,7 @@ namespace fz {
     case WM_XBUTTONDOWN:
       event.setType(UIEventType::MouseDown);
       event.getMouseData().clickCount = 1;
+      SetCapture(m_Handle);
       break;
     case WM_MOUSELEAVE:
     case WM_NCMOUSELEAVE:
@@ -262,6 +268,13 @@ namespace fz {
       m_TrackingMouseLeave = false;
       }
       break;
+    case WM_MOUSEMOVE:
+      event.setType(buttonPressed ? UIEventType::MouseDrag : UIEventType::MouseMove);
+
+      if (m_MouseButtonEvent.getType() != UIEventType::None) {
+        /*r.mouse().down_position = mouse_button_event.mouse().down_position;
+        r.mouse().click_count = mouse_button_event.mouse().click_count;*/
+      }
     }
 
     if (!m_TrackingMouseLeave && message != WM_MOUSELEAVE && message != WM_NCMOUSELEAVE && message != WM_NCMOUSEMOVE) {
@@ -275,6 +288,13 @@ namespace fz {
       m_TrackingMouseLeave = true;
     }
 
+    // Store last occurrence of button press/release
+    if (event.getType() == UIEventType::MouseDown ||
+        event.getType() == UIEventType::MouseUp ||
+        event.getType() == UIEventType::MouseExitWindow) {
+      m_MouseButtonEvent = event;
+    }
+
     return event;
   }
 
@@ -285,7 +305,7 @@ namespace fz {
     auto closeIcon = Texture2D::create("assets/icons/close.png");
 
     m_MinimizeButton = &makeElement<UIIconButton>("Minimize", glm::vec2(m_Width - 90, 0), 30, 30, minimizeIcon);
-    m_MinimizeButton->setOnClick([this]() { SendMessage(m_Handle, WM_SYSCOMMAND, SC_MINIMIZE, NULL); });
+    m_MinimizeButton->setOnClick([this]() { SendMessage(m_Handle, WM_SYSCOMMAND, SC_MINIMIZE, 0); });
 
     m_MaximizeButton = &makeElement<UIIconButton>("Maximize", glm::vec2(m_Width - 60, 0), 30, 30, maximizeIcon);
     m_MaximizeButton->setOnClick([this]() {
@@ -297,7 +317,7 @@ namespace fz {
     m_CloseButton = &makeElement<UIIconButton>("Close", glm::vec2(m_Width - 30, 0), 30, 30, closeIcon);
     m_CloseButton->setBackgroundHoverColor({ 200, 0, 0 });
     m_CloseButton->setBackgroundClickColor({ 128, 0, 0 });
-    m_CloseButton->setOnClick([this]() { SendMessage(m_Handle, WM_CLOSE, NULL, NULL); });
+    m_CloseButton->setOnClick([this]() { SendMessage(m_Handle, WM_CLOSE, 0, 0); });
   }
 
   void WindowWin32::onUpdate(float dt) {
@@ -317,6 +337,7 @@ namespace fz {
         if (isCursorInTitleBar(mouse.position.x, mouse.position.y)) {
           if (mouse.causeButtons.leftButton) {
             if (mouse.clickCount == 1) {
+              ReleaseCapture();
               SendMessage(m_Handle, WM_SYSCOMMAND, 0xf012, 0); // Hack: Use of undocumented flag "SC_DRAGMOVE"
             }
             else if (mouse.clickCount == 2) { // caption bar double click)
@@ -345,14 +366,6 @@ namespace fz {
            (x >= windowRect.left && x < windowRect.left + 8) ||
            (y >= windowRect.top && y < windowRect.top + 8) ||
            (y <= windowRect.bottom && y > windowRect.bottom + 8);
-  }
-
-  int WindowWin32::getWidth() const {
-    return m_Width;
-  }
-
-  int WindowWin32::getHeight() const {
-    return m_Height;
   }
 
   // Hit test the frame for resizing and moving.
@@ -529,56 +542,6 @@ namespace fz {
           }
 
           return 0;
-        }
-        case WM_NCLBUTTONDOWN:
-        {
-          LRESULT result = 0;
-          
-          if (wParam == HTMINBUTTON) {
-            window->m_MinimizeButtonDown = true;
-            return 0;
-          }
-          else if (wParam == HTMAXBUTTON) {
-            window->m_MaximizeButtonDown = true;
-            return 0;
-          }
-          if (wParam == HTCLOSE) {
-            window->m_CloseButtonDown = true;
-            return 0;
-          }
-
-          window->m_MaximizeButtonDown = false;
-
-          break;
-        }
-        case WM_NCLBUTTONUP:
-        {
-          LRESULT result = 0;
-          bool down = window->m_MaximizeButtonDown;
-
-          if (wParam == HTMINBUTTON) {
-            window->m_IsMinimized.store(true, std::memory_order_relaxed);
-            window->m_RenderingCondition.notify_all();
-
-            //window->m_IsMinimized.store(true, std::memory_order_relaxed);
-            ShowWindow(hWnd, SW_MINIMIZE);
-          }
-          else if (wParam == HTMAXBUTTON && window->m_MaximizeButtonDown) {
-            window->m_MaximizeButtonDown = false;
-            WINDOWPLACEMENT wp{};
-            GetWindowPlacement(hWnd, &wp);
-            ShowWindow(hWnd, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
-          }
-          else if (wParam == HTCLOSE) {
-            SendMessage(hWnd, WM_DESTROY, 0, 0);
-          }
-          else {
-            result = DefWindowProc(hWnd, message, wParam, lParam);
-          }
-
-          return result;
-
-          break;
         }
         case WM_PAINT: {
           //if (window != nullptr && window->m_GraphicsDevice != nullptr && window->m_GraphicsPipeline != nullptr) {

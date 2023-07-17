@@ -5,7 +5,7 @@
 #include "fzui/core.hpp"
 #include "fzui/color.hpp"
 #include "fzui/ui/uiElement.hpp"
-#include "fzui/rendering/texture2D.hpp""
+#include "fzui/rendering/texture2D.hpp"
 
 // std
 #include <memory>
@@ -25,9 +25,13 @@ namespace fz {
     virtual Hitbox hitboxTest(glm::vec2 position) override;
 
     // Getters
+    inline int getWidth() const { return m_Width; }
+    inline int getHeight() const { return m_Height; }
     virtual Hitbox getHitbox() override;
 
     // Setters
+    inline void setWidth(int width) { m_Width = width; }
+    inline void setHeight(int height) { m_Height = height; }
     inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
     inline void setIconColor(Color color) { m_IconColor = color; }
     inline void setBackgroundHoverColor(Color color) { m_BackgroundHoverColor = color; }

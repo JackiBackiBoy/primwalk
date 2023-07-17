@@ -6,6 +6,8 @@
 #include "fzui/color.hpp"
 #include "fzui/window.hpp"
 #include "fzui/rendering/framebuffer.hpp"
+#include "fzui/rendering/image.hpp"
+#include "fzui/rendering/renderpass.hpp"
 
 // std
 #include <vector>
@@ -40,7 +42,7 @@ namespace fz {
       void recreateSwapChain();
       void cleanupSwapChain();
       void createSwapChain();
-      void createImageViews();
+      void createImages();
       void createTextureSampler();
       void createRenderPass();
       void createFramebuffers();
@@ -54,13 +56,16 @@ namespace fz {
 
       Window& m_Window;
 
-      VkFormat m_SwapChainImageFormat;
-      VkExtent2D m_SwapChainExtent;
       VkSwapchainKHR m_SwapChain = VK_NULL_HANDLE;
-      VkRenderPass m_RenderPass = VK_NULL_HANDLE;
-      
-      std::vector<VkImage> m_SwapChainImages;
-      std::vector<VkImageView> m_SwapChainImageViews;
+      //VkRenderPass m_RenderPass = VK_NULL_HANDLE;
+      VkExtent2D m_Extent;
+      VkSurfaceFormatKHR m_BestSurfaceFormat;
+      std::unique_ptr<RenderPass> m_RenderPass;
+      std::unique_ptr<RenderPass> m_OffscreenPass;
+      std::unique_ptr<Framebuffer> m_OffscreenFramebuffer;
+      std::unique_ptr<Image> m_OffscreenImage;
+
+      std::vector<std::unique_ptr<Image>> m_SwapChainImages;
       std::vector<std::unique_ptr<Framebuffer>> m_SwapChainFramebuffers;
       std::vector<VkSemaphore> m_ImageAvailableSemaphores;
       std::vector<VkSemaphore> m_RenderFinishedSemaphores;

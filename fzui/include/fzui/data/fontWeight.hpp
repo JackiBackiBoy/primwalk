@@ -51,7 +51,7 @@ namespace fz {
     { "ultra-black", FontWeight::ExtraBlack},
   };
 
-  inline FZ_API FontWeight getWeightFromString(std::string str) {
+  inline FontWeight getWeightFromString(std::string str) {
     std::transform(str.begin(), str.end(), str.begin(),
       [](const char v) { return std::tolower(v); });
 

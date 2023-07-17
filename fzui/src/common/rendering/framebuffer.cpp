@@ -11,11 +11,17 @@ namespace fz {
   {
     GraphicsDevice_Vulkan* device = fz::GetDevice();
 
+    // Image views for all attachments
+    std::vector<VkImageView> imageViews(createInfo.attachments.size());
+    for (size_t i = 0; i < imageViews.size(); i++) {
+      imageViews[i] = createInfo.attachments[i].get()->getVulkanImageView();
+    }
+
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass = createInfo.renderPass;
     framebufferInfo.attachmentCount = static_cast<uint32_t>(createInfo.attachments.size());
-    framebufferInfo.pAttachments = createInfo.attachments.data();
+    framebufferInfo.pAttachments = imageViews.data();
     framebufferInfo.width = createInfo.width;
     framebufferInfo.height = createInfo.height;
     framebufferInfo.layers = 1;

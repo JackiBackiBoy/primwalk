@@ -50,6 +50,28 @@ namespace fz {
     memcpy(memOffset, data, size);
   }
 
+  void Buffer::copyToImage(VkCommandBuffer commandBuffer, Image& image)
+  {
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = image.getLayerCount();
+    region.imageOffset = { 0, 0, 0 };
+    region.imageExtent = { image.getWidth(), image.getHeight(), 1};
+
+    vkCmdCopyBufferToImage(
+      commandBuffer,
+      m_Buffer,
+      image.getVulkanImage(),
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      1,
+      &region);
+  }
+
   VkBuffer Buffer::getBuffer()
   {
     return m_Buffer;

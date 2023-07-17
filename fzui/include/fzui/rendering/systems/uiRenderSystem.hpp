@@ -35,14 +35,14 @@ namespace fz {
   };
 
   // Forward declarations
-  class FZ_API GraphicsDevice_Vulkan;
-  class FZ_API GraphicsPipeline;
-  class FZ_API DescriptorPool;
-  class FZ_API DescriptorSetLayout;
-  class FZ_API Font;
-  class FZ_API Texture2D;
-  class FZ_API Buffer;
-  class FZ_API UIElement;
+  class GraphicsDevice_Vulkan;
+  class GraphicsPipeline;
+  class DescriptorPool;
+  class DescriptorSetLayout;
+  class Font;
+  class Texture2D;
+  class Buffer;
+  class UIElement;
 
   class FZ_API UIRenderSystem {
     public:

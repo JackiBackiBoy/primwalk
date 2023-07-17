@@ -19,7 +19,7 @@ namespace fz {
 
   class FZ_API UIElement {
     public:
-      UIElement(glm::vec2 position) : m_Position{position} {};
+      UIElement(glm::vec2 position, bool draggable = false) : m_Position{position}, m_IsDraggable(draggable) {};
       virtual ~UIElement() {};
 
       virtual void onRender(UIRenderSystem& renderer) = 0;
@@ -30,6 +30,7 @@ namespace fz {
       glm::vec2 getPosition() const;
       glm::vec2 getAbsolutePosition() const;
       virtual Hitbox getHitbox() = 0;
+      inline bool isDraggable() const { return m_IsDraggable; }
 
       // Setters
       void setPosition(glm::vec2 position);
@@ -37,6 +38,7 @@ namespace fz {
 
     protected:
       glm::vec2 m_Position;
+      bool m_IsDraggable;
       std::function<void()> m_OnClick = []() {};
       UIContainer* m_Container = nullptr;
 
