@@ -3,10 +3,10 @@ cmake_minimum_required(VERSION 3.20.0)
 # Platform specifics
 if (WIN32)
   set(PLATFORM "windows")
-  add_definitions(-DFZ_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
+  add_definitions(-DPW_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE)
 elseif(APPLE)
   set(PLATFORM "macos")
-  add_definitions(-DFZ_MACOS)
+  add_definitions(-DPW_MACOS)
 endif()
 
 set(NAME fzcoach)
@@ -26,7 +26,7 @@ project(${NAME})
 
 include_directories(
   ${SOURCE_DIR}
-  ${CMAKE_HOME_DIRECTORY}/fzui/src
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src
 )
 
 # Settings
@@ -54,9 +54,9 @@ add_executable(${NAME} ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCE_FILE})
 target_compile_features(${NAME} PUBLIC cxx_std_17)
 
 target_include_directories(${NAME} PRIVATE
-  ${CMAKE_HOME_DIRECTORY}/fzui/include
+  ${CMAKE_HOME_DIRECTORY}/primwalk/include
 )
 
 target_link_libraries(${NAME} PUBLIC
-  fzui
+  primwalk
 )

@@ -8,8 +8,8 @@
 #include <fstream>
 #include "formats/bc7decomp.h"
 
-// FZUI
-#include "fzui/fzui.hpp"
+// primwalk
+#include "primwalk/primwalk.hpp"
 
 // Forza Coach
 #include "formats/swatchbin.hpp"
@@ -51,13 +51,13 @@ int BC7_Decode(const uint8_t* pBlock, uint8_t* pPixelsRGBA, int pPixelsRGBAWidth
   return 0;
 }
 
-class FzCoachWindow : public fz::Window {
+class FzCoachWindow : public pw::Window {
   public:
-    FzCoachWindow() : fz::Window("Forza Coach", 1080, 720) {};
+    FzCoachWindow() : pw::Window("Forza Coach", 1080, 720) {};
     virtual ~FzCoachWindow() {}
 
     void loadSwatchbinFile(const std::string& path) {
-      std::string truePath = "C:/Code/fzcoach/" + path;
+      std::string truePath = "C:/Code/primwalk/" + path;
       std::ifstream file(truePath, std::ios_base::binary);
 
       if (!file.is_open()) {
@@ -217,44 +217,44 @@ class FzCoachWindow : public fz::Window {
       loadSwatchbinFile("assets/other/test2.swatchbin");
 
       // Setup
-      auto gameframe = std::make_shared<fz::Texture2D>(swatchWidth, swatchHeight, swatchData.data(), 4, VK_FORMAT_R8G8B8A8_UNORM);
+      auto gameframe = std::make_shared<pw::Texture2D>(swatchWidth, swatchHeight, swatchData.data(), 4, VK_FORMAT_R8G8B8A8_UNORM);
       m_GameFrame = gameframe.get();
 
       // Textures
-      auto homeIcon = fz::Texture2D::create("assets/icons/home.png");
-      auto auctionIcon = fz::Texture2D::create("assets/icons/auction.png");
-      auto brushIcon = fz::Texture2D::create("assets/icons/brush.png");
-      auto settingsIcon = fz::Texture2D::create("assets/icons/settings.png");
-      auto logoIcon = fz::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
+      auto homeIcon = pw::Texture2D::create("assets/icons/home.png");
+      auto auctionIcon = pw::Texture2D::create("assets/icons/auction.png");
+      auto brushIcon = pw::Texture2D::create("assets/icons/brush.png");
+      auto settingsIcon = pw::Texture2D::create("assets/icons/settings.png");
+      auto logoIcon = pw::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
 
-      textureView = &makeElement<fz::UIIconButton>("h", glm::vec2(150, 120), gameframe->getWidth(), gameframe->getHeight(), gameframe);
+      textureView = &makeElement<pw::UIIconButton>("h", glm::vec2(150, 120), gameframe->getWidth(), gameframe->getHeight(), gameframe);
 
       // Fonts
-      auto headerFont = fz::Font::create("assets/fonts/opensans.ttf", 32, fz::FontWeight::ExtraBold);
+      auto headerFont = pw::Font::create("assets/fonts/opensans.ttf", 32, pw::FontWeight::ExtraBold);
 
       // Dashboard container
-      dashboardGroup = &makeElement<fz::UIContainer>("DG", glm::vec2(0, 0), 50, m_Height);
+      dashboardGroup = &makeElement<pw::UIContainer>("DG", glm::vec2(0, 0), 50, m_Height);
       dashboardGroup->setBackgroundColor({ 30, 30, 30 });
       
-      titleBar = &makeElement<fz::UIContainer>("h", glm::vec2(0, 0), m_Width, 30);
+      titleBar = &makeElement<pw::UIContainer>("h", glm::vec2(0, 0), m_Width, 30);
       titleBar->setBackgroundColor({ 10, 10, 10 });
 
-      auto& auctionBotTitle = makeElement<fz::UILabel>("h", "Designs & Paints", glm::vec2(150, 70), headerFont);
-      auto& logo = makeElement<fz::UIIconButton>("Logo", glm::vec2(1, 1), logoIcon->getWidth(), 32, logoIcon);
+      auto& auctionBotTitle = makeElement<pw::UILabel>("h", "Designs & Paints", glm::vec2(150, 70), headerFont);
+      auto& logo = makeElement<pw::UIIconButton>("Logo", glm::vec2(1, 1), logoIcon->getWidth(), 32, logoIcon);
 
-      auto& dashboardButton = dashboardGroup->makeElement<fz::UIIconButton>("D2", glm::vec2(10, 160), 30, 30, homeIcon);
+      auto& dashboardButton = dashboardGroup->makeElement<pw::UIIconButton>("D2", glm::vec2(10, 160), 30, 30, homeIcon);
       dashboardButton.setBackgroundColor({ 70, 70, 70, 0 });
 
-      auto& auctionsButton = dashboardGroup->makeElement<fz::UIIconButton>("D3", glm::vec2(10, 210), 30, 30, auctionIcon);
+      auto& auctionsButton = dashboardGroup->makeElement<pw::UIIconButton>("D3", glm::vec2(10, 210), 30, 30, auctionIcon);
       auctionsButton.setBackgroundColor({ 70, 70, 70, 0 });
 
-      auto& designPaintsButton = dashboardGroup->makeElement<fz::UIIconButton>("D4", glm::vec2(10, 260), 30, 30, brushIcon);
+      auto& designPaintsButton = dashboardGroup->makeElement<pw::UIIconButton>("D4", glm::vec2(10, 260), 30, 30, brushIcon);
       designPaintsButton.setBackgroundColor({ 70, 70, 70, 0 });
 
-      auto& settingsButton = dashboardGroup->makeElement<fz::UIIconButton>("D5", glm::vec2(10, 310), 30, 30, settingsIcon);
+      auto& settingsButton = dashboardGroup->makeElement<pw::UIIconButton>("D5", glm::vec2(10, 310), 30, 30, settingsIcon);
       settingsButton.setBackgroundColor({ 70, 70, 70, 0 });
 
-      slider = &makeElement<fz::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
+      slider = &makeElement<pw::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
     }
 
     void onUpdate(float dt) override {
@@ -272,11 +272,11 @@ class FzCoachWindow : public fz::Window {
     }
 
     private:
-      fz::UIContainer* dashboardGroup = nullptr;
-      fz::UIContainer* mainView = nullptr;
-      fz::UIContainer* titleBar = nullptr;
-      fz::UISlider* slider = nullptr;
-      fz::UIIconButton* textureView = nullptr;
+      pw::UIContainer* dashboardGroup = nullptr;
+      pw::UIContainer* mainView = nullptr;
+      pw::UIContainer* titleBar = nullptr;
+      pw::UISlider* slider = nullptr;
+      pw::UIIconButton* textureView = nullptr;
       HWND m_FH5Handle = NULL;
       int bitmapWidth;
       int bitmapHeight;
@@ -284,7 +284,7 @@ class FzCoachWindow : public fz::Window {
       int swatchHeight;
       std::vector<unsigned char> pixelData;
       std::vector<unsigned char> swatchData;
-      fz::Texture2D* m_GameFrame;
+      pw::Texture2D* m_GameFrame;
       bool m_ShowPreview = false;
 };
 
@@ -292,7 +292,7 @@ int main() {
   
   //loadSwatchbinFile("assets/other/test5.swatchbin");
 
-  fz::Application& app = fz::Application::Instance(); // acquire app instance
+  pw::Application& app = pw::Application::Instance(); // acquire app instance
   FzCoachWindow* fzMain = new FzCoachWindow();
   fzMain->setBackgroundColor({ 20, 20, 20 });
   fzMain->run();

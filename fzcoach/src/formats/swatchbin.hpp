@@ -301,9 +301,9 @@ void decompress_bc7(int x, int y, const std::vector<uint8_t>& block)
   //if (mode.type == 4 OR == 5)
   //{
   //  //Decode the 2 color rotation bits as follows:
-  //  // 00 – Block format is Scalar(A) Vector(RGB) - no swapping
-  //  // 01 – Block format is Scalar(R) Vector(AGB) - swap A and R
-  //  // 10 – Block format is Scalar(G) Vector(RAB) - swap A and G
+  //  // 00 ï¿½ Block format is Scalar(A) Vector(RGB) - no swapping
+  //  // 01 ï¿½ Block format is Scalar(R) Vector(AGB) - swap A and R
+  //  // 10 ï¿½ Block format is Scalar(G) Vector(RAB) - swap A and G
   //  // 11 - Block format is Scalar(B) Vector(RGA) - swap A and B
   //  rotation = extract_rot_bits(mode, block);
   //  output = swap_channels(output, rotation);
@@ -312,7 +312,7 @@ void decompress_bc7(int x, int y, const std::vector<uint8_t>& block)
 }
 
 void loadSwatchbinFile(const std::string& path) {
-  std::string truePath = "C:/Code/fzcoach/" + path;
+  std::string truePath = "C:/Code/primwalk/" + path;
   std::ifstream file(truePath, std::ios_base::binary);
 
   if (!file.is_open()) {

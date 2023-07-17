@@ -32,5 +32,5 @@ endif()
 set(MSDF_ATLAS_USE_SKIA OFF CACHE BOOL "Build with the Skia library" FORCE) # disable Skia
 
 add_subdirectory(vendor/msdf-atlas-gen)
-add_subdirectory(fzui)
+add_subdirectory(primwalk)
 add_subdirectory(fzcoach)
