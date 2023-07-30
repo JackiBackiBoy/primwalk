@@ -18,6 +18,11 @@ namespace pw {
     }
     else if ((numType & KEYBOARD_EVENT_MASK) != 0) { // keyboard-related type
       m_EventMask = KEYBOARD_EVENT_MASK;
+      m_Data = std::make_shared<KeyboardEventData>();
+    }
+    else if ((numType & NON_PURE_KEYBOARD_EVENT_MASK) != 0) { // non-pure keyboard-related type
+      m_EventMask = NON_PURE_KEYBOARD_EVENT_MASK;
+      m_Data = std::make_shared<KeyboardCharData>();
     }
   }
 

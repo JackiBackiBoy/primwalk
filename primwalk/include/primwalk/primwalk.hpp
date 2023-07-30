@@ -17,6 +17,7 @@
 #include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/ui/uiLabel.hpp"
 #include "primwalk/ui/uiSlider.hpp"
+#include "primwalk/ui/uiTextField.hpp"
 
 // Math
 #include "primwalk/math/math.hpp"

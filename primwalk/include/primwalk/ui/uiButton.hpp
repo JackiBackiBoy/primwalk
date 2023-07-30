@@ -18,6 +18,8 @@ namespace pw {
       UIButton(const std::string& text, glm::vec2 position, int width, int height, std::shared_ptr<Font> font = nullptr) :
         UIElement(position), m_Text(text), m_Width(width), m_Height(height), m_Font(font)
       {
+        m_Cursor = MouseCursor::Hand;
+
         if (font == nullptr) {
           m_Font = ResourceManager::Get().findFont("Catamaran", FontWeight::Bold);
         }

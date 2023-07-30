@@ -26,7 +26,7 @@ namespace pw {
     m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
 
     // Textures
-    m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<unsigned char>(4, 255).data())); // default 1x1 white texture
+    m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
     m_Textures.push_back(std::make_shared<Texture2D>("assets/textures/test.png"));
     m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/fh5_banner.jpg"));
 
@@ -48,9 +48,23 @@ namespace pw {
   void UIRenderSystem::processEvent(const UIEvent& event)
   {
     switch (event.getType()) {
+    case UIEventType::FocusLost:
+      if (m_FocusElement != nullptr) {
+        m_FocusElement->handleEvent({ UIEventType::FocusLost });
+      }
+      break;
+    case UIEventType::KeyboardDown:
+    case UIEventType::KeyboardChar:
+      {
+        if (m_FocusElement != nullptr) {
+          m_FocusElement->handleEvent(event);
+        }
+      }
+      break;
     case UIEventType::MouseDown:
     case UIEventType::MouseUp:
     case UIEventType::MouseMove:
+    case UIEventType::MouseWheel:
     case UIEventType::MouseDrag:
     case UIEventType::MouseExitWindow:
       {
@@ -66,11 +80,28 @@ namespace pw {
               m_TargetElement->handleEvent(event);
               return;
             }
-            
           }
 
           if (hitbox.getTarget() != nullptr) {
             elementFound = true;
+
+            if (event.getType() == UIEventType::MouseDown) {
+              if (m_TargetElement != nullptr) {
+                if (m_TargetElement->retainsFocus()) {
+                  if (m_FocusElement != nullptr) {
+                    m_FocusElement->handleEvent({ UIEventType::FocusLost });
+                  }
+
+                  m_FocusElement = m_TargetElement;
+                }
+
+                if (m_FocusElement != nullptr) {
+                  m_FocusElement->handleEvent({ UIEventType::FocusLost });
+                }
+                
+                m_TargetElement->handleEvent(event);
+              }
+            }
 
             if (hitbox.getTarget() != m_TargetElement) {
               if (m_TargetElement != nullptr) {
@@ -80,13 +111,13 @@ namespace pw {
               m_TargetElement = hitbox.getTarget();
               m_TargetElement->handleEvent({ UIEventType::MouseEnter });
             }
-            else if (event.getType() == UIEventType::MouseDown) {
-              m_TargetElement->handleEvent(event);
-            }
             else if (event.getType() == UIEventType::MouseUp) {
               m_TargetElement->handleEvent({ UIEventType::MouseUp });
             }
             else if (event.getType() == UIEventType::MouseMove) {
+              m_TargetElement->handleEvent(event);
+            }
+            else if (event.getType() == UIEventType::MouseWheel) {
               m_TargetElement->handleEvent(event);
             }
 
@@ -100,6 +131,11 @@ namespace pw {
             m_TargetElement->handleEvent({ UIEventType::MouseExit });
           }
 
+          if (m_FocusElement != nullptr && event.getType() == UIEventType::MouseDown) {
+            m_FocusElement->handleEvent({ UIEventType::FocusLost });
+            m_FocusElement = nullptr;
+          }
+
           m_TargetElement = nullptr;
         }
       }
@@ -110,8 +146,9 @@ namespace pw {
   void UIRenderSystem::onUpdate(const FrameInfo& frameInfo)
   {
     // TODO: Update uniform buffers
+    // TODO: Fix frameInfo dimension flickering on resize
     UniformBufferObject ubo{};
-    ubo.proj = glm::ortho(0.0f, frameInfo.windowWidth, 0.0f, frameInfo.windowHeight);
+    ubo.proj = glm::ortho(0.0f, (float)frameInfo.windowWidth, 0.0f, (float)frameInfo.windowHeight);
 
     //memcpy(m_UniformBuffersMapped[frameInfo.frameIndex], &ubo, sizeof(ubo));
     m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
@@ -123,11 +160,11 @@ namespace pw {
     }
 
     if (m_RenderParams.size() > 0) {
-      m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data());
+      m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data(), m_RenderParams.size() * sizeof(RenderParams));
     }
 
     if (m_FontRenderParams.size() > 0) {
-      m_FontStorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_FontRenderParams.data());
+      m_FontStorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_FontRenderParams.data(), m_FontRenderParams.size() * sizeof(FontRenderParams));
     }
   }
 
@@ -162,7 +199,7 @@ namespace pw {
     m_Elements.insert({ m_ElementCount++, std::move(element) });
   }
 
-  void UIRenderSystem::drawRect(glm::vec2 position, int width, int height, Color color, uint32_t borderRadius, std::shared_ptr<Texture2D> texture)
+  void UIRenderSystem::drawRect(glm::vec2 position, float width, float height, Color color, uint32_t borderRadius, std::shared_ptr<Texture2D> texture)
   {
     uint32_t texIndex = 0;
 
@@ -264,6 +301,21 @@ namespace pw {
 
       xPos += glyph.advanceX * fontSize;
     }
+  }
+
+  Hitbox UIRenderSystem::hitTest(glm::vec2 mousePos) const
+  {
+    Hitbox hitbox({ 0, 0 }, 0, 0, nullptr);
+
+    for (auto e = m_Elements.rbegin(); e != m_Elements.rend(); ++e) {
+      hitbox = e->second->hitboxTest(mousePos);
+
+      if (hitbox.getTarget() != nullptr) {
+        break;
+      }
+    }
+
+    return hitbox;
   }
 
   void UIRenderSystem::createDescriptorSetLayout()
@@ -462,14 +514,14 @@ namespace pw {
     }
 
     // Storage buffer (render params)
-    bufferSize = sizeof(RenderParams) * 100;
+    bufferSize = sizeof(RenderParams) * 4096;
     m_StorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
       m_StorageBuffers[i] = std::make_unique<Buffer>(
         m_Device,
         sizeof(RenderParams),
-        100,
+        4096,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
       );
@@ -477,14 +529,14 @@ namespace pw {
     }
 
     // Storage buffer (font render params)
-    bufferSize = sizeof(FontRenderParams) * 100;
+    bufferSize = sizeof(FontRenderParams) * 4096;
     m_FontStorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
       m_FontStorageBuffers[i] = std::make_unique<Buffer>(
         m_Device,
         sizeof(FontRenderParams),
-        100,
+        4096,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
       );

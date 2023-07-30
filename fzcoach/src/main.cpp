@@ -148,7 +148,7 @@ class FzCoachWindow : public pw::Window {
       }
       else {
         file.seekg(dataOffset); // jump to offset
-        std::vector<unsigned char> data(numPixels);
+        std::vector<uint8_t> data(numPixels);
         file.read(reinterpret_cast<char*>(data.data()), numPixels);
 
         for (size_t i = 0; i < numPixels; i++) {
@@ -255,6 +255,7 @@ class FzCoachWindow : public pw::Window {
       settingsButton.setBackgroundColor({ 70, 70, 70, 0 });
 
       slider = &makeElement<pw::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
+      makeElement<pw::UITextField>("textField", glm::vec2(800, 300), 200, 30);
     }
 
     void onUpdate(float dt) override {

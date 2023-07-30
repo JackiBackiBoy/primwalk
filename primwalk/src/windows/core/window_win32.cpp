@@ -15,6 +15,7 @@
 #include "primwalk/mouse.hpp"
 #include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/rendering/texture2D.hpp"
+#include "primwalk/input/keycode.hpp"
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
@@ -96,20 +97,19 @@ namespace pw {
     }
 
     // 3. Setup window initialization attributes and create window
-    POINT screenCenter = Win32Utilities::getScreenCenter();
     m_Handle = CreateWindowEx(
-      0,                             // Window extended styles
-      wcex.lpszClassName,            // Window class name
-      wName.c_str(),                 // Window title
-      WS_OVERLAPPEDWINDOW,           // Window style
-      screenCenter.x - m_Width / 2,  // Window X position
-      screenCenter.y - m_Height / 2, // Window Y position
-      m_Width,                       // Window width
-      m_Height,                      // Window height
-      NULL,                          // Window parent
-      NULL,                          // Window menu
-      m_Instance,                    // Window instance
-      this                           // Window creation parameters
+      0,                                                  // Window extended styles
+      wcex.lpszClassName,                                 // Window class name
+      wName.c_str(),                                      // Window title
+      WS_OVERLAPPEDWINDOW,                                // Window style
+      Win32Utilities::getScreenCenter().x - m_Width / 2,  // Window X position
+      Win32Utilities::getScreenCenter().y - m_Height / 2, // Window Y position
+      m_Width,                                            // Window width
+      m_Height,                                           // Window height
+      NULL,                                               // Window parent
+      NULL,                                               // Window menu
+      m_Instance,                                         // Window instance
+      this                                                // Window creation parameters
     );
 
     // Validate window
@@ -168,7 +168,7 @@ namespace pw {
           Window::onUpdate(dt);
           onUpdate(dt);
           m_UIRenderSystem->onUpdate(frameInfo);
-          // ...
+
 
           // Render
           m_Renderer->beginSwapChainRenderPass(commandBuffer);
@@ -197,16 +197,27 @@ namespace pw {
     MouseEventData& mouse = event.getMouseData();
 
     // Acquire mouse position
-    int x = GET_X_LPARAM(lParam);
-    int y = GET_Y_LPARAM(lParam);
+    POINT pt;
+    pt.x = GET_X_LPARAM(lParam);
+    pt.y = GET_Y_LPARAM(lParam);
 
-    mouse.position = { x, y };
-    std::cout << "mouse pos: " << x << ", " << y << std::endl;
+    if (message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL) {
+      ScreenToClient(m_Handle, &pt);
+    }
+
+    mouse.position = { pt.x, pt.y };
 
     // Acquire mouse button states
     mouse.downButtons.leftButton = (GET_KEYSTATE_WPARAM(wParam) & MK_LBUTTON) > 0;
     mouse.downButtons.middleButton = (GET_KEYSTATE_WPARAM(wParam) & MK_MBUTTON) > 0;
     mouse.downButtons.rightButton = (GET_KEYSTATE_WPARAM(wParam) & MK_RBUTTON) > 0;
+
+    if (message == WM_MOUSEWHEEL) {
+      mouse.wheelDelta.y = GET_WHEEL_DELTA_WPARAM(wParam) * 10.0f / WHEEL_DELTA;
+    }
+    else if (message == WM_MOUSEHWHEEL) {
+      mouse.wheelDelta.x = GET_WHEEL_DELTA_WPARAM(wParam) * 10.0f / WHEEL_DELTA;
+    }
 
     // Check which mouse buttons caused the mouse event (if any)
     switch (message) {
@@ -229,6 +240,7 @@ namespace pw {
       if (m_MouseButtonEvent.getType() == UIEventType::MouseDown) {
         mouse.causeButtons = m_MouseButtonEvent.getMouseData().causeButtons;
       }
+      break;
     }
 
     bool buttonPressed = mouse.downButtons.leftButton || mouse.downButtons.middleButton || mouse.downButtons.rightButton;
@@ -275,6 +287,11 @@ namespace pw {
         /*r.mouse().down_position = mouse_button_event.mouse().down_position;
         r.mouse().click_count = mouse_button_event.mouse().click_count;*/
       }
+      break;
+    case WM_MOUSEWHEEL:
+    case WM_MOUSEHWHEEL:
+      event.setType(UIEventType::MouseWheel);
+      break;
     }
 
     if (!m_TrackingMouseLeave && message != WM_MOUSELEAVE && message != WM_NCMOUSELEAVE && message != WM_NCMOUSEMOVE) {
@@ -372,7 +389,7 @@ namespace pw {
   LRESULT WindowWin32::HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
   {
     // Get the point coordinates for the hit test
-    POINT ptMouse = { LOWORD(lParam), HIWORD(lParam) };
+    POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
     // Get the window rectangle
     RECT rcWindow;
@@ -402,17 +419,6 @@ namespace pw {
     else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - 10)
     {
       uCol = 2; // right side
-    }
-
-    // Maximize button
-    if (uRow == 0 && ptMouse.x >= rcWindow.right - 30 && ptMouse.x < rcWindow.right) {
-      //return HTCLOSE;
-    }
-    else if (uRow == 0 && ptMouse.x >= rcWindow.right - 60 && ptMouse.x < rcWindow.right - 30) {
-      //return HTMAXBUTTON;
-    }
-    else if (uRow == 0 && ptMouse.x >= rcWindow.right - 90 && ptMouse.x < rcWindow.right - 60) {
-      //return HTMINBUTTON;
     }
 
     if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.right &&
@@ -457,18 +463,14 @@ namespace pw {
 
       switch (message) {
         case WM_ERASEBKGND:
-        {
           return 1;
-        }
         case WM_GETMINMAXINFO:
-        {
           if (window != nullptr) {
             LPMINMAXINFO minMaxInfo = reinterpret_cast<LPMINMAXINFO>(lParam);
             minMaxInfo->ptMinTrackSize.x = window->m_MinWidth;
             minMaxInfo->ptMinTrackSize.y = window->m_MinHeight;
           }
           break;
-        }
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_RBUTTONDOWN:
@@ -485,17 +487,72 @@ namespace pw {
         case WM_MOUSEHWHEEL:
         case WM_MOUSEMOVE:
         case WM_MOUSELEAVE:
-          if (message == WM_MOUSELEAVE) { std::cout << "Mouse leave" << std::endl; }
           window->processEvent(window->createMouseEvent(message, wParam, lParam));
           break;
         case WM_NCHITTEST:
         {
-          std::cout << "Hittest: ";
           result = HitTestNCA(hWnd, wParam, lParam);
-          std::cout << result << std::endl;
           wasHandled = true;
+
+          POINT point{};
+          point.x = GET_X_LPARAM(lParam);
+          point.y = GET_Y_LPARAM(lParam);
+          ScreenToClient(hWnd, &point);
+
+          if (result == HTCLIENT) {
+            Hitbox hitbox = window->m_UIRenderSystem->hitTest({ point.x, point.y });
+            if (hitbox.getTarget() != nullptr) {
+              window->setCursor(hitbox.getTarget()->getCursor());
+            }
+            else {
+              window->setCursor(MouseCursor::Default);
+            }
+          }
+          else {
+            window->setCursor(MouseCursor::None);
+          }
+
           break;
         }
+        case WM_KEYDOWN:
+          {
+            UIEvent event(UIEventType::KeyboardDown);
+            auto& data = event.getKeyboardData();
+            data.pressedKey = pw::input::toKeyCode(wParam);
+
+            // Keyboard modifiers
+            static_assert(std::is_signed_v<decltype(GetAsyncKeyState(VK_SHIFT))>);
+
+            auto r = KeyModifier::None;
+
+            if (GetAsyncKeyState(VK_SHIFT) < 0) {
+              r |= KeyModifier::Shift;
+            }
+            if (GetAsyncKeyState(VK_CONTROL) < 0) {
+              r |= KeyModifier::Control;
+            }
+            if (GetAsyncKeyState(VK_MENU) < 0) {
+              r |= KeyModifier::Alt;
+            }
+            if (GetAsyncKeyState(VK_LWIN) < 0 || GetAsyncKeyState(VK_RWIN) < 0) {
+              r |= KeyModifier::Super;
+            }
+
+            data.modifier = r;
+
+            window->processEvent(event);
+          }
+          break;
+        case WM_CHAR:
+          {
+            // Only pass codepoints that are valid characters
+            if (wParam > 31) {
+              UIEvent event(UIEventType::KeyboardChar);
+              event.getCharData().codePoint = static_cast<uint32_t>(wParam);
+              window->processEvent(event);
+            }
+          }
+          break;
         // Handling this message allows us to extend the client area of the window
         // into the title bar region. Which effectively makes the whole window
         // region accessible for drawing, including the title bar.
@@ -544,20 +601,18 @@ namespace pw {
           return 0;
         }
         case WM_PAINT: {
-          //if (window != nullptr && window->m_GraphicsDevice != nullptr && window->m_GraphicsPipeline != nullptr) {
-            //window->m_GraphicsDevice->drawFrame(*window->m_GraphicsPipeline);
-          //}
           return 0;
-          break;
-        }
-        case WM_ENTERSIZEMOVE:
-        {
           break;
         }
         case WM_EXITSIZEMOVE:
         {
           // In case WM_SIZE is not sent during fast resize
           window->m_Resizing.store(false, std::memory_order_relaxed);
+          break;
+        }
+        case WM_KILLFOCUS:
+        {
+          window->processEvent({ UIEventType::FocusLost });
           break;
         }
         case WM_SIZE:
@@ -569,7 +624,6 @@ namespace pw {
           window->m_Resizing.store(false, std::memory_order_relaxed);
           window->m_Width = LOWORD(lParam);
           window->m_Height = HIWORD(lParam);
-          
           
           if (window->m_GraphicsDevice != nullptr) {
             //window->m_GraphicsDevice->framebufferResizeCallback();
@@ -595,9 +649,9 @@ namespace pw {
         case WM_SETCURSOR:
         {
           if (LOWORD(lParam) == HTCLIENT) {
-            SetCursor(LoadCursor(NULL, IDC_ARROW));
             return TRUE;
           }
+
           break;
         }
         case WM_SYSCOMMAND:
@@ -650,4 +704,39 @@ namespace pw {
     m_MinHeight = height;
   }
 
+  void WindowWin32::setCursor(MouseCursor cursor)
+  {
+    if (m_Cursor == cursor) {
+      return;
+    }
+    m_Cursor = cursor;
+
+    if (cursor == MouseCursor::None) {
+      return;
+    }
+
+    static auto idcAppStarting = LoadCursorW(nullptr, IDC_APPSTARTING);
+    static auto idcArrow = LoadCursorW(nullptr, IDC_ARROW);
+    static auto idcHand = LoadCursorW(nullptr, IDC_HAND);
+    static auto idcIBeam = LoadCursorW(nullptr, IDC_IBEAM);
+    static auto idcNo = LoadCursorW(nullptr, IDC_NO);
+
+    auto idc = idcNo;
+    switch (cursor) {
+    case MouseCursor::None:
+      idc = idcAppStarting;
+      break;
+    case MouseCursor::Default:
+      idc = idcArrow;
+      break;
+    case MouseCursor::Hand:
+      idc = idcHand;
+      break;
+    case MouseCursor::IBeam:
+      idc = idcIBeam;
+      break;
+    }
+
+    SetCursor(idc);
+  }
 }

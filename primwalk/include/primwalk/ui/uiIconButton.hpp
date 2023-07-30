@@ -17,7 +17,9 @@ namespace pw {
   class PW_API UIIconButton : public UIElement {
   public:
     UIIconButton(glm::vec2 position, int width, int height, std::shared_ptr<Texture2D> icon) :
-      UIElement(position), m_Width(width), m_Height(height), m_Icon(icon) {}
+      UIElement(position), m_Width(width), m_Height(height), m_Icon(icon) {
+      m_Cursor = MouseCursor::Hand;
+    }
     virtual ~UIIconButton() {};
 
     virtual void onRender(UIRenderSystem& renderer) override;

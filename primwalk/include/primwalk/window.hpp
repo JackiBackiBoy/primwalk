@@ -22,6 +22,7 @@
 #include "primwalk/ui/uiElement.hpp"
 #include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/ui/uiButton.hpp"
+#include "primwalk/ui/mouseCursor.hpp"
 #include "primwalk/rendering/systems/uiRenderSystem.hpp"
 
 #ifdef PW_MACOS
@@ -77,6 +78,7 @@ namespace pw {
       // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
       virtual void setMinimumSize(uint32_t width, uint32_t height) = 0;
+      virtual void setCursor(MouseCursor cursor) = 0;
 
     protected:
       std::string m_Name;
@@ -85,6 +87,7 @@ namespace pw {
       uint32_t m_MinWidth = 200;
       uint32_t m_MinHeight = 200;
       Color m_BackgroundColor;
+      MouseCursor m_Cursor = MouseCursor::None;
 
       std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice{};
       std::shared_ptr<Renderer> m_Renderer{};

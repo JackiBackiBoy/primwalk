@@ -96,23 +96,17 @@ namespace pw {
     return *m_TextureAtlas;
   }
 
-  int Font::getTextWidth(const std::string& text, float fontSize) const
+  float Font::getTextWidth(const std::string& text, float fontSize) const
   {
     float width = 0.0f;
     float scaling = fontSize / m_FontSize;
 
     for (size_t i = 0; i < text.length(); i++) {
       GlyphData glyph = m_GlyphData.at(static_cast<uint32_t>(text[i]));
-
-      if (i < text.length() - 1) {
-        width += glyph.advanceX * fontSize;
-      }
-      else {
-        width += (glyph.bearingX + glyph.width) * scaling;
-      }
+      width += glyph.advanceX * fontSize;
     }
 
-    return static_cast<int>(width);
+    return width;
   }
 
   int Font::getMaxHeight() const

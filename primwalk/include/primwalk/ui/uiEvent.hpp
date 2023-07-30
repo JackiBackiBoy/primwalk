@@ -4,6 +4,7 @@
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/mouseButtons.hpp"
+#include "primwalk/input/keycode.hpp"
 
 // std
 #include <cassert>
@@ -32,13 +33,29 @@ namespace pw {
     KeyboardUp = 0x0020,
     KeyboardEnter = 0x0030,
     KeyboardExit = 0x0040,
+
+    // Non-pure keyboard events
+    KeyboardChar = 0x0500,
+
+    // Navigation and focus
+    FocusLost = 0x1000,
   };
 
   struct PW_API MouseEventData {
     glm::vec2 position = {};
+    glm::vec2 wheelDelta = {};
     MouseButtons causeButtons = {};
     MouseButtons downButtons = {};
     int clickCount = 0;
+  };
+
+  struct PW_API KeyboardEventData {
+    KeyCode pressedKey = KeyCode::Unknown;
+    KeyModifier modifier = KeyModifier::None;
+  };
+
+  struct PW_API KeyboardCharData {
+    uint32_t codePoint = 0;
   };
 
   class PW_API UIEvent {
@@ -53,12 +70,21 @@ namespace pw {
       assert(m_EventMask == MOUSE_EVENT_MASK && "ASSERTION FAILED: Can not acquire mouse data from non-mouse event!");
       return *std::static_pointer_cast<MouseEventData>(m_Data);
     }
+    inline KeyboardEventData& getKeyboardData() const {
+      assert(m_EventMask == KEYBOARD_EVENT_MASK && "ASSERTION FAILED: Can not acquire keyboard data from non-keyboard event!");
+      return *std::static_pointer_cast<KeyboardEventData>(m_Data);
+    }
+    inline KeyboardCharData& getCharData() const {
+      assert(m_EventMask == NON_PURE_KEYBOARD_EVENT_MASK && "ASSERTION FAILED: Can not acquire char data, type must be non-pure!");
+      return *std::static_pointer_cast<KeyboardCharData>(m_Data);
+    }
 
     // Setters
     void setType(UIEventType type);
 
-    static constexpr uint32_t MOUSE_EVENT_MASK = 0x0F;
-    static constexpr uint32_t KEYBOARD_EVENT_MASK = 0xF0;
+    static constexpr uint32_t MOUSE_EVENT_MASK = 0x000F;
+    static constexpr uint32_t KEYBOARD_EVENT_MASK = 0x00F0;
+    static constexpr uint32_t NON_PURE_KEYBOARD_EVENT_MASK = 0x0F00;
 
   private:
     UIEventType m_Type = UIEventType::None;

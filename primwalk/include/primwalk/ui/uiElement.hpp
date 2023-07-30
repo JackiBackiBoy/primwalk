@@ -6,6 +6,7 @@
 #include "primwalk/rendering/systems/uiRenderSystem.hpp"
 #include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/hitbox.hpp"
+#include "primwalk/ui/mouseCursor.hpp"
 
 // std
 #include <functional>
@@ -30,7 +31,9 @@ namespace pw {
       glm::vec2 getPosition() const;
       glm::vec2 getAbsolutePosition() const;
       virtual Hitbox getHitbox() = 0;
+      inline MouseCursor getCursor() const { return m_Cursor; }
       inline bool isDraggable() const { return m_IsDraggable; }
+      inline bool retainsFocus() const { return m_RetainsFocus; }
 
       // Setters
       void setPosition(glm::vec2 position);
@@ -39,8 +42,10 @@ namespace pw {
     protected:
       glm::vec2 m_Position;
       bool m_IsDraggable;
+      bool m_RetainsFocus = false;
       std::function<void()> m_OnClick = []() {};
       UIContainer* m_Container = nullptr;
+      MouseCursor m_Cursor = MouseCursor::Default;
 
       friend class UIContainer;
   };

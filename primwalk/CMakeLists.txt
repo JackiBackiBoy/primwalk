@@ -89,6 +89,8 @@ if(WIN32)
   file(GLOB_RECURSE HEADER_FILES
   ${INCLUDE_DIR}/data/*.hpp
   ${INCLUDE_DIR}/data/*.h
+  ${INCLUDE_DIR}/input/*.hpp
+  ${INCLUDE_DIR}/input/*.h
   ${INCLUDE_DIR}/windows/*.hpp
   ${INCLUDE_DIR}/windows/*.h
   ${INCLUDE_DIR}/managers/*.hpp

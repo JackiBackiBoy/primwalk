@@ -48,6 +48,7 @@ namespace pw {
 
       // Setters
       virtual void setMinimumSize(uint32_t width, uint32_t height) override;
+      virtual void setCursor(MouseCursor cursor) override;
 
     private:
       int init();

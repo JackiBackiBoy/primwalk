@@ -37,7 +37,7 @@ namespace pw {
 
       // Getters
       Texture2D& getTextureAtlas() const;
-      int getTextWidth(const std::string& text, float fontSize) const;
+      float getTextWidth(const std::string& text, float fontSize) const;
       int getMaxHeight() const;
       GlyphData getGlyph(const msdf_atlas::unicode_t& c) const;
       double getFontSize() const;

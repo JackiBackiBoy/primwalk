@@ -7,6 +7,7 @@
 #include "primwalk/rendering/frameInfo.hpp"
 #include "primwalk/rendering/vertex.hpp"
 #include "primwalk/ui/uiEvent.hpp"
+#include "primwalk/hitbox.hpp"
 
 // std
 #include <cstdint>
@@ -55,8 +56,9 @@ namespace pw {
       void onRender(const FrameInfo& frameInfo);
       void submitElement(std::unique_ptr<UIElement> element);
 
-      void drawRect(glm::vec2 position, int width, int height, Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr);
+      void drawRect(glm::vec2 position, float width, float height, Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr);
       void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
+      Hitbox hitTest(glm::vec2 mousePos) const;
 
     private:
       void createDescriptorSetLayout();
@@ -113,6 +115,7 @@ namespace pw {
       std::map<int, std::unique_ptr<UIElement>> m_Elements;
       int m_ElementCount = 0;
       UIElement* m_TargetElement = nullptr;
+      UIElement* m_FocusElement = nullptr;
   };
 }
 #endif

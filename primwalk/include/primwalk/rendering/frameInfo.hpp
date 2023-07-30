@@ -10,8 +10,8 @@
 struct PW_API FrameInfo {
   int frameIndex;
   float frameTime;
-  float windowWidth;
-  float windowHeight;
+  int windowWidth;
+  int windowHeight;
   VkCommandBuffer commandBuffer;
   // TODO: Add global descriptors
 };

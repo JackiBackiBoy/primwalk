@@ -64,6 +64,17 @@ namespace pw {
         m_Pressed = false;
         //m_DisplayColor = m_BackgroundHoverColor;
       }
+      break;
+    case UIEventType::MouseWheel:
+      {
+      float percentage = event.getMouseData().wheelDelta.y / 100.0f;
+      float normRange = m_MaxVal - m_MinVal;
+      float normCurrentVal = m_CurrentVal - m_MinVal;
+      float roundPercentage = int((normCurrentVal / normRange) * 10.0f) / 10.0f;
+
+      m_CurrentVal = std::clamp(Math::lerp(m_MinVal, m_MaxVal, (roundPercentage + percentage)), m_MinVal, m_MaxVal);
+      }
+      break;
     }
   }
 
