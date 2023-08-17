@@ -18,50 +18,32 @@ namespace pw {
 
     // Text highlighting
     if (m_IsHighlighting) {
-      float textWidth = m_Font->getTextWidth(m_Text, 15);
       float leftTextX = getAbsolutePosition().x + 1 + 10;
-      float rightTextX = leftTextX + textWidth;
 
-      if (m_EndDragPos.x >= leftTextX || m_EndDragPos.x <= rightTextX) {
+      if (m_SelectionStart != m_SelectionEnd) {
         float adjustedHeight = 0.8f * (m_Height - 2);
-        float leftMostX = std::min(m_StartDragPos.x, m_EndDragPos.x) - leftTextX;
-        float rightMostX = std::max(m_StartDragPos.x, m_EndDragPos.x) - leftTextX;
-
         float highlightWidth = 0.0f;
-        float startPosX = leftTextX;
-        float textPos = 0.0f;
+        float highlightLeft = 0.0f;
 
-        for (size_t i = 0; i < m_Text.length(); i++) {
+        for (int i = 0; i < std::max(m_SelectionStart, m_SelectionEnd); i++) {
           GlyphData glyph = m_Font->getGlyph(static_cast<uint32_t>(m_Text[i]));
-          float glyphWidth = glyph.advanceX * 15.0f;
 
-          if (glyphWidth == 0.0f) {
-            continue;
-          }
-
-          if (std::max(0.0f, leftMostX - textPos) / glyphWidth >= 0.5f) {
-            startPosX += glyphWidth;
-          }
-          else if (std::min(textWidth, rightMostX - textPos) / glyphWidth >= 0.5f) {
-            highlightWidth += glyphWidth;
+          if (i < std::min(m_SelectionStart, m_SelectionEnd)) {
+            highlightLeft += glyph.advanceX * 15.0f;
           }
           else {
-            break;
+            highlightWidth += glyph.advanceX * 15.0f;
           }
-
-          textPos += glyphWidth;
         }
 
         if (highlightWidth > 0.0f) {
-          renderer.drawRect({ startPosX, getAbsolutePosition().y + 1 + ((m_Height - 2) - adjustedHeight) / 2 },
+          renderer.drawRect({ highlightLeft + leftTextX, getAbsolutePosition().y + 1 + ((m_Height - 2) - adjustedHeight) / 2 },
             highlightWidth, adjustedHeight, { 0, 0, 255 });
-          return;
         }
       }
     }
-
     // Text caret
-    if (m_IsFocused) {
+    else if (m_IsFocused) {
       if (m_CaretTimer >= m_CaretBlinkDelay && m_CaretTimer < m_CaretBlinkDelay * 2) {
         int adjustedHeight = int(0.8f * (m_Height - 2));
         float textPosX = 0.0f;
@@ -80,12 +62,13 @@ namespace pw {
 
       auto newTime = std::chrono::high_resolution_clock::now();
       m_CaretTimer += std::chrono::duration<float, std::chrono::seconds::period>(newTime - m_LastRenderTime).count();
-      m_LastRenderTime = std::chrono::high_resolution_clock::now();
 
       if (m_CaretTimer >= m_CaretBlinkDelay * 2) {
         m_CaretTimer = 0.0f;
       }
     }
+
+    m_LastRenderTime = std::chrono::high_resolution_clock::now();
   }
 
   void UITextField::handleEvent(const UIEvent& event)
@@ -96,8 +79,8 @@ namespace pw {
         if (!m_IsFocused) {
           if (event.getMouseData().clickCount == 2) { // double click -> select all
             m_IsHighlighting = true;
-            m_StartDragPos = getAbsolutePosition().x + glm::vec2(1 + 10, 0);
-            m_EndDragPos = m_StartDragPos + m_Font->getTextWidth(m_Text, 15);
+            m_SelectionStart = 0;
+            m_SelectionEnd = m_Text.length();
           }
           else {
             float textPosX = 0.0f;
@@ -132,16 +115,61 @@ namespace pw {
       break;
     case UIEventType::MouseDrag:
       {
+        std::cout << "Mouse drag" << std::endl;
         glm::vec2 mousePos = event.getMouseData().position;
         glm::vec2 relativePos = mousePos - (getAbsolutePosition() + glm::vec2(1 + 10, 1));
 
         if (!m_IsHighlighting) {
           m_IsHighlighting = true;
-          m_StartDragPos = mousePos;
-          m_EndDragPos = m_StartDragPos;
+
+          // Compute selection start index
+          float textPosX = 0.0f;
+          float leftTextX = getAbsolutePosition().x + 1 + 10;
+          m_SelectionStart= 0;
+
+          for (size_t i = 0; i < m_Text.length(); i++) {
+            GlyphData glyph = m_Font->getGlyph(static_cast<uint32_t>(m_Text[i]));
+            float glyphWidth = glyph.advanceX * 15.0f;
+
+            if (glyphWidth == 0.0f) {
+              continue;
+            }
+
+            if (std::max(0.0f, mousePos.x - leftTextX - textPosX) / glyphWidth >= 0.5f) {
+              m_SelectionStart++;
+            }
+            else {
+              break;
+            }
+
+            textPosX += glyphWidth;
+          }
+
+          m_SelectionEnd = m_SelectionStart;
         }
         else {
-          m_EndDragPos = mousePos;
+          // Compute selection end index
+          float textPosX = 0.0f;
+          float leftTextX = getAbsolutePosition().x + 1 + 10;
+          m_SelectionEnd = 0;
+
+          for (size_t i = 0; i < m_Text.length(); i++) {
+            GlyphData glyph = m_Font->getGlyph(static_cast<uint32_t>(m_Text[i]));
+            float glyphWidth = glyph.advanceX * 15.0f;
+
+            if (glyphWidth == 0.0f) {
+              continue;
+            }
+
+            if (std::max(0.0f, event.getMouseData().position.x - leftTextX - textPosX) / glyphWidth >= 0.5f) {
+              m_SelectionEnd++;
+            }
+            else {
+              break;
+            }
+
+            textPosX += glyphWidth;
+          }
         }
       }
       break;
@@ -149,7 +177,11 @@ namespace pw {
       {
         m_IsHighlighting = false;
         m_IsFocused = false;
+        m_SelectionStart = 0;
+        m_SelectionEnd = 0;
+        m_CaretIndex = m_Text.length();
         m_DisplayBorderColor = m_BorderColor;
+        std::cout << "focus lost" << std::endl;
       }
       break;
     case UIEventType::KeyboardDown:
@@ -157,30 +189,126 @@ namespace pw {
         if (m_Text.length() > 0) {
           switch (event.getKeyboardData().pressedKey) {
           case KeyCode::Backspace:
-            m_Text.pop_back(); // remove last character
+            {
+              m_IsHighlighting = false;
+
+              // 1. If no text is selected, then simply remove last char of string
+              if (std::abs(m_SelectionEnd - m_SelectionStart) == 0 && m_CaretIndex > 0) {
+                if (m_CaretIndex == m_Text.length()) {
+                  m_Text.pop_back(); // remove last character
+                }
+                else {
+                  m_Text.erase(m_CaretIndex - 1, 1);
+                }
+
+                m_CaretIndex--;
+                return;
+              }
+
+              // 2. Remove text selection
+              m_CaretIndex = (size_t)std::min(m_SelectionStart, m_SelectionEnd);
+              m_Text.erase(m_CaretIndex, (size_t)std::abs(m_SelectionEnd - m_SelectionStart));
+              m_SelectionStart = 0;
+              m_SelectionEnd = 0;
+            }
             break;
           case KeyCode::A:
             {
               KeyModifier modifier = event.getKeyboardData().modifier;
               if (modifier == KeyModifier::Control) { // Ctrl + A
                 m_IsHighlighting = true;
-                m_StartDragPos = getAbsolutePosition().x + glm::vec2(1 + 10, 0);
-                m_EndDragPos = m_StartDragPos + m_Font->getTextWidth(m_Text, 15);
+                m_SelectionStart = 0;
+                m_SelectionEnd = m_Text.length();
               }
             }
             break;
-          case KeyCode::C: // copy to clipboard
+          case KeyCode::Left:
             {
+              KeyModifier modifier = event.getKeyboardData().modifier;
+              if (modifier == KeyModifier::None && m_CaretIndex > 0) {
+                m_CaretIndex--;
+                m_CaretTimer = m_CaretBlinkDelay;
+                m_IsHighlighting = false;
+                m_SelectionStart = 0;
+                m_SelectionEnd = 0;
+              }
+              else if (modifier == KeyModifier::Shift && m_CaretIndex > 0) { // Shift + Left
+                m_CaretTimer = m_CaretBlinkDelay;
 
+                if (!m_IsHighlighting) {
+                  size_t tempIndex = m_CaretIndex;
+                  m_CaretTimer = m_CaretBlinkDelay;
+                  m_SelectionStart = tempIndex;
+                  m_SelectionEnd = m_CaretIndex - 1;
+                  m_IsHighlighting = true;
+                }
+                else if (std::min(m_SelectionStart, m_SelectionEnd) > 0){
+                  int selectDir = m_SelectionEnd - m_SelectionStart;
+
+                  if (selectDir != 0) {
+                    m_SelectionEnd--;
+
+                    if (m_SelectionEnd == m_SelectionStart) {
+                      m_IsHighlighting = false;
+                      m_SelectionStart = 0;
+                      m_SelectionEnd = 0;
+                    }
+                  }
+                }
+              }
             }
-          break;
+            break;
+          case KeyCode::Right:
+            {
+              KeyModifier modifier = event.getKeyboardData().modifier;
+              if (modifier == KeyModifier::None && m_CaretIndex < m_Text.length() && !m_IsHighlighting) {
+                m_CaretIndex++;
+                m_CaretTimer = m_CaretBlinkDelay;
+                m_IsHighlighting = false;
+                m_SelectionStart = 0;
+                m_SelectionEnd = 0;
+              }
+              else if (modifier == KeyModifier::Shift && m_SelectionEnd < m_Text.length()) { // Shift + Right
+                if (!m_IsHighlighting) {
+                  size_t tempIndex = m_CaretIndex;
+                  m_CaretTimer = m_CaretBlinkDelay;
+                  m_SelectionStart = tempIndex;
+                  m_SelectionEnd = m_CaretIndex + 1;
+                  m_IsHighlighting = true;
+                }
+                else {
+                  int selectDir = m_SelectionEnd - m_SelectionStart;
+
+                  if (selectDir != 0) {
+                    m_SelectionEnd++;
+                    m_CaretTimer = m_CaretBlinkDelay;
+
+                    if (m_SelectionEnd == m_SelectionStart) {
+                      m_IsHighlighting = false;
+                      m_SelectionStart = 0;
+                      m_SelectionEnd = 0;
+                    }
+                  }
+                }
+              }
+            }
+            break;
           }
         }
       }
       break;
     case UIEventType::KeyboardChar:
       {
-        m_Text += char(event.getCharData().codePoint);
+        if (m_IsHighlighting) { // Remove highlighted text
+          m_CaretIndex = (size_t)std::min(m_SelectionStart, m_SelectionEnd);
+          m_Text.erase(m_CaretIndex, (size_t)std::abs(m_SelectionEnd - m_SelectionStart)); 
+          m_IsHighlighting = false;
+          m_SelectionStart = 0;
+          m_SelectionEnd = 0;
+        }
+
+        // Insert character at caret index
+        m_Text.insert(m_CaretIndex, { (char)event.getCharData().codePoint });
         m_CaretTimer = m_CaretBlinkDelay;
         m_CaretIndex++;
       }

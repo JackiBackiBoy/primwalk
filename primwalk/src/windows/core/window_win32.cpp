@@ -131,7 +131,6 @@ namespace pw {
     bool firstPaint = true;
     createGraphicsContext();
 
-
     // TODO: Move to onCreate
     VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
     std::vector<VkDescriptorSetLayout> setLayouts;
@@ -276,17 +275,24 @@ namespace pw {
     case WM_MOUSELEAVE:
     case WM_NCMOUSELEAVE:
       {
-      event.setType(UIEventType::MouseExitWindow);
-      m_TrackingMouseLeave = false;
+        event.setType(UIEventType::MouseExitWindow);
+        m_TrackingMouseLeave = false;
       }
       break;
     case WM_MOUSEMOVE:
-      event.setType(buttonPressed ? UIEventType::MouseDrag : UIEventType::MouseMove);
+      // Hack: The Windows OS sends a WM_MOUSEMOVE message together with mouse down
+      // flag when the window becomes the foreground window. Thus, we must also
+      // check whether the mouse down event is the first since regaining the
+      // foreground window focus. When handling WM_SETFOCUS we set the
+      // m_EnteringWindow flag to 'true' which indicates this.
+      // If that is the case, then we will not interpret that as a mouse-drag event
+      // and then reset m_EnteringWindow to 'false'.
+      event.setType((buttonPressed && !m_EnteringWindow) ? UIEventType::MouseDrag : UIEventType::MouseMove);
 
-      if (m_MouseButtonEvent.getType() != UIEventType::None) {
-        /*r.mouse().down_position = mouse_button_event.mouse().down_position;
-        r.mouse().click_count = mouse_button_event.mouse().click_count;*/
+      if (m_EnteringWindow) {
+        m_EnteringWindow = false;
       }
+
       break;
     case WM_MOUSEWHEEL:
     case WM_MOUSEHWHEEL:
@@ -615,6 +621,13 @@ namespace pw {
           window->processEvent({ UIEventType::FocusLost });
           break;
         }
+        case WM_SETFOCUS:
+          {
+            if (window != nullptr) {
+              window->m_EnteringWindow = true;
+            }
+          }
+          break;
         case WM_SIZE:
         {
           // This message is sent after WM_SIZING, which indicates that

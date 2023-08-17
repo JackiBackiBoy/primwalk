@@ -27,7 +27,7 @@ namespace pw {
 
     // Textures
     m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
-    m_Textures.push_back(std::make_shared<Texture2D>("assets/textures/test.png"));
+    m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/test.png"));
     m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/fh5_banner.jpg"));
 
     createDescriptorPool();
@@ -95,8 +95,9 @@ namespace pw {
                   m_FocusElement = m_TargetElement;
                 }
 
-                if (m_FocusElement != nullptr) {
+                if (m_FocusElement != nullptr && m_FocusElement != m_TargetElement) {
                   m_FocusElement->handleEvent({ UIEventType::FocusLost });
+                  m_FocusElement = nullptr;
                 }
                 
                 m_TargetElement->handleEvent(event);
@@ -203,11 +204,6 @@ namespace pw {
   {
     uint32_t texIndex = 0;
 
-    RenderParams params{};
-    params.position = position;
-    params.size = { width, height };
-    params.color = Color::normalize(color);
-
     if (texture != nullptr) {
       auto idSearch = m_TextureIDs.find(texture.get());
 
@@ -229,6 +225,10 @@ namespace pw {
       }
     }
 
+    RenderParams params{};
+    params.position = position;
+    params.size = { width, height };
+    params.color = Color::normalize(color);
     params.texIndex = texIndex;
     params.borderRadius = borderRadius;
 

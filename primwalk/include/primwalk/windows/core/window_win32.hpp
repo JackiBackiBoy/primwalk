@@ -9,9 +9,9 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
-#include <thread>
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -66,6 +66,7 @@ namespace pw {
       std::atomic<bool> m_Resizing = false;
       std::atomic<bool> m_FrameDone = false;
       std::atomic<bool> m_FirstPaint = true; // false once the first frame has been rendered
+      bool m_EnteringWindow = false;
 
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;

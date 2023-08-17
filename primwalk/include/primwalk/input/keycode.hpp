@@ -16,12 +16,12 @@ namespace pw {
     Super = 0x08, ///< The windows-key, key-key or super-key is being held.
   };
 
-  [[nodiscard]] constexpr KeyModifier operator|(KeyModifier const& lhs, KeyModifier const& rhs) noexcept
+  constexpr KeyModifier operator|(KeyModifier const& lhs, KeyModifier const& rhs) noexcept
   {
     return static_cast<KeyModifier>(uint8_t(lhs) | uint8_t(rhs));
   }
 
-  [[nodiscard]] constexpr KeyModifier operator&(KeyModifier const& lhs, KeyModifier const& rhs) noexcept
+  constexpr KeyModifier operator&(KeyModifier const& lhs, KeyModifier const& rhs) noexcept
   {
     return static_cast<KeyModifier>(uint8_t(lhs) & uint8_t(rhs));
   }

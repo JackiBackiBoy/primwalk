@@ -10,6 +10,7 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <string>
 
 namespace pw {
   class PW_API UITextField : public UIElement {
@@ -40,13 +41,13 @@ namespace pw {
     bool m_IsFocused = false;
     bool m_IsHighlighting = false;
     size_t m_CaretIndex = 0;
+    int m_SelectionStart = 0;
+    int m_SelectionEnd = 0;
 
     std::chrono::steady_clock::time_point m_LastRenderTime{};
     float m_CaretTimer = 0.0f;
     float m_CaretBlinkDelay = 0.5f;
     std::string m_Text = "";
-    glm::vec2 m_StartDragPos{};
-    glm::vec2 m_EndDragPos{};
 
     Color m_BorderColor = { 128, 128, 128 };
     Color m_BackgroundColor = { 40, 40, 40 };
