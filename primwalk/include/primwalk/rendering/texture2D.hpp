@@ -23,6 +23,7 @@ namespace pw {
       // Getters
       inline int getWidth() const { return m_Width; }
       inline int getHeight() const { return m_Height; }
+      Image* getImage() const { return m_Image.get(); }
       VkImageView getImageView() const;
       void updateData(unsigned char* pixels);
 

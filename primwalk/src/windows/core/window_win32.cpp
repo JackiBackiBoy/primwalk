@@ -166,8 +166,8 @@ namespace pw {
 
           Window::onUpdate(dt);
           onUpdate(dt);
+          m_UIRenderSystem->drawSubView(*m_Renderer->m_SubViews[0]);
           m_UIRenderSystem->onUpdate(frameInfo);
-
 
           // Render
           m_Renderer->beginSwapChainRenderPass(commandBuffer);
@@ -752,4 +752,14 @@ namespace pw {
 
     SetCursor(idc);
   }
+
+  SubView& WindowBase::makeSubView(int width, int height, glm::vec2 position)
+  {
+    auto tmp = std::make_unique<SubView>(width, height, position);
+    auto& ref = *tmp;
+
+    m_Renderer->submitSubView(std::move(tmp));
+    return ref;
+  }
+
 }

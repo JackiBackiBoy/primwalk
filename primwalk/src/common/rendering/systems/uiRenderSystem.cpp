@@ -27,8 +27,14 @@ namespace pw {
 
     // Textures
     m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
-    m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/test.png"));
-    m_Textures.push_back(ResourceManager::Get().loadTexture("assets/textures/fh5_banner.jpg"));
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = m_Textures[0]->getImageView();
+    imageInfo.sampler = Renderer::m_TextureSampler;
+
+    DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
+      .writeImage(0, &imageInfo, 0)
+      .overwrite(m_Device.m_TextureDescriptorSet);
 
     createDescriptorPool();
     createUniformBuffers();
@@ -154,8 +160,7 @@ namespace pw {
     //memcpy(m_UniformBuffersMapped[frameInfo.frameIndex], &ubo, sizeof(ubo));
     m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
-    m_RenderParams.clear();
-    m_FontRenderParams.clear();
+
     for (auto& e : m_Elements) {
       e.second->onRender(*this);
     }
@@ -185,7 +190,7 @@ namespace pw {
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_BasePipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_BasePipelineLayout, 2, 1, &m_TextureDescriptorSet, 0, nullptr);
+      m_BasePipelineLayout, 2, 1, &m_Device.m_TextureDescriptorSet, 0, nullptr);
     vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), static_cast<uint32_t>(m_RenderParams.size()), 0, 0, 0);
 
     // Font pipeline rendering
@@ -193,6 +198,10 @@ namespace pw {
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_BasePipelineLayout, 1, 1, &m_FontStorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
     vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), static_cast<uint32_t>(m_FontRenderParams.size()), 0, 0, 0);
+
+    // Clear all rendering parameters used for this render
+    m_RenderParams.clear();
+    m_FontRenderParams.clear();
   }
 
   void UIRenderSystem::submitElement(std::unique_ptr<UIElement> element)
@@ -205,20 +214,20 @@ namespace pw {
     uint32_t texIndex = 0;
 
     if (texture != nullptr) {
-      auto idSearch = m_TextureIDs.find(texture.get());
+      auto idSearch = m_TextureIDs.find(texture->getImage());
 
       if (idSearch == m_TextureIDs.end()) { // texture does not exist
-        texIndex = m_TextureIDs.size() + 3;
-        m_TextureIDs[texture.get()] = texIndex;
+        texIndex = m_TextureIDs.size() + 1;
+        m_TextureIDs[texture->getImage()] = texIndex;
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = texture->getImageView();
         imageInfo.sampler = Renderer::m_TextureSampler;
 
-        DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+        DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
           .writeImage(0, &imageInfo, texIndex)
-          .overwrite(m_TextureDescriptorSet);
+          .overwrite(m_Device.m_TextureDescriptorSet);
       }
       else {
         texIndex = idSearch->second;
@@ -252,20 +261,20 @@ namespace pw {
     float texIndex = 2;
 
     if (font != nullptr) {
-      auto idSearch = m_TextureIDs.find(&font->getTextureAtlas());
+      auto idSearch = m_TextureIDs.find(font->getTextureAtlas().getImage());
 
       if (idSearch == m_TextureIDs.end()) { // texture does not exist
-        texIndex = m_TextureIDs.size() + 3;
-        m_TextureIDs[&font->getTextureAtlas()] = texIndex;
+        texIndex = m_TextureIDs.size() + 1;
+        m_TextureIDs[font->getTextureAtlas().getImage()] = texIndex;
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = font->getTextureAtlas().getImageView();
         imageInfo.sampler = Renderer::m_TextureSampler;
 
-        DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+        DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
           .writeImage(0, &imageInfo, texIndex)
-          .overwrite(m_TextureDescriptorSet);
+          .overwrite(m_Device.m_TextureDescriptorSet);
       }
       else {
         texIndex = idSearch->second;
@@ -303,6 +312,39 @@ namespace pw {
     }
   }
 
+  void UIRenderSystem::drawSubView(SubView& subView)
+  {
+    uint32_t texIndex = 0;
+
+    auto idSearch = m_TextureIDs.find(subView.getImage());
+
+    if (idSearch == m_TextureIDs.end()) { // texture does not exist
+      texIndex = m_TextureIDs.size() + 1;
+      m_TextureIDs[subView.getImage()] = texIndex;
+
+      VkDescriptorImageInfo imageInfo{};
+      imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      imageInfo.imageView = subView.getImage()->getVulkanImageView();
+      imageInfo.sampler = Renderer::m_TextureSampler;
+
+      DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
+        .writeImage(0, &imageInfo, texIndex)
+        .overwrite(m_Device.m_TextureDescriptorSet);
+    }
+    else {
+      texIndex = idSearch->second;
+    }
+
+    RenderParams params{};
+    params.position = subView.getPosition();
+    params.size = { subView.getWidth(), subView.getHeight() };
+    params.color = Color::normalize(Color::White);
+    params.texIndex = texIndex;
+    params.borderRadius = 0;
+
+    m_RenderParams.push_back(params);
+  }
+
   Hitbox UIRenderSystem::hitTest(glm::vec2 mousePos) const
   {
     Hitbox hitbox({ 0, 0 }, 0, 0, nullptr);
@@ -320,6 +362,8 @@ namespace pw {
 
   void UIRenderSystem::createDescriptorSetLayout()
   {
+    GraphicsDevice_Vulkan* device = pw::GetDevice();
+
     uniformSetLayout = DescriptorSetLayout::Builder(m_Device)
       .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
       .build();
@@ -328,11 +372,11 @@ namespace pw {
       .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
       .build();
 
-    textureSetLayout = DescriptorSetLayout::Builder(m_Device)
-      .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
-      .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
-      VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
-      .build();
+    //textureSetLayout = DescriptorSetLayout::Builder(m_Device)
+    //  .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
+    //  .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
+    //  VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
+    //  .build();
 
     // Uniform buffer
     for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
@@ -355,43 +399,31 @@ namespace pw {
     for (size_t i = 0; i < m_FontStorageDescriptorSets.size(); i++) {
       auto bufferInfo = m_FontStorageBuffers[i]->getDescriptorInfo();
 
-      DescriptorWriter(*storageSetLayout, *m_BindlessDescriptorPool)
+      DescriptorWriter(*storageSetLayout, *m_Device.m_BindlessDescriptorPool)
         .writeBuffer(0, &bufferInfo)
         .build(m_FontStorageDescriptorSets[i]);
     }
 
     // Textures
-    VkDescriptorImageInfo imageInfo1{};
-    imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo1.imageView = m_Textures[0]->getImageView();
-    imageInfo1.sampler = Renderer::m_TextureSampler;
+    //VkDescriptorImageInfo imageInfo1{};
+    //imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //imageInfo1.imageView = m_Textures[0]->getImageView();
+    //imageInfo1.sampler = Renderer::m_TextureSampler;
 
-    VkDescriptorImageInfo imageInfo2{};
-    imageInfo2.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo2.imageView = m_Textures[1]->getImageView();
-    imageInfo2.sampler = Renderer::m_TextureSampler;
-
-    VkDescriptorImageInfo imageInfo3{};
-    imageInfo3.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo3.imageView = m_Fonts[0]->getTextureAtlas().getImageView();
-    imageInfo3.sampler = Renderer::m_TextureSampler;
-
-    DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
-      .writeImage(0, &imageInfo1, 0)
-      .writeImage(0, &imageInfo2, 1)
-      .writeImage(0, &imageInfo3, 2)
-      .build(m_TextureDescriptorSet);
+    //DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
+    //  .writeImage(0, &imageInfo1, 0)
+    //  .build(m_TextureDescriptorSet);
 
     m_BaseDescriptorSetLayouts = {
       uniformSetLayout->getDescriptorSetLayout(),
       storageSetLayout->getDescriptorSetLayout(),
-      textureSetLayout->getDescriptorSetLayout()
+      device->m_TextureSetLayout->getDescriptorSetLayout()
     };
 
     m_FontDescriptorSetLayouts = {
       uniformSetLayout->getDescriptorSetLayout(),
       storageSetLayout->getDescriptorSetLayout(),
-      textureSetLayout->getDescriptorSetLayout()
+      device->m_TextureSetLayout->getDescriptorSetLayout()
     };
   }
 
@@ -422,8 +454,8 @@ namespace pw {
 
   void UIRenderSystem::createPipeline(VkRenderPass renderPass)
   {
-    assert(m_BasePipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
-    assert(m_FontPipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Cannot create pipeline before pipeline layout!");
+    assert(m_BasePipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Can not create pipeline before pipeline layout!");
+    assert(m_FontPipelineLayout != nullptr && "VULKAN ASSERTION FAILED: Can not create pipeline before pipeline layout!");
 
     // Base pipeline
     PipelineConfigInfo basePipelineConfig{};
@@ -501,8 +533,8 @@ namespace pw {
   {
     // Uniform buffer
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-    m_UniformBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
+    m_UniformBuffers.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+    for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
       m_UniformBuffers[i] = std::make_unique<Buffer>(
         m_Device,
         sizeof(UniformBufferObject),
@@ -515,9 +547,9 @@ namespace pw {
 
     // Storage buffer (render params)
     bufferSize = sizeof(RenderParams) * 4096;
-    m_StorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_StorageBuffers.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
       m_StorageBuffers[i] = std::make_unique<Buffer>(
         m_Device,
         sizeof(RenderParams),
@@ -530,9 +562,9 @@ namespace pw {
 
     // Storage buffer (font render params)
     bufferSize = sizeof(FontRenderParams) * 4096;
-    m_FontStorageBuffers.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_FontStorageBuffers.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 
-    for (size_t i = 0; i < Renderer::MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
       m_FontStorageBuffers[i] = std::make_unique<Buffer>(
         m_Device,
         sizeof(FontRenderParams),
@@ -547,21 +579,21 @@ namespace pw {
   void UIRenderSystem::createDescriptorPool()
   {
     m_DescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT * 6)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // uniform buffer
-      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
+      .setMaxSets(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT * 6)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // uniform buffer
+      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // storage buffer
       .build();
 
-    m_BindlessDescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT + 1)
-      .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
-      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
-      .build();
+    //m_BindlessDescriptorPool = DescriptorPool::Builder(m_Device)
+    //  .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT + 1)
+    //  .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
+    //  .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
+    //  .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
+    //  .build();
 
-    m_UniformDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_StorageDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
-    m_FontStorageDescriptorSets.resize(Renderer::MAX_FRAMES_IN_FLIGHT);
+    m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+    m_StorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+    m_FontStorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
   }
 
 }

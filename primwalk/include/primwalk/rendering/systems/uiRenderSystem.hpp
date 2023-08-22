@@ -8,6 +8,7 @@
 #include "primwalk/rendering/vertex.hpp"
 #include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/hitbox.hpp"
+#include "primwalk/ui/subView.hpp"
 
 // std
 #include <cstdint>
@@ -58,6 +59,7 @@ namespace pw {
 
       void drawRect(glm::vec2 position, float width, float height, Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr);
       void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
+      void drawSubView(SubView& subView);
       Hitbox hitTest(glm::vec2 mousePos) const;
 
     private:
@@ -94,13 +96,11 @@ namespace pw {
       std::vector<VkDescriptorSetLayout> m_FontDescriptorSetLayouts;
       std::unique_ptr<DescriptorSetLayout> uniformSetLayout{};
       std::unique_ptr<DescriptorSetLayout> storageSetLayout{};
-      std::unique_ptr<DescriptorSetLayout> textureSetLayout{};
       std::unique_ptr<DescriptorPool> m_DescriptorPool{};
-      std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
 
       std::vector<std::shared_ptr<Texture2D>> m_Textures;
       std::vector<std::shared_ptr<Font>> m_Fonts;
-      std::unordered_map<Texture2D*, uint32_t> m_TextureIDs;
+      std::unordered_map<Image*, uint32_t> m_TextureIDs;
 
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;
@@ -110,7 +110,6 @@ namespace pw {
       std::vector<VkDescriptorSet> m_UniformDescriptorSets;
       std::vector<VkDescriptorSet> m_StorageDescriptorSets;
       std::vector<VkDescriptorSet> m_FontStorageDescriptorSets;
-      VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
 
       std::map<int, std::unique_ptr<UIElement>> m_Elements;
       int m_ElementCount = 0;

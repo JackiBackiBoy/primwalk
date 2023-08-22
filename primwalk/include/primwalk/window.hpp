@@ -19,6 +19,7 @@
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/color.hpp"
+#include "primwalk/ui/subView.hpp"
 #include "primwalk/ui/uiElement.hpp"
 #include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/ui/uiButton.hpp"
@@ -71,9 +72,11 @@ namespace pw {
         return ref;
       }
 
+      SubView& makeSubView(int width, int height, glm::vec2 position);
+
       // Getters
-      inline constexpr int getWidth() const { return m_Width; }
-      inline constexpr int getHeight() const { return m_Height; }
+      inline int getWidth() const { return m_Width; }
+      inline int getHeight() const { return m_Height; }
 
       // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
@@ -88,6 +91,7 @@ namespace pw {
       uint32_t m_MinHeight = 200;
       Color m_BackgroundColor;
       MouseCursor m_Cursor = MouseCursor::None;
+      //std::vector<std::shared_ptr<SubView>> m_SubViews;
 
       std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice{};
       std::shared_ptr<Renderer> m_Renderer{};

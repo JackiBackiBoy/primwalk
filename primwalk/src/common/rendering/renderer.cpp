@@ -15,6 +15,7 @@ namespace pw {
     createImages();
     createRenderPass();
     createFramebuffers();
+    createOffscreen();
     createTextureSampler();
     createSyncObjects();
 
@@ -47,7 +48,7 @@ namespace pw {
     vkDestroyRenderPass(device->getDevice(), m_RenderPass->getVulkanRenderPass(), nullptr);
 
     // Cleanup synchronization objects
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
       vkDestroySemaphore(device->getDevice(), m_RenderFinishedSemaphores[i], nullptr);
       vkDestroySemaphore(device->getDevice(), m_ImageAvailableSemaphores[i], nullptr);
       vkDestroyFence(device->getDevice(), m_InFlightFences[i], nullptr);
@@ -101,7 +102,6 @@ namespace pw {
 
     auto result = submitCommandBuffers(&commandBuffer, &m_CurrentImageIndex);
 
-
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
       m_FramebufferResized.load(std::memory_order_relaxed)) {
       m_FramebufferResized.store(false, std::memory_order_relaxed);
@@ -113,12 +113,19 @@ namespace pw {
     }
 
     //m_IsFrameStarted = false;
-    m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT;
     return ret;
   }
 
   void Renderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer)
   {
+    // Sub views
+    for (auto& v : m_SubViews) {
+      v->beginPass(commandBuffer);
+      v->endPass(commandBuffer);
+    }
+
+    // Main view
     VkExtent2D extent{};
     extent.width = m_SwapChainFramebuffers[m_CurrentImageIndex]->getWidth();
     extent.height = m_SwapChainFramebuffers[m_CurrentImageIndex]->getHeight();
@@ -154,6 +161,11 @@ namespace pw {
   void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer)
   {
     vkCmdEndRenderPass(commandBuffer);
+  }
+
+  void Renderer::submitSubView(std::unique_ptr<SubView> subView)
+  {
+    m_SubViews.push_back(std::move(subView));
   }
 
   int Renderer::getFrameIndex() const
@@ -416,12 +428,17 @@ namespace pw {
     }
   }
 
+  void Renderer::createOffscreen()
+  {
+    
+  }
+
   void Renderer::createSyncObjects() {
     GraphicsDevice_Vulkan* device = pw::GetDevice();
 
-    m_ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    m_ImageAvailableSemaphores.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+    m_RenderFinishedSemaphores.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+    m_InFlightFences.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
     m_ImagesInFlight.resize(m_SwapChainImages.size(), VK_NULL_HANDLE);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -431,7 +448,7 @@ namespace pw {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
       if (vkCreateSemaphore(device->getDevice(), &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) != VK_SUCCESS ||
         vkCreateSemaphore(device->getDevice(), &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]) != VK_SUCCESS ||
         vkCreateFence(device->getDevice(), &fenceInfo, nullptr, &m_InFlightFences[i]) != VK_SUCCESS) {
@@ -443,7 +460,7 @@ namespace pw {
   void Renderer::createCommandBuffers() {
     GraphicsDevice_Vulkan* device = pw::GetDevice();
 
-    m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    m_CommandBuffers.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -500,7 +517,7 @@ namespace pw {
 
     auto result = vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
 
-    m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_CurrentFrame = (m_CurrentFrame + 1) % GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT;
 
     return result;
   }

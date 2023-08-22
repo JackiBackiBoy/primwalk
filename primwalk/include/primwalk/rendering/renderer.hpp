@@ -8,16 +8,16 @@
 #include "primwalk/rendering/framebuffer.hpp"
 #include "primwalk/rendering/image.hpp"
 #include "primwalk/rendering/renderpass.hpp"
+#include "primwalk/ui/subView.hpp"
 
 // std
-#include <vector>
 #include <atomic>
+#include <memory>
+#include <vector>
 
 namespace pw {
   class PW_API Renderer {
     public:
-      static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
       Renderer(Window& window);
       ~Renderer();
 
@@ -27,6 +27,8 @@ namespace pw {
       void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
       std::atomic<bool> m_FramebufferResized = false;
 
+      void submitSubView(std::unique_ptr<SubView> subView);
+
       // Getters
       int getFrameIndex() const;
       size_t getCurrentFrame() const;
@@ -34,6 +36,7 @@ namespace pw {
       uint32_t getSwapChainWidth() const;
       uint32_t getSwapChainHeight() const;
       static VkSampler m_TextureSampler;
+      std::vector<std::unique_ptr<SubView>> m_SubViews;
 
       // Setters
       inline void setClearColor(Color color) { m_ClearColor = color; }
@@ -46,6 +49,7 @@ namespace pw {
       void createTextureSampler();
       void createRenderPass();
       void createFramebuffers();
+      void createOffscreen();
       void createSyncObjects();
       void createCommandBuffers();
 
@@ -57,13 +61,10 @@ namespace pw {
       Window& m_Window;
 
       VkSwapchainKHR m_SwapChain = VK_NULL_HANDLE;
-      //VkRenderPass m_RenderPass = VK_NULL_HANDLE;
       VkExtent2D m_Extent;
       VkSurfaceFormatKHR m_BestSurfaceFormat;
       std::unique_ptr<RenderPass> m_RenderPass;
-      std::unique_ptr<RenderPass> m_OffscreenPass;
-      std::unique_ptr<Framebuffer> m_OffscreenFramebuffer;
-      std::unique_ptr<Image> m_OffscreenImage;
+      
 
       std::vector<std::unique_ptr<Image>> m_SwapChainImages;
       std::vector<std::unique_ptr<Framebuffer>> m_SwapChainFramebuffers;

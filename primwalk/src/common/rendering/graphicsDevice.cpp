@@ -13,6 +13,7 @@
 
 namespace pw {
   // ------ DirectX 12 ------
+  // TODO: Future Jack pls help
 
   // ------ Vulkan ------
   GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) :
@@ -24,9 +25,14 @@ namespace pw {
     pickPhysicalDevice();
     createLogicalDevice();
     createCommandPool();
+    createDescriptorPool();
+    createDescriptorSetLayouts();
   }
 
   GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan() {
+    m_BindlessDescriptorPool.reset();
+    m_TextureSetLayout.reset();
+
     vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     vkDestroyDevice(m_Device, nullptr);
 
@@ -36,46 +42,6 @@ namespace pw {
 
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
-  }
-
-  // Getters
-  VkDevice GraphicsDevice_Vulkan::getDevice() {
-    return m_Device;
-  }
-
-  VkPhysicalDevice GraphicsDevice_Vulkan::getPhysicalDevice()
-  {
-    return m_PhysicalDevice;
-  }
-
-  VkCommandPool GraphicsDevice_Vulkan::getCommandPool()
-  {
-    return m_CommandPool;
-  }
-
-  VkSurfaceKHR GraphicsDevice_Vulkan::getSurface()
-  {
-    return m_Surface;
-  }
-
-  VkQueue GraphicsDevice_Vulkan::getGraphicsQueue()
-  {
-    return m_GraphicsQueue;
-  }
-
-  VkQueue GraphicsDevice_Vulkan::getPresentQueue()
-  {
-    return m_PresentQueue;
-  }
-
-  SwapChainSupportDetails GraphicsDevice_Vulkan::getSwapChainSupport()
-  {
-    return querySwapChainSupport(m_PhysicalDevice);
-  }
-
-  QueueFamilyIndices GraphicsDevice_Vulkan::findPhysicalQueueFamilies()
-  {
-    return findQueueFamilies(m_PhysicalDevice);
   }
 
   void GraphicsDevice_Vulkan::createInstance() {
@@ -243,7 +209,29 @@ namespace pw {
     }
   }
 
-  bool GraphicsDevice_Vulkan::checkValidationLayerSupport()
+  void GraphicsDevice_Vulkan::createDescriptorPool()
+  {
+    m_BindlessDescriptorPool = DescriptorPool::Builder(*this)
+      .setMaxSets(MAX_FRAMES_IN_FLIGHT + 1)
+      .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
+      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
+      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_FRAMES_IN_FLIGHT) // storage buffer
+      .build();
+  }
+
+  void GraphicsDevice_Vulkan::createDescriptorSetLayouts()
+  {
+    m_TextureSetLayout = DescriptorSetLayout::Builder(*this)
+      .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
+      .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
+        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
+      .build();
+
+    DescriptorWriter(*m_TextureSetLayout, *m_BindlessDescriptorPool)
+      .build(m_TextureDescriptorSet);
+  }
+
+  bool GraphicsDevice_Vulkan::checkValidationLayerSupport() const
   {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -558,7 +546,7 @@ namespace pw {
     return details;
   }
 
-  uint32_t GraphicsDevice_Vulkan::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+  uint32_t GraphicsDevice_Vulkan::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
   {
     // Query available memory types
     VkPhysicalDeviceMemoryProperties memProperties;

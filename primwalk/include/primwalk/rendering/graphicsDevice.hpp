@@ -12,6 +12,7 @@
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/window.hpp"
+#include "primwalk/rendering/descriptors.hpp"
 
 // std
 #include <array>
@@ -58,19 +59,25 @@ namespace pw {
         VkBuffer& buffer, VkDeviceMemory& bufferMemory);
       void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
       void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-      VkCommandBuffer beginSingleTimeCommands();
       void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-      uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+      VkCommandBuffer beginSingleTimeCommands();
+      uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
       // Getters
-      VkDevice getDevice();
-      VkPhysicalDevice getPhysicalDevice();
-      VkCommandPool getCommandPool();
-      VkSurfaceKHR getSurface();
-      VkQueue getGraphicsQueue();
-      VkQueue getPresentQueue();
-      SwapChainSupportDetails getSwapChainSupport();
-      QueueFamilyIndices findPhysicalQueueFamilies();
+      inline VkDevice getDevice() const { return m_Device; }
+      inline VkPhysicalDevice getPhysicalDevice() const { return m_PhysicalDevice; }
+      inline VkCommandPool getCommandPool() const { return m_CommandPool; }
+      inline VkSurfaceKHR getSurface() const { return m_Surface; }
+      inline VkQueue getGraphicsQueue() const { return m_GraphicsQueue; }
+      inline VkQueue getPresentQueue() const { return m_PresentQueue; }
+      inline SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(m_PhysicalDevice); }
+      inline QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(m_PhysicalDevice); }
+
+      static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
+      std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
+      std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
+      VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
 
     private:
       void createInstance();
@@ -79,23 +86,27 @@ namespace pw {
       void pickPhysicalDevice();
       void createLogicalDevice();
       void createCommandPool();
+      void createDescriptorPool();
+      void createDescriptorSetLayouts();
       
-      bool checkValidationLayerSupport();
-      std::vector<const char*> getRequiredExtensions();
+      void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+      void destroyDebugUtilsMessengerEXT(
+        VkInstance instance,
+        VkDebugUtilsMessengerEXT debugMessenger,
+        const VkAllocationCallbacks* pAllocator);
+
+      bool checkValidationLayerSupport() const;
+      bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+      bool isDeviceSuitable(VkPhysicalDevice device);
+      
       VkResult createDebugUtilsMessengerEXT(
         VkInstance instance,
         const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
         const VkAllocationCallbacks* pAllocator,
         VkDebugUtilsMessengerEXT* pDebugMessenger);
-      void destroyDebugUtilsMessengerEXT(
-        VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        const VkAllocationCallbacks* pAllocator);
-      void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-      bool isDeviceSuitable(VkPhysicalDevice device);
       QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-      bool checkDeviceExtensionSupport(VkPhysicalDevice device);
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+      std::vector<const char*> getRequiredExtensions();
 
       Window& m_Window;
       uint32_t m_CurrentFrame = 0;
@@ -107,7 +118,6 @@ namespace pw {
       VkQueue m_PresentQueue = VK_NULL_HANDLE;
       VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
       VkCommandPool m_CommandPool = VK_NULL_HANDLE;
-      VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
       
       std::vector<std::string> m_RequiredExtensions;
       std::vector<const char*> m_ExtensionPointers;
@@ -115,9 +125,7 @@ namespace pw {
       std::vector<VkDeviceMemory> m_UniformBuffersMemory;
       std::vector<void*> m_UniformBuffersMapped;
       bool m_BindlessSupported = false;
-      
 
-      static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,

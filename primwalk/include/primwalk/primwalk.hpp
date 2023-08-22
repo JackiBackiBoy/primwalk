@@ -11,6 +11,7 @@
 #include "primwalk/data/font.hpp"
 
 // UI
+#include "primwalk/ui/subView.hpp"
 #include "primwalk/ui/uiButton.hpp"
 #include "primwalk/ui/uiContainer.hpp"
 #include "primwalk/ui/uiElement.hpp"

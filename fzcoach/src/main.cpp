@@ -216,18 +216,12 @@ class FzCoachWindow : public pw::Window {
     void onCreate() override {
       loadSwatchbinFile("assets/other/test2.swatchbin");
 
-      // Setup
-      auto gameframe = std::make_shared<pw::Texture2D>(swatchWidth, swatchHeight, swatchData.data(), 4, VK_FORMAT_R8G8B8A8_UNORM);
-      m_GameFrame = gameframe.get();
-
       // Textures
       auto homeIcon = pw::Texture2D::create("assets/icons/home.png");
       auto auctionIcon = pw::Texture2D::create("assets/icons/auction.png");
       auto brushIcon = pw::Texture2D::create("assets/icons/brush.png");
       auto settingsIcon = pw::Texture2D::create("assets/icons/settings.png");
       auto logoIcon = pw::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
-
-      textureView = &makeElement<pw::UIIconButton>("h", glm::vec2(150, 120), gameframe->getWidth(), gameframe->getHeight(), gameframe);
 
       // Fonts
       auto headerFont = pw::Font::create("assets/fonts/opensans.ttf", 32, pw::FontWeight::ExtraBold);
@@ -256,6 +250,9 @@ class FzCoachWindow : public pw::Window {
 
       slider = &makeElement<pw::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
       makeElement<pw::UITextField>("textField", glm::vec2(800, 300), 200, 30);
+
+      // Design sub view window
+      auto& designEditor = makeSubView(512, 512, { 200, 200 });
     }
 
     void onUpdate(float dt) override {
@@ -264,9 +261,9 @@ class FzCoachWindow : public pw::Window {
         m_GameFrame->updateData(pixelData.data());
       }
 
-      float ratio = swatchWidth / swatchHeight;
-      textureView->setHeight(swatchHeight * slider->getSliderValue());
-      textureView->setWidth(textureView->getHeight() * ratio);
+      //float ratio = swatchWidth / swatchHeight;
+      //textureView->setHeight(swatchHeight * slider->getSliderValue());
+      //textureView->setWidth(textureView->getHeight() * ratio);
 
       titleBar->setWidth(m_Width + 100);
       dashboardGroup->setHeight(m_Height + 100); // add some margins to prevent resize artifacts
