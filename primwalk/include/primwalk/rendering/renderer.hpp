@@ -8,7 +8,6 @@
 #include "primwalk/rendering/framebuffer.hpp"
 #include "primwalk/rendering/image.hpp"
 #include "primwalk/rendering/renderpass.hpp"
-#include "primwalk/ui/subView.hpp"
 
 // std
 #include <atomic>
@@ -27,8 +26,6 @@ namespace pw {
       void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
       std::atomic<bool> m_FramebufferResized = false;
 
-      void submitSubView(std::unique_ptr<SubView> subView);
-
       // Getters
       int getFrameIndex() const;
       size_t getCurrentFrame() const;
@@ -36,7 +33,6 @@ namespace pw {
       uint32_t getSwapChainWidth() const;
       uint32_t getSwapChainHeight() const;
       static VkSampler m_TextureSampler;
-      std::vector<std::unique_ptr<SubView>> m_SubViews;
 
       // Setters
       inline void setClearColor(Color color) { m_ClearColor = color; }
@@ -64,7 +60,6 @@ namespace pw {
       VkExtent2D m_Extent;
       VkSurfaceFormatKHR m_BestSurfaceFormat;
       std::unique_ptr<RenderPass> m_RenderPass;
-      
 
       std::vector<std::unique_ptr<Image>> m_SwapChainImages;
       std::vector<std::unique_ptr<Framebuffer>> m_SwapChainFramebuffers;

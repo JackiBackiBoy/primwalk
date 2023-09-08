@@ -16,7 +16,7 @@ namespace pw {
   // TODO: Future Jack pls help
 
   // ------ Vulkan ------
-  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) :
+  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(HWND window) :
     m_Window(window)
   {
     createInstance();
@@ -106,7 +106,14 @@ namespace pw {
 
   void GraphicsDevice_Vulkan::createSurface()
   {
-    m_Window.createWindowSurface(m_Instance, &m_Surface);
+    VkWin32SurfaceCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.hwnd = m_Window;
+    createInfo.hinstance = GetModuleHandle(0);
+
+    if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
+      throw std::runtime_error("VULKAN ERROR: Failed to create Win32 Vulkan surface!");
+    }
   }
 
   void GraphicsDevice_Vulkan::pickPhysicalDevice()
@@ -229,6 +236,18 @@ namespace pw {
 
     DescriptorWriter(*m_TextureSetLayout, *m_BindlessDescriptorPool)
       .build(m_TextureDescriptorSet);
+  }
+
+  std::vector<std::string> GraphicsDevice_Vulkan::getRequiredVulkanInstanceExtensions()
+  {
+    #ifdef PW_WIN32
+        std::vector<std::string> extensions = {
+          "VK_KHR_surface",
+          "VK_KHR_win32_surface"
+        };
+
+        return extensions;
+    #endif // PW_WIN32
   }
 
   bool GraphicsDevice_Vulkan::checkValidationLayerSupport() const
@@ -367,7 +386,7 @@ namespace pw {
 
     m_RequiredExtensions.clear();
 
-    std::vector<std::string> requiredExtensions = m_Window.getRequiredVulkanInstanceExtensions();
+    std::vector<std::string> requiredExtensions = getRequiredVulkanInstanceExtensions();
     int foundExtensions = 0;
 
     std::cout << "Available Vulkan extensions (* = required):\n";

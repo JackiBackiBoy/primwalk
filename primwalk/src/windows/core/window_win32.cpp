@@ -2,20 +2,17 @@
 #include <cassert>
 #include <iostream>
 #include <cmath>
-#include <thread>
 
 // primwalk
 #include "primwalk/window.hpp"
 #include "primwalk/windows/resource.hpp"
 #include "primwalk/windows/win32/win32Utilities.hpp"
-#include "primwalk/rendering/renderer.hpp"
-#include "primwalk/rendering/graphicsDevice.hpp"
-#include "primwalk/rendering/graphicsPipeline.hpp"
 #include "primwalk/rendering/frameInfo.hpp"
 #include "primwalk/mouse.hpp"
 #include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/rendering/texture2D.hpp"
 #include "primwalk/input/keycode.hpp"
+#include "primwalk/ui/GUI.hpp"
 
 // vendor
 #include <glm/gtc/matrix_transform.hpp>
@@ -32,9 +29,6 @@ namespace pw {
   }
 
   int WindowWin32::run() {
-    // Create separate rendering thread
-    std::thread renderThread([this]() { renderingThread(); });
-
     // Message loop
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
@@ -43,30 +37,9 @@ namespace pw {
       DispatchMessage(&msg);
     }
 
-    // Wait for the rendering thread to close
-    renderThread.join();
-
     // Convert string name to wide string
     UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
     return (int)msg.wParam;
-  }
-
-  std::vector<std::string> WindowWin32::getRequiredVulkanInstanceExtensions() {
-    std::vector<std::string> extensions = {
-      "VK_KHR_surface",
-      "VK_KHR_win32_surface"
-    };
-
-    return extensions;
-  }
-
-  VkResult WindowWin32::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
-    VkWin32SurfaceCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = m_Handle;
-    createInfo.hinstance = GetModuleHandle(0);
-
-    return vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, surface);
   }
 
   int WindowWin32::init() {
@@ -112,82 +85,12 @@ namespace pw {
       this                                                // Window creation parameters
     );
 
+    m_HDC = GetDC(m_Handle);
+
     // Validate window
     if (!m_Handle) { return 0; }
 
     return 1;
-  }
-
-  void WindowWin32::createGraphicsContext() {
-    m_HDC = GetDC(m_Handle);
-    m_GraphicsDevice = std::make_shared<GraphicsDevice_Vulkan>(*this);
-    pw::GetDevice() = m_GraphicsDevice.get();
-
-    m_Renderer = std::make_shared<Renderer>(*this);
-    m_Renderer->setClearColor(m_BackgroundColor);
-  }
-
-  void WindowWin32::renderingThread() {
-    bool firstPaint = true;
-    createGraphicsContext();
-
-    // TODO: Move to onCreate
-    VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
-    std::vector<VkDescriptorSetLayout> setLayouts;
-    m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
-
-    
-    onCreate();
-    Window::onCreate();
-
-    auto lastTime = std::chrono::high_resolution_clock::now();
-
-    // TODO: Make frame timing consistent when resizing window
-    while (!m_ShouldClose.load(std::memory_order_relaxed)) {
-
-      m_FrameDone.store(false, std::memory_order_relaxed);
-
-      if (m_ShouldRender.load(std::memory_order_relaxed)) {
-        auto newTime = std::chrono::high_resolution_clock::now();
-        float dt = std::chrono::duration<float, std::chrono::seconds::period>(
-          newTime - lastTime).count();
-        lastTime = newTime;
-
-        if (auto commandBuffer = m_Renderer->beginFrame()) {
-          int frameIndex = m_Renderer->getFrameIndex();
-
-          // Update
-          FrameInfo frameInfo{};
-          frameInfo.frameIndex = frameIndex;
-          frameInfo.frameTime = dt;
-          frameInfo.commandBuffer = commandBuffer;
-          frameInfo.windowWidth = (float)m_Renderer->getSwapChainWidth();
-          frameInfo.windowHeight = (float)m_Renderer->getSwapChainHeight();
-
-          Window::onUpdate(dt);
-          onUpdate(dt);
-          m_UIRenderSystem->drawSubView(*m_Renderer->m_SubViews[0]);
-          m_UIRenderSystem->onUpdate(frameInfo);
-
-          // Render
-          m_Renderer->beginSwapChainRenderPass(commandBuffer);
-          m_UIRenderSystem->onRender(frameInfo);
-          m_Renderer->endSwapChainRenderPass(commandBuffer);
-          
-          m_Renderer->endFrame();
-        }
-
-        m_FrameDone.store(true, std::memory_order_relaxed);
-
-        if (firstPaint) {
-          ShowWindow(m_Handle, SW_SHOW);
-          UpdateWindow(m_Handle);
-          firstPaint = false;
-        }
-      }
-    }
-
-    vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
   }
 
   UIEvent WindowWin32::createMouseEvent(unsigned int message, uint64_t wParam, int64_t lParam)
@@ -323,38 +226,18 @@ namespace pw {
 
   // ------ Event functions ------
   void WindowWin32::onCreate() {
-    auto minimizeIcon = Texture2D::create("assets/icons/minimize.png");
-    auto maximizeIcon = Texture2D::create("assets/icons/maximize.png");
-    auto closeIcon = Texture2D::create("assets/icons/close.png");
-
-    m_MinimizeButton = &makeElement<UIIconButton>("Minimize", glm::vec2(m_Width - 90, 0), 30, 30, minimizeIcon);
-    m_MinimizeButton->setOnClick([this]() { SendMessage(m_Handle, WM_SYSCOMMAND, SC_MINIMIZE, 0); });
-
-    m_MaximizeButton = &makeElement<UIIconButton>("Maximize", glm::vec2(m_Width - 60, 0), 30, 30, maximizeIcon);
-    m_MaximizeButton->setOnClick([this]() {
-      WINDOWPLACEMENT wp{};
-      GetWindowPlacement(m_Handle, &wp);
-      ShowWindow(m_Handle, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
-    });
-
-    m_CloseButton = &makeElement<UIIconButton>("Close", glm::vec2(m_Width - 30, 0), 30, 30, closeIcon);
-    m_CloseButton->setBackgroundHoverColor({ 200, 0, 0 });
-    m_CloseButton->setBackgroundClickColor({ 128, 0, 0 });
-    m_CloseButton->setOnClick([this]() { SendMessage(m_Handle, WM_CLOSE, 0, 0); });
   }
 
   void WindowWin32::onUpdate(float dt) {
-    m_MinimizeButton->setPosition({ m_Width - 90, 0 });
-    m_MaximizeButton->setPosition({ m_Width - 60, 0 });
-    m_CloseButton->setPosition({ m_Width - 30, 0 });
   }
 
   void WindowWin32::processEvent(const UIEvent& event)
   {
-    WindowBase::processEvent(event);
+    bool wasHandled = pw::gui::processEvent(event);
 
-    switch (event.getType()) {
-    case UIEventType::MouseDown:
+    if (!wasHandled) {
+      switch (event.getType()) {
+      case UIEventType::MouseDown:
       {
         auto& mouse = event.getMouseData();
         if (isCursorInTitleBar(mouse.position.x, mouse.position.y)) {
@@ -372,6 +255,7 @@ namespace pw {
         }
       }
       break;
+      }
     }
   }
 
@@ -506,15 +390,16 @@ namespace pw {
           ScreenToClient(hWnd, &point);
 
           if (result == HTCLIENT) {
-            Hitbox hitbox = window->m_UIRenderSystem->hitTest({ point.x, point.y });
-            if (hitbox.getTarget() != nullptr) {
-              window->setCursor(hitbox.getTarget()->getCursor());
-            }
-            else {
+          //  Hitbox hitbox = window->m_UIRenderSystem->hitTest({ point.x, point.y });
+          //  if (hitbox.getTarget() != nullptr) {
+          //    window->setCursor(hitbox.getTarget()->getCursor());
+          //  }
+          //  else {
               window->setCursor(MouseCursor::Default);
-            }
+          //  }
           }
           else {
+          //  window->setCursor(MouseCursor::None);
             window->setCursor(MouseCursor::None);
           }
 
@@ -638,11 +523,8 @@ namespace pw {
           window->m_Width = LOWORD(lParam);
           window->m_Height = HIWORD(lParam);
           
-          if (window->m_GraphicsDevice != nullptr) {
-            //window->m_GraphicsDevice->framebufferResizeCallback();
-            //window->m_Renderer->m_FramebufferResized.store(std::memory_order_relaxed, true);
-            //window->m_ShouldRender.store(true, std::memory_order_relaxed);
-            while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
+          if (window != nullptr) {
+            //while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
           }
 
           break;
@@ -681,7 +563,7 @@ namespace pw {
         {
           window->m_IsMinimized.store(false, std::memory_order_relaxed);
           window->m_RenderingCondition.notify_all();
-          window->m_ShouldClose.store(true, std::memory_order_relaxed);
+          //window->m_ShouldClose.store(true, std::memory_order_relaxed);
           window->onDestroy();
 
           PostQuitMessage(0);
@@ -719,9 +601,6 @@ namespace pw {
 
   void WindowWin32::setCursor(MouseCursor cursor)
   {
-    if (m_Cursor == cursor) {
-      return;
-    }
     m_Cursor = cursor;
 
     if (cursor == MouseCursor::None) {
@@ -753,12 +632,23 @@ namespace pw {
     SetCursor(idc);
   }
 
+  void WindowWin32::close()
+  {
+    m_CloseFlag.store(true, std::memory_order_relaxed);
+    PostMessage(m_Handle, WM_CLOSE, 0, 0);
+  }
+
+  bool WindowWin32::shouldClose()
+  {
+    return m_CloseFlag.load(std::memory_order_relaxed);
+  }
+
   SubView& WindowBase::makeSubView(int width, int height, glm::vec2 position)
   {
     auto tmp = std::make_unique<SubView>(width, height, position);
     auto& ref = *tmp;
 
-    m_Renderer->submitSubView(std::move(tmp));
+    m_SubViews.push_back(std::move(tmp));
     return ref;
   }
 

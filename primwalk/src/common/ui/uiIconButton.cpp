@@ -2,6 +2,11 @@
 
 namespace pw {
 
+  UIIconButton::UIIconButton() : UIElement()
+  {
+    m_Cursor = MouseCursor::Hand;
+  }
+
   void UIIconButton::onRender(UIRenderSystem& renderer)
   {
     renderer.drawRect(getAbsolutePosition(), m_Width, m_Height, m_BackgroundDisplayColor);

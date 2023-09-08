@@ -214,57 +214,45 @@ class FzCoachWindow : public pw::Window {
     }
 
     void onCreate() override {
-      loadSwatchbinFile("assets/other/test2.swatchbin");
+      //loadSwatchbinFile("assets/other/test2.swatchbin");
 
-      // Textures
-      auto homeIcon = pw::Texture2D::create("assets/icons/home.png");
-      auto auctionIcon = pw::Texture2D::create("assets/icons/auction.png");
-      auto brushIcon = pw::Texture2D::create("assets/icons/brush.png");
-      auto settingsIcon = pw::Texture2D::create("assets/icons/settings.png");
-      auto logoIcon = pw::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
+      //// Textures
+      //auto homeIcon = pw::Texture2D::create("assets/icons/home.png");
+      //auto auctionIcon = pw::Texture2D::create("assets/icons/auction.png");
+      //auto brushIcon = pw::Texture2D::create("assets/icons/brush.png");
+      //auto settingsIcon = pw::Texture2D::create("assets/icons/settings.png");
+      //auto logoIcon = pw::Texture2D::create("assets/icons/fzcoach_logo.png", 4, VK_FORMAT_R8G8B8A8_UNORM);
 
-      // Fonts
-      auto headerFont = pw::Font::create("assets/fonts/opensans.ttf", 32, pw::FontWeight::ExtraBold);
+      //// Fonts
+      //auto headerFont = pw::Font::create("assets/fonts/opensans.ttf", 32, pw::FontWeight::ExtraBold);
 
-      // Dashboard container
-      dashboardGroup = &makeElement<pw::UIContainer>("DG", glm::vec2(0, 0), 50, m_Height);
-      dashboardGroup->setBackgroundColor({ 30, 30, 30 });
-      
-      titleBar = &makeElement<pw::UIContainer>("h", glm::vec2(0, 0), m_Width, 30);
-      titleBar->setBackgroundColor({ 10, 10, 10 });
+      //// Dashboard container
+      //dashboardGroup = &makeElement<pw::UIContainer>("DG", glm::vec2(0, 0), 50, m_Height);
+      //dashboardGroup->setBackgroundColor({ 30, 30, 30 });
+      //
+      //titleBar = &makeElement<pw::UIContainer>("h", glm::vec2(0, 0), m_Width, 30);
+      //titleBar->setBackgroundColor({ 10, 10, 10 });
 
-      auto& auctionBotTitle = makeElement<pw::UILabel>("h", "Designs & Paints", glm::vec2(150, 70), headerFont);
-      auto& logo = makeElement<pw::UIIconButton>("Logo", glm::vec2(1, 1), logoIcon->getWidth(), 32, logoIcon);
+      //auto& auctionBotTitle = makeElement<pw::UILabel>("h", "Designs & Paints", glm::vec2(150, 70), headerFont);
+      //auto& logo = makeElement<pw::UIIconButton>("Logo", glm::vec2(1, 1), logoIcon->getWidth(), 32, logoIcon);
+      //auto& dashboardButton = dashboardGroup->makeElement<pw::UIIconButton>("D2", glm::vec2(10, 160), 30, 30, homeIcon);
+      //auto& auctionsButton = dashboardGroup->makeElement<pw::UIIconButton>("D3", glm::vec2(10, 210), 30, 30, auctionIcon);
+      //auto& designPaintsButton = dashboardGroup->makeElement<pw::UIIconButton>("D4", glm::vec2(10, 260), 30, 30, brushIcon);
+      //auto& settingsButton = dashboardGroup->makeElement<pw::UIIconButton>("D5", glm::vec2(10, 310), 30, 30, settingsIcon);
 
-      auto& dashboardButton = dashboardGroup->makeElement<pw::UIIconButton>("D2", glm::vec2(10, 160), 30, 30, homeIcon);
-      dashboardButton.setBackgroundColor({ 70, 70, 70, 0 });
+      //dashboardButton.setBackgroundColor({ 70, 70, 70, 0 });
+      //auctionsButton.setBackgroundColor({ 70, 70, 70, 0 });
+      //designPaintsButton.setBackgroundColor({ 70, 70, 70, 0 });
+      //settingsButton.setBackgroundColor({ 70, 70, 70, 0 });
 
-      auto& auctionsButton = dashboardGroup->makeElement<pw::UIIconButton>("D3", glm::vec2(10, 210), 30, 30, auctionIcon);
-      auctionsButton.setBackgroundColor({ 70, 70, 70, 0 });
+      //slider = &makeElement<pw::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
+      //makeElement<pw::UITextField>("textField", glm::vec2(800, 300), 200, 30);
 
-      auto& designPaintsButton = dashboardGroup->makeElement<pw::UIIconButton>("D4", glm::vec2(10, 260), 30, 30, brushIcon);
-      designPaintsButton.setBackgroundColor({ 70, 70, 70, 0 });
-
-      auto& settingsButton = dashboardGroup->makeElement<pw::UIIconButton>("D5", glm::vec2(10, 310), 30, 30, settingsIcon);
-      settingsButton.setBackgroundColor({ 70, 70, 70, 0 });
-
-      slider = &makeElement<pw::UISlider>("slider", glm::vec2(800, 200), 200, 0, 2, 1);
-      makeElement<pw::UITextField>("textField", glm::vec2(800, 300), 200, 30);
-
-      // Design sub view window
-      auto& designEditor = makeSubView(512, 512, { 200, 200 });
+      //// Design sub view window
+      //auto& designEditor = makeSubView(512, 512, { 200, 200 });
     }
 
     void onUpdate(float dt) override {
-      if (m_ShowPreview) {
-        captureFH5Window();
-        m_GameFrame->updateData(pixelData.data());
-      }
-
-      //float ratio = swatchWidth / swatchHeight;
-      //textureView->setHeight(swatchHeight * slider->getSliderValue());
-      //textureView->setWidth(textureView->getHeight() * ratio);
-
       titleBar->setWidth(m_Width + 100);
       dashboardGroup->setHeight(m_Height + 100); // add some margins to prevent resize artifacts
     }
@@ -287,14 +275,13 @@ class FzCoachWindow : public pw::Window {
 };
 
 int main() {
-  
-  //loadSwatchbinFile("assets/other/test5.swatchbin");
+  std::unique_ptr<FzCoachWindow> fzMain = std::make_unique<FzCoachWindow>();
+  fzMain->setBackgroundColor({ 255, 0, 0 });
 
-  pw::Application& app = pw::Application::Instance(); // acquire app instance
-  FzCoachWindow* fzMain = new FzCoachWindow();
-  fzMain->setBackgroundColor({ 20, 20, 20 });
-  fzMain->run();
+  pw::Application application = pw::Application();
+  application.setWindow(fzMain.get());
 
-  delete fzMain;
+  application.run();
+
   return 0;
 }

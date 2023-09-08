@@ -16,10 +16,7 @@
 namespace pw {
   class PW_API UIIconButton : public UIElement {
   public:
-    UIIconButton(glm::vec2 position, int width, int height, std::shared_ptr<Texture2D> icon) :
-      UIElement(position), m_Width(width), m_Height(height), m_Icon(icon) {
-      m_Cursor = MouseCursor::Hand;
-    }
+    UIIconButton();
     virtual ~UIIconButton() {};
 
     virtual void onRender(UIRenderSystem& renderer) override;
@@ -38,11 +35,12 @@ namespace pw {
     inline void setIconColor(Color color) { m_IconColor = color; }
     inline void setBackgroundHoverColor(Color color) { m_BackgroundHoverColor = color; }
     inline void setBackgroundClickColor(Color color) { m_BackgroundClickColor = color; }
+    inline void setIcon(std::shared_ptr<Texture2D> icon) { m_Icon = icon; }
 
   private:
-    int m_Width;
-    int m_Height;
-    std::shared_ptr<Texture2D> m_Icon;
+    int m_Width = 0;
+    int m_Height = 0;
+    std::shared_ptr<Texture2D> m_Icon = nullptr;
     bool m_Hovered = false;
     bool m_Pressed = false;
 

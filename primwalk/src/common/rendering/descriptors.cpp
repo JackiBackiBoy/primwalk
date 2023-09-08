@@ -1,5 +1,6 @@
 // primwalk
 #include "primwalk/rendering/descriptors.hpp"
+#include "primwalk/rendering/graphicsDevice.hpp"
 
 // std
 #include <stdexcept>

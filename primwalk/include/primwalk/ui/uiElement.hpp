@@ -20,7 +20,7 @@ namespace pw {
 
   class PW_API UIElement {
     public:
-      UIElement(glm::vec2 position, bool draggable = false) : m_Position{position}, m_IsDraggable(draggable) {};
+      UIElement(glm::vec2 position = { 0, 0 }, bool draggable = false) : m_Position{position}, m_IsDraggable(draggable) {};
       virtual ~UIElement() {};
 
       virtual void onRender(UIRenderSystem& renderer) = 0;
@@ -40,7 +40,7 @@ namespace pw {
       inline void setOnClick(std::function<void()> onClick) { m_OnClick = onClick; }
 
     protected:
-      glm::vec2 m_Position;
+      glm::vec2 m_Position = { 0, 0 };
       bool m_IsDraggable;
       bool m_RetainsFocus = false;
       std::function<void()> m_OnClick = []() {};

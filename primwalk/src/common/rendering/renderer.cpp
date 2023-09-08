@@ -119,20 +119,13 @@ namespace pw {
 
   void Renderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer)
   {
-    // Sub views
-    for (auto& v : m_SubViews) {
-      v->beginPass(commandBuffer);
-      v->endPass(commandBuffer);
-    }
-
-    // Main view
     VkExtent2D extent{};
     extent.width = m_SwapChainFramebuffers[m_CurrentImageIndex]->getWidth();
     extent.height = m_SwapChainFramebuffers[m_CurrentImageIndex]->getHeight();
 
     std::array<VkClearValue, 2> clearValues{};
     glm::vec4 normColor = Color::normalize(m_ClearColor);
-    clearValues[0].color = { normColor.r, normColor.g, normColor.b, 1.0f };
+    clearValues[0].color = { 0.1f, 0.1f, 0.1f, 1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -161,11 +154,6 @@ namespace pw {
   void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer)
   {
     vkCmdEndRenderPass(commandBuffer);
-  }
-
-  void Renderer::submitSubView(std::unique_ptr<SubView> subView)
-  {
-    m_SubViews.push_back(std::move(subView));
   }
 
   int Renderer::getFrameIndex() const
@@ -361,54 +349,6 @@ namespace pw {
     };
 
     m_RenderPass = std::make_unique<RenderPass>(renderPassInfo);
-
-
-    //GraphicsDevice_Vulkan* device = fz::GetDevice();
-
-    //// Attachment description
-    //VkAttachmentDescription colorAttachment{};
-    //colorAttachment.format = m_SwapChainImageFormat;
-    //colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    //colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    //colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    //colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    //colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    //colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    //colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    //// Attachment references
-    //VkAttachmentReference colorAttachmentRef{};
-    //colorAttachmentRef.attachment = 0;
-    //colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    //// Subpass
-    //VkSubpassDescription subpass{};
-    //subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    //subpass.colorAttachmentCount = 1;
-    //subpass.pColorAttachments = &colorAttachmentRef;
-
-    //// Dependency
-    //VkSubpassDependency dependency{};
-    //dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    //dependency.dstSubpass = 0;
-    //dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    //dependency.srcAccessMask = 0;
-    //dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    //dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    //// Render pass
-    //VkRenderPassCreateInfo renderPassInfo{};
-    //renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    //renderPassInfo.attachmentCount = 1;
-    //renderPassInfo.pAttachments = &colorAttachment;
-    //renderPassInfo.subpassCount = 1;
-    //renderPassInfo.pSubpasses = &subpass;
-    //renderPassInfo.dependencyCount = 1;
-    //renderPassInfo.pDependencies = &dependency;
-
-    //if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
-    //  throw std::runtime_error("VULKAN ERROR: Failed to create render pass!");
-    //}
   }
 
   void Renderer::createFramebuffers() {

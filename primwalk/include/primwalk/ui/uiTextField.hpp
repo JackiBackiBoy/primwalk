@@ -44,7 +44,7 @@ namespace pw {
     int m_SelectionStart = 0;
     int m_SelectionEnd = 0;
 
-    std::chrono::steady_clock::time_point m_LastRenderTime{};
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_LastRenderTime{};
     float m_CaretTimer = 0.0f;
     float m_CaretBlinkDelay = 0.5f;
     std::string m_Text = "";

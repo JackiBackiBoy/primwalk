@@ -1,9 +1,9 @@
-#ifndef PW_DESCRIPTORS_HEADER
-#define PW_DESCRIPTORS_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/rendering/graphicsDevice.hpp"
+
+#include <vulkan/vulkan.h>
 
 // std
 #include <cstdint>
@@ -12,6 +12,11 @@
 #include <vector>
 
 namespace pw {
+  struct UniformBufferObject;
+  struct SwapChainSupportDetails;
+  struct QueueFamilyIndices;
+  class GraphicsDevice_Vulkan;
+
   // ******** Descriptor Set Layout ********
   class PW_API DescriptorSetLayout {
     public:
@@ -113,4 +118,3 @@ namespace pw {
       DescriptorPool& m_Pool;
   };
 }
-#endif

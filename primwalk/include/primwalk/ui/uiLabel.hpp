@@ -14,7 +14,7 @@
 namespace pw {
   class PW_API UILabel : public UIElement {
   public:
-    UILabel(const std::string& text, glm::vec2 position, std::shared_ptr<Font> font = nullptr);
+    UILabel();
     virtual ~UILabel() {};
 
     virtual void onRender(UIRenderSystem& renderer) override;
@@ -25,13 +25,13 @@ namespace pw {
     virtual Hitbox getHitbox() override;
 
     // Setters
-    void setText(const std::string& text);
+    inline void setText(const std::string& text) { m_Text = text; }
     void setBackgroundColor(Color color);
     inline void setTextColor(Color color) { m_TextColor = color; }
     inline void setFontSize(double size) { m_FontSize = size; }
 
   private:
-    std::string m_Text;
+    std::string m_Text = "";
     std::shared_ptr<Font> m_Font = nullptr;
     double m_FontSize = 0;
 

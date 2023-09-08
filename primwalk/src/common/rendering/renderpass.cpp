@@ -1,6 +1,9 @@
 #include "primwalk/rendering/renderpass.hpp"
 #include "primwalk/rendering/graphicsDevice.hpp"
 
+// std
+#include <stdexcept>
+
 namespace pw {
 
   RenderPass::RenderPass(const RenderPassInfo& createInfo)

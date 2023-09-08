@@ -24,7 +24,8 @@
 #include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/ui/uiButton.hpp"
 #include "primwalk/ui/mouseCursor.hpp"
-#include "primwalk/rendering/systems/uiRenderSystem.hpp"
+
+#include "primwalk/ui/subView.hpp"
 
 #ifdef PW_MACOS
 typedef void* id;
@@ -41,36 +42,19 @@ typedef VkResult (*PFN_vkCreateMetalSurfaceEXT)(VkInstance, const VkMetalSurface
 #endif
 
 namespace pw {
-  // Forward declarations
-  class PW_API GraphicsDevice_Vulkan;
-  class PW_API Renderer;
-
   class PW_API WindowBase {
     public:
       WindowBase(const std::string& name, int width, int height) :
         m_Name(name), m_Width(width), m_Height(height) {};
       virtual ~WindowBase() {}
 
-      virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() = 0;
-      virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
       virtual bool isCursorInTitleBar(int x, int y) = 0;
       virtual bool isCursorOnBorder(int x, int y) = 0;
 
       // Event functions
       virtual void onUpdate(float dt) {};
 
-      virtual void processEvent(const UIEvent& event) {
-        m_UIRenderSystem->processEvent(event);
-      }
-
-      template<typename UIType, typename Key, typename... Args>
-      UIType& makeElement(Key const& key, Args&&...args) {
-        auto tmp = std::make_unique<UIType>(std::forward<Args>(args)...);
-        auto& ref = *tmp;
-
-        m_UIRenderSystem->submitElement(std::move(tmp));
-        return ref;
-      }
+      virtual void processEvent(const UIEvent& event) = 0;
 
       SubView& makeSubView(int width, int height, glm::vec2 position);
 
@@ -83,6 +67,9 @@ namespace pw {
       virtual void setMinimumSize(uint32_t width, uint32_t height) = 0;
       virtual void setCursor(MouseCursor cursor) = 0;
 
+      virtual void close() = 0;
+      virtual bool shouldClose() = 0;
+
     protected:
       std::string m_Name;
       int m_Width;
@@ -91,14 +78,13 @@ namespace pw {
       uint32_t m_MinHeight = 200;
       Color m_BackgroundColor;
       MouseCursor m_Cursor = MouseCursor::None;
-      //std::vector<std::shared_ptr<SubView>> m_SubViews;
-
-      std::shared_ptr<GraphicsDevice_Vulkan> m_GraphicsDevice{};
-      std::shared_ptr<Renderer> m_Renderer{};
-      std::unique_ptr<UIRenderSystem> m_UIRenderSystem{};
+      
+      
+      std::vector<std::unique_ptr<SubView>> m_SubViews;
       std::atomic<bool> m_IsMinimized = false;
       std::mutex m_RenderingMutex;
       std::condition_variable m_RenderingCondition;
+      std::atomic<bool> m_CloseFlag = false;
   };
 }
 

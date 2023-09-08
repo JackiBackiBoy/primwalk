@@ -161,9 +161,9 @@ namespace pw {
     m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
 
-    for (auto& e : m_Elements) {
-      e.second->onRender(*this);
-    }
+    //for (auto& e : m_Elements) {
+    //  e.second->onRender(*this);
+    //}
 
     if (m_RenderParams.size() > 0) {
       m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data(), m_RenderParams.size() * sizeof(RenderParams));
@@ -404,16 +404,6 @@ namespace pw {
         .build(m_FontStorageDescriptorSets[i]);
     }
 
-    // Textures
-    //VkDescriptorImageInfo imageInfo1{};
-    //imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //imageInfo1.imageView = m_Textures[0]->getImageView();
-    //imageInfo1.sampler = Renderer::m_TextureSampler;
-
-    //DescriptorWriter(*textureSetLayout, *m_BindlessDescriptorPool)
-    //  .writeImage(0, &imageInfo1, 0)
-    //  .build(m_TextureDescriptorSet);
-
     m_BaseDescriptorSetLayouts = {
       uniformSetLayout->getDescriptorSetLayout(),
       storageSetLayout->getDescriptorSetLayout(),
@@ -583,13 +573,6 @@ namespace pw {
       .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // uniform buffer
       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // storage buffer
       .build();
-
-    //m_BindlessDescriptorPool = DescriptorPool::Builder(m_Device)
-    //  .setMaxSets(Renderer::MAX_FRAMES_IN_FLIGHT + 1)
-    //  .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
-    //  .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
-    //  .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, Renderer::MAX_FRAMES_IN_FLIGHT) // storage buffer
-    //  .build();
 
     m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
     m_StorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);

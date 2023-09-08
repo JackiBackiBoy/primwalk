@@ -30,8 +30,6 @@ namespace pw {
       virtual ~WindowWin32();
 
       int run();
-      virtual std::vector<std::string> getRequiredVulkanInstanceExtensions() override;
-      virtual VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
 
       // Event functions
       virtual void onCreate();
@@ -50,10 +48,11 @@ namespace pw {
       virtual void setMinimumSize(uint32_t width, uint32_t height) override;
       virtual void setCursor(MouseCursor cursor) override;
 
+      virtual void close() override;
+      virtual bool shouldClose() override;
+
     private:
       int init();
-      void createGraphicsContext();
-      void renderingThread();
       UIEvent createMouseEvent(unsigned int message, uint64_t wParam, int64_t lParam);
 
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -61,7 +60,6 @@ namespace pw {
 
       // Rendering
       HDC m_HDC = NULL;
-      std::atomic<bool> m_ShouldClose = false;
       std::atomic<bool> m_ShouldRender = true;
       std::atomic<bool> m_Resizing = false;
       std::atomic<bool> m_FrameDone = false;
@@ -73,9 +71,6 @@ namespace pw {
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
       bool m_TrackingMouseLeave = false;
-      UIIconButton* m_MinimizeButton = nullptr;
-      UIIconButton* m_MaximizeButton = nullptr;
-      UIIconButton* m_CloseButton = nullptr;
       UIEvent m_MouseButtonEvent = { UIEventType::None };
   };
 

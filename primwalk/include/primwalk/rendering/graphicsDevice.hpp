@@ -11,7 +11,6 @@
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/window.hpp"
 #include "primwalk/rendering/descriptors.hpp"
 
 // std
@@ -22,6 +21,8 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <windows.h>
 
 namespace pw {
   // ------ Vulkan ------
@@ -46,7 +47,7 @@ namespace pw {
 
   class PW_API GraphicsDevice_Vulkan {
     public:
-      GraphicsDevice_Vulkan(Window& window);
+      GraphicsDevice_Vulkan(HWND window);
       ~GraphicsDevice_Vulkan();
 
       // Forbid copy and move semantics
@@ -88,6 +89,7 @@ namespace pw {
       void createCommandPool();
       void createDescriptorPool();
       void createDescriptorSetLayouts();
+      static std::vector<std::string> getRequiredVulkanInstanceExtensions();
       
       void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
       void destroyDebugUtilsMessengerEXT(
@@ -108,7 +110,7 @@ namespace pw {
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
       std::vector<const char*> getRequiredExtensions();
 
-      Window& m_Window;
+      HWND m_Window = NULL;
       uint32_t m_CurrentFrame = 0;
       VkInstance m_Instance = VK_NULL_HANDLE;
       VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
