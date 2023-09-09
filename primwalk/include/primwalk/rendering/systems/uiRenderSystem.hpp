@@ -1,5 +1,4 @@
-#ifndef PW_UI_RENDER_SYSTEM_HEADER
-#define PW_UI_RENDER_SYSTEM_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -117,4 +116,4 @@ namespace pw {
       UIElement* m_FocusElement = nullptr;
   };
 }
-#endif
+

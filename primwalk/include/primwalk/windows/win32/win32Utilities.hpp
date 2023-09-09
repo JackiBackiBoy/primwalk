@@ -33,3 +33,4 @@ namespace pw {
       ~Win32Utilities() {};
   };
 }
+

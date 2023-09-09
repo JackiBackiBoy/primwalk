@@ -1,5 +1,4 @@
-#ifndef PW_VERTEX_HEADER
-#define PW_VERTEX_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -50,4 +49,4 @@ namespace pw {
     }
   };
 }
-#endif
+

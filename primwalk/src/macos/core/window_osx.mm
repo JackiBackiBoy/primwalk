@@ -6,7 +6,6 @@
 
 // primwalk
 #include "primwalk/window.hpp"
-#include "primwalk/mouse.hpp"
 #include "primwalk/rendering/graphicsDevice.hpp"
 #include "primwalk/rendering/graphicsPipeline.hpp"
 #include "primwalk/rendering/renderer.hpp"
@@ -20,20 +19,20 @@
 #import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
 
-  @interface FZContentView : NSView <NSTextInputClient>
+  @interface ContentView : NSView <NSTextInputClient>
   {
-      fz::WindowOSX* window;
+      pw::WindowOSX* window;
       NSTrackingArea* trackingArea;
       NSMutableAttributedString* markedText;
   }
 
-  - (instancetype)initWithFzWindow:(fz::WindowOSX*)initWindow;
+  - (instancetype)initWithWindow:(pw::WindowOSX*)initWindow;
 
   @end
 
-  @implementation FZContentView
+  @implementation ContentView
 
-  - (instancetype)initWithFzWindow:(fz::WindowOSX*)initWindow
+  - (instancetype)initWithWindow:(pw::WindowOSX*)initWindow
   {
       self = [super init];
       if (self != nil)
@@ -86,62 +85,27 @@
   }
   @end
 
-namespace fz {
-  WindowOSX::WindowOSX(const std::string& name, const int& width, const int& height, WindowOSX* parent)
-    : WindowBase() {
+namespace pw {
+  WindowOSX::WindowOSX(const std::string& name, int width, int height)
+    : WindowBase(name, width, height) {
     assert(width > 0 && "ASSERTION FAILED: Width must be greater than 0");
     assert(height > 0 && "ASSERTION FAILED: Height must be greater than 0");
 
-    m_Name = name;
-    m_Width = width;
-    m_Height = height;
-
-    //init();
+    init();
   }
 
   WindowOSX::~WindowOSX() {
   }
 
   int WindowOSX::run() {
-    bool shouldQuit = false;
-
-    m_Object = [
-      [NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, m_Width, m_Height)
-      styleMask:NSWindowStyleMaskResizable |
-                NSWindowStyleMaskTitled |
-                NSWindowStyleMaskClosable |
-                NSWindowStyleMaskMiniaturizable |
-                NSWindowStyleMaskFullSizeContentView
-      backing:NSBackingStoreBuffered
-      defer:NO];
-    
-    [m_Object setTitlebarAppearsTransparent:YES];
-    [m_Object setTitleVisibility:NSWindowTitleHidden]; // hide default title text
-
-    // TODO: Investigate character encoding (potential issue)
-    NSString* titleString = @(m_Name.c_str());
-    [m_Object setTitle:titleString];
-    [m_Object setMinSize:NSMakeSize(200, 100)];
-
     WindowDelegate* windowDelegate = [[WindowDelegate alloc] init];
-    windowDelegate.shouldQuit = &shouldQuit;
+    windowDelegate.shouldQuit = &m_ShouldClose;
     [m_Object setDelegate:windowDelegate];
     [m_Object setAcceptsMouseMovedEvents:YES];
-
-    // Rendering
-    createGraphicsContext();
-    VkRenderPass renderPass = m_Renderer->getSwapChainRenderPass();
-    std::vector<VkDescriptorSetLayout> setLayouts;
-    m_UIRenderSystem = std::make_unique<UIRenderSystem>(*m_GraphicsDevice, renderPass, setLayouts);
-
-    // Show the window
     [m_Object makeKeyAndOrderFront:nil];
 
-    static float dt = 0.0f;
-    auto currentTime = std::chrono::high_resolution_clock::now();
-
     // Run the event loop
-    while (!shouldQuit) {
+    while (!m_ShouldClose) {
       @autoreleasepool {
         NSEvent* event = [[NSApplication sharedApplication] nextEventMatchingMask:NSEventMaskAny
                       untilDate:nil
@@ -156,54 +120,34 @@ namespace fz {
           CGFloat height = windowFrame.size.height;
           m_Width = width;
           m_Height = height;
-
-          // TODO: Make frame timing consistent when resizing window
-          auto newTime = std::chrono::high_resolution_clock::now();
-          float dt = std::chrono::duration<float, std::chrono::seconds::period>(
-              newTime - currentTime).count();
-          currentTime = newTime;
-
-          if (auto commandBuffer = m_Renderer->beginFrame()) {
-            int frameIndex = m_Renderer->getFrameIndex();
-            // Update
-            FrameInfo frameInfo{};
-            frameInfo.frameIndex = frameIndex;
-            frameInfo.frameTime = dt;
-            frameInfo.commandBuffer = commandBuffer;
-            frameInfo.windowWidth = (float)m_Renderer->getSwapChainWidth();
-            frameInfo.windowHeight = (float)m_Renderer->getSwapChainHeight();
-
-            m_UIRenderSystem->onUpdate(frameInfo);
-
-            // Render
-            m_Renderer->beginSwapChainRenderPass(commandBuffer);
-            m_UIRenderSystem->onRender(frameInfo);
-            m_Renderer->endSwapChainRenderPass(commandBuffer);
-            
-            m_Renderer->endFrame();
-          }
         }
       }
     }
-
-    vkDeviceWaitIdle(m_GraphicsDevice->getDevice());
   }
 
-  std::vector<std::string> WindowOSX::getRequiredVulkanInstanceExtensions() {
-    std::vector<std::string> extensions = {
-      "VK_KHR_surface",
-      "VK_EXT_metal_surface"
-    };
+  int WindowOSX::init() {
+    m_Object = [
+      [NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, m_Width, m_Height)
+      styleMask:NSWindowStyleMaskResizable |
+                NSWindowStyleMaskTitled |
+                NSWindowStyleMaskClosable |
+                NSWindowStyleMaskMiniaturizable |
+                NSWindowStyleMaskFullSizeContentView
+      backing:NSBackingStoreBuffered
+      defer:NO
+    ];
+    
+    [m_Object setTitlebarAppearsTransparent:YES]; // hide default title bar
+    [m_Object setTitleVisibility:NSWindowTitleHidden]; // hide default title text
 
-    // TODO: Add alternative MVK extension
+    // TODO: Investigate character encoding (potential issue)
+    NSString* titleString = @(m_Name.c_str());
+    [m_Object setTitle:titleString];
+    [m_Object setMinSize:NSMakeSize(200, 100)];
 
-    return extensions;
-  }
-
-  VkResult WindowOSX::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
-    m_View = [[FZContentView alloc] initWithFzWindow:this];
-    [m_Object setContentView: m_View];
-    [m_Object makeFirstResponder: m_View];
+    m_View = [[ContentView alloc] initWithWindow:this];
+    [m_Object setContentView:m_View];
+    [m_Object makeFirstResponder:m_View];
 
     NSBundle* bundle = [NSBundle bundleWithPath:@"/System/Library/Frameworks/QuartzCore.framework"];
     m_Layer = [[bundle classNamed:@"CAMetalLayer"] layer];
@@ -214,30 +158,6 @@ namespace fz {
 
     [m_View setLayer:m_Layer];
     [m_View setWantsLayer:YES];
-
-    VkMetalSurfaceCreateInfoEXT sci;
-
-    PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT;
-    vkCreateMetalSurfaceEXT = (PFN_vkCreateMetalSurfaceEXT)
-        vkGetInstanceProcAddr(instance, "vkCreateMetalSurfaceEXT");
-    if (!vkCreateMetalSurfaceEXT)
-    {
-      std::cout << "Metal ERROR!" << std::endl;
-    }
-
-    memset(&sci, 0, sizeof(sci));
-    sci.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-    sci.pLayer = m_Layer;
-
-    return vkCreateMetalSurfaceEXT(instance, &sci, nullptr, surface);
-  }
-
-  int WindowOSX::init() {
-  }
-
-  void WindowOSX::createGraphicsContext() {
-    m_GraphicsDevice = std::make_unique<GraphicsDevice_Vulkan>(*this);
-    m_Renderer = std::make_unique<Renderer>(*this, *m_GraphicsDevice);
   }
 
   // ------ Event functions ------
@@ -247,15 +167,7 @@ namespace fz {
   void WindowOSX::onUpdate(float dt) {
   }
 
-  void WindowOSX::onRender(float dt) {
-  }
-
-  // Getters
-  int WindowOSX::getWidth() const {
-    return m_Width;
-  }
-
-  int WindowOSX::getHeight() const {
-    return m_Height;
+  bool WindowOSX::shouldClose() {
+    return m_ShouldClose;
   }
 }

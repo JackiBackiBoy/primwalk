@@ -1,5 +1,4 @@
-#ifndef PW_RESOURCE_MANAGER_HEADER
-#define PW_RESOURCE_MANAGER_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -30,4 +29,4 @@ namespace pw {
     std::vector<std::weak_ptr<Font>> m_Fonts;
   };
 }
-#endif
+

@@ -51,7 +51,7 @@ file(GLOB_RECURSE HEADER_FILES ${SOURCE_DIR}/*.hpp)
 file(GLOB RESOURCE_FILE ${CMAKE_HOME_DIRECTORY}/resources.o)
 
 add_executable(${NAME} ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCE_FILE})
-target_compile_features(${NAME} PUBLIC cxx_std_17)
+#target_compile_features(${NAME} PUBLIC cxx_std_17)
 
 target_include_directories(${NAME} PRIVATE
   ${CMAKE_HOME_DIRECTORY}/primwalk/include

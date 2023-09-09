@@ -1,5 +1,5 @@
 // primwalk
-#include "primwalk/math/math.hpp"
+#include "primwalk/math/pwmath.hpp"
 
 // std
 #include <algorithm>

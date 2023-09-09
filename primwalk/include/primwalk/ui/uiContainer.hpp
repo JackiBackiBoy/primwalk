@@ -1,5 +1,4 @@
-#ifndef PW_UI_CONTAINER_HEADER
-#define PW_UI_CONTAINER_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -49,4 +48,3 @@ namespace pw {
   };
 }
 
-#endif

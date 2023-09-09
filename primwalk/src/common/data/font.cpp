@@ -1,5 +1,5 @@
 #include "primwalk/data/font.hpp"
-#include "primwalk/math/math.hpp"
+#include "primwalk/math/pwmath.hpp"
 #include "primwalk/rendering/graphicsDevice.hpp"
 #include "primwalk/managers/resourceManager.hpp"
 

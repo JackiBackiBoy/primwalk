@@ -1,5 +1,4 @@
-#ifndef PW_UI_LABEL_HEADER
-#define PW_UI_LABEL_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -40,4 +39,4 @@ namespace pw {
     Color m_TextColor = { 255, 255, 255 };
   };
 }
-#endif
+

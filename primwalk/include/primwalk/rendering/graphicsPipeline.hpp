@@ -1,5 +1,4 @@
-#ifndef PW_GRAPHICS_PIPELINE_HEADER
-#define PW_GRAPHICS_PIPELINE_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -57,4 +56,4 @@ namespace pw {
       VkPipeline m_GraphicsPipeline = VK_NULL_HANDLE;
   };
 }
-#endif
+

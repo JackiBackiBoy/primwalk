@@ -16,7 +16,7 @@ namespace pw {
   // TODO: Future Jack pls help
 
   // ------ Vulkan ------
-  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(HWND window) :
+  GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) :
     m_Window(window)
   {
     createInstance();
@@ -55,7 +55,7 @@ namespace pw {
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Vulkan Renderer";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
+    appInfo.pEngineName = "Primwalk Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
@@ -63,8 +63,10 @@ namespace pw {
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
+    createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     
     auto requiredExtensions = getRequiredExtensions();
+    requiredExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
@@ -106,14 +108,34 @@ namespace pw {
 
   void GraphicsDevice_Vulkan::createSurface()
   {
+  #if defined(PW_WIN32)
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = m_Window;
+    createInfo.hwnd = m_Window.m_Handle;
     createInfo.hinstance = GetModuleHandle(0);
 
     if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
       throw std::runtime_error("VULKAN ERROR: Failed to create Win32 Vulkan surface!");
     }
+  #elif defined(PW_MACOS)
+    VkMetalSurfaceCreateInfoEXT sci;
+
+    PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT;
+    vkCreateMetalSurfaceEXT = (PFN_vkCreateMetalSurfaceEXT)
+        vkGetInstanceProcAddr(m_Instance, "vkCreateMetalSurfaceEXT");
+    if (!vkCreateMetalSurfaceEXT)
+    {
+      throw std::runtime_error("VULKAN ERROR: Metal surface extension not available!");
+    }
+
+    memset(&sci, 0, sizeof(sci));
+    sci.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    sci.pLayer = m_Window.m_Layer;
+
+    if (vkCreateMetalSurfaceEXT(m_Instance, &sci, nullptr, &m_Surface) != VK_SUCCESS) {
+      throw std::runtime_error("VULKAN ERROR: Failed to create MacOS Vulkan surface!");
+    }
+  #endif
   }
 
   void GraphicsDevice_Vulkan::pickPhysicalDevice()
@@ -240,14 +262,21 @@ namespace pw {
 
   std::vector<std::string> GraphicsDevice_Vulkan::getRequiredVulkanInstanceExtensions()
   {
-    #ifdef PW_WIN32
-        std::vector<std::string> extensions = {
-          "VK_KHR_surface",
-          "VK_KHR_win32_surface"
-        };
+  #if defined(PW_WIN32)
+    std::vector<std::string> extensions = {
+      "VK_KHR_surface",
+      "VK_KHR_win32_surface"
+    };
 
-        return extensions;
-    #endif // PW_WIN32
+    return extensions;
+  #elif defined(PW_MACOS)
+    std::vector<std::string> extensions = {
+      "VK_KHR_surface",
+      "VK_EXT_metal_surface"
+    };
+
+    return extensions;
+  #endif
   }
 
   bool GraphicsDevice_Vulkan::checkValidationLayerSupport() const
@@ -393,18 +422,6 @@ namespace pw {
     for (uint32_t i = 0; i < extensionCount; i++) {
       std::string extensionName = extensionProperties[i].extensionName;
       std::cout << '\t' << extensionName;
-
-      // // TODO: WIN32 SPECIFIC, needs to be fixed
-      // if (extensionName == "VK_KHR_win32_surface") {
-      //   win32SurfaceExtension = true;
-      //   m_RequiredExtensions.push_back(extensionName);
-      //   std::cout << '*';
-      // }
-      // else if (extensionName == "VK_KHR_surface") {
-      //   vkKHRSurfaceExtension = true;
-      //   m_RequiredExtensions.push_back(extensionName);
-      //   std::cout << '*';
-      // }
 
       for (std::string e : requiredExtensions) {
         if (extensionName == e) {

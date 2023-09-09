@@ -101,8 +101,8 @@ namespace pw {
     m_OffscreenPass = std::make_unique<RenderPass>(passInfo);
 
     FramebufferInfo framebufferInfo = {
-      m_Width,
-      m_Height,
+      static_cast<uint32_t>(m_Width),
+      static_cast<uint32_t>(m_Height),
       m_OffscreenPass->getVulkanRenderPass(),
       { { m_OffscreenImage } }
     };

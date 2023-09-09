@@ -1,5 +1,4 @@
-#ifndef PW_TEXTURE_HEADER
-#define PW_TEXTURE_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -36,4 +35,4 @@ namespace pw {
       std::unique_ptr<Image> m_Image;
   };
 }
-#endif
+

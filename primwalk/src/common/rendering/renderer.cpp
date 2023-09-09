@@ -486,10 +486,10 @@ namespace pw {
 
   VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
   {
+  #if defined(PW_WIN32)
     if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
       return capabilities.currentExtent;
     }
-    #ifdef PW_WIN32
     else {
       RECT rc;
       GetClientRect(((WindowWin32&)m_Window).getHandle(), &rc);
@@ -507,7 +507,25 @@ namespace pw {
 
       return actualExtent;
     }
-    #endif
+  #elif defined(PW_MACOS)
+    if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
+      return capabilities.currentExtent;
+    }
+    else {
+      int width = m_Window.getWidth();
+      int height = m_Window.getWidth();
+
+      VkExtent2D actualExtent = {
+        static_cast<uint32_t>(width),
+        static_cast<uint32_t>(height)
+      };
+
+      actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+      actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+      return actualExtent;
+    }
+  #endif
   }
 
 }

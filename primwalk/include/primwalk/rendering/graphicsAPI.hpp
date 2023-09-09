@@ -1,15 +1,13 @@
-#ifndef PW_GRAPHICS_API_HEADER
-#define PW_GRAPHICS_API_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp" 
 
-namespace fz {
+namespace pw {
   enum class GraphicsAPI {
-    OpenGL,
     Vulkan,
     DX11,
     DX12,
   };
 }
-#endif
+

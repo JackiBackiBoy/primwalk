@@ -1,5 +1,4 @@
-#ifndef PW_WIN32_MOUSE_HEADER
-#define PW_WIN32_MOUSE_HEADER
+#pragma once
 
 #include "primwalk/core.hpp"
 #include <glm/glm.hpp>
@@ -21,4 +20,3 @@ namespace pw {
   };
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef PW_ENTRY_POINT_HEADER
-#define PW_ENTRY_POINT_HEADER
+#pragma once
 
 // Core
 #include "primwalk/application.hpp"
@@ -21,6 +20,5 @@
 #include "primwalk/ui/uiTextField.hpp"
 
 // Math
-#include "primwalk/math/math.hpp"
+#include "primwalk/math/pwmath.hpp"
 
-#endif

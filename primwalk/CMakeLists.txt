@@ -18,10 +18,9 @@ set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+#set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libc++")
 
 # Compiler specification
-if (WIN32)
-endif()
 
 project(${NAME})
 
@@ -122,8 +121,11 @@ elseif(APPLE)
   file(GLOB_RECURSE HEADER_FILES
     ${INCLUDE_DIR}/data/*.hpp
     ${INCLUDE_DIR}/data/*.h
+    ${INCLUDE_DIR}/input/*.hpp
+    ${INCLUDE_DIR}/input/*.h
     ${INCLUDE_DIR}/macos/*.hpp
     ${INCLUDE_DIR}/macos/*.h
+    ${INCLUDE_DIR}/managers/*.hpp
     ${INCLUDE_DIR}/math/*.hpp
     ${INCLUDE_DIR}/math/*.h
     ${INCLUDE_DIR}/rendering/*.hpp
@@ -136,16 +138,8 @@ elseif(APPLE)
     ${INCLUDE_DIR}/core.hpp
     ${INCLUDE_DIR}/primwalk.hpp
     ${INCLUDE_DIR}/mouse.hpp
-    ${INCLUDE_DIR}/uiButton.hpp
-    ${INCLUDE_DIR}/uiContainer.hpp
-    ${INCLUDE_DIR}/uiElement.hpp
-    ${INCLUDE_DIR}/uiImage.hpp
-    ${INCLUDE_DIR}/uiImageButton.hpp
-    ${INCLUDE_DIR}/uiLabel.hpp
-    ${INCLUDE_DIR}/uiEvent.hpp
-    ${INCLUDE_DIR}/uiSlider.hpp
+    ${INCLUDE_DIR}/mouseButtons.hpp
     ${INCLUDE_DIR}/hitbox.hpp
-    ${INCLUDE_DIR}/vertex.hpp
     ${INCLUDE_DIR}/window.hpp
   )
 endif()
@@ -156,13 +150,24 @@ add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES} ${STB_FILES})
 set_target_properties(${NAME} PROPERTIES PREFIX "")
 set_target_properties(${NAME} PROPERTIES IMPORT_PREFIX "")
 
-target_compile_features(${NAME} PUBLIC cxx_std_17)
-target_compile_definitions(${NAME} PRIVATE
-  PW_BUILD_LIB
-  BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
-  GLM_FORCE_RADIANS
-  WINVER=0x0A00
-)
+#target_compile_features(${NAME} PUBLIC cxx_std_17)
+#target_compile_options(${NAME} PUBLIC "-std=c++17")
+
+if (WIN32)
+  target_compile_definitions(${NAME} PRIVATE
+    PW_BUILD_LIB
+    BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
+    GLM_FORCE_RADIANS
+    WINVER=0x0A00
+  )
+elseif(APPLE)
+  target_compile_definitions(${NAME} PRIVATE
+    PW_BUILD_LIB
+    BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
+    GLM_FORCE_RADIANS
+  )
+endif()
+
 
 target_include_directories(${NAME} PUBLIC
   ${GLM_INCLUDE_DIR}

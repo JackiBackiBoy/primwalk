@@ -1,5 +1,4 @@
-#ifndef PW_RENDERER_HEADER
-#define PW_RENDERER_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -75,4 +74,3 @@ namespace pw {
   };
 }
 
-#endif

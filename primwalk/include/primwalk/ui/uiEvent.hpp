@@ -1,5 +1,4 @@
-#ifndef PW_UI_EVENT_HEADER
-#define PW_UI_EVENT_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -92,4 +91,4 @@ namespace pw {
     uint32_t m_EventMask = 0x0000;
   };
 }
-#endif
+

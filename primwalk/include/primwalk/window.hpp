@@ -1,5 +1,4 @@
-#ifndef PW_WINDOW_BASE_HEADER
-#define PW_WINDOW_BASE_HEADER
+#pragma once
 
 #ifdef PW_WIN32
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -27,20 +26,6 @@
 
 #include "primwalk/ui/subView.hpp"
 
-#ifdef PW_MACOS
-typedef void* id;
-typedef VkFlags VkMetalSurfaceCreateFlagsEXT;
-typedef struct VkMetalSurfaceCreateInfoEXT
-{
-  VkStructureType                 sType;
-  const void* pNext;
-  VkMetalSurfaceCreateFlagsEXT    flags;
-  const void* pLayer;
-} VkMetalSurfaceCreateInfoEXT;
-
-typedef VkResult (*PFN_vkCreateMetalSurfaceEXT)(VkInstance, const VkMetalSurfaceCreateInfoEXT*, const VkAllocationCallbacks*, VkSurfaceKHR*);
-#endif
-
 namespace pw {
   class PW_API WindowBase {
     public:
@@ -48,13 +33,13 @@ namespace pw {
         m_Name(name), m_Width(width), m_Height(height) {};
       virtual ~WindowBase() {}
 
-      virtual bool isCursorInTitleBar(int x, int y) = 0;
-      virtual bool isCursorOnBorder(int x, int y) = 0;
+      //virtual bool isCursorInTitleBar(int x, int y) = 0;
+      //virtual bool isCursorOnBorder(int x, int y) = 0;
 
       // Event functions
       virtual void onUpdate(float dt) {};
 
-      virtual void processEvent(const UIEvent& event) = 0;
+      //virtual void processEvent(const UIEvent& event) = 0;
 
       SubView& makeSubView(int width, int height, glm::vec2 position);
 
@@ -64,10 +49,10 @@ namespace pw {
 
       // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
-      virtual void setMinimumSize(uint32_t width, uint32_t height) = 0;
-      virtual void setCursor(MouseCursor cursor) = 0;
+      //virtual void setMinimumSize(uint32_t width, uint32_t height) = 0;
+      //virtual void setCursor(MouseCursor cursor) = 0;
 
-      virtual void close() = 0;
+      //virtual void close() = 0;
       virtual bool shouldClose() = 0;
 
     protected:
@@ -79,12 +64,11 @@ namespace pw {
       Color m_BackgroundColor;
       MouseCursor m_Cursor = MouseCursor::None;
       
-      
-      std::vector<std::unique_ptr<SubView>> m_SubViews;
-      std::atomic<bool> m_IsMinimized = false;
+      std::vector<std::unique_ptr<SubView> > m_SubViews;
+      std::atomic<bool> m_IsMinimized = std::atomic<bool>(false);
       std::mutex m_RenderingMutex;
       std::condition_variable m_RenderingCondition;
-      std::atomic<bool> m_CloseFlag = false;
+      std::atomic<bool> m_CloseFlag = std::atomic<bool>(false);
   };
 }
 
@@ -94,4 +78,4 @@ namespace pw {
 #elif defined(PW_MACOS)
   #include "primwalk/macos/core/window_osx.hpp"
 #endif
-#endif
+

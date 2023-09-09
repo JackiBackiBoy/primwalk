@@ -1,5 +1,4 @@
-#ifndef PW_WIN32_WINDOW_HEADER
-#define PW_WIN32_WINDOW_HEADER
+#pragma once
 
 // std
 #include <atomic>
@@ -76,4 +75,4 @@ namespace pw {
 
   typedef WindowWin32 Window;
 }
-#endif
+

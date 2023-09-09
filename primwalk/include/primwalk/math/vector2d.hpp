@@ -3,9 +3,10 @@
 // primwalk
 #include "primwalk/core.hpp"
 
-namespace fz {
+namespace pw {
   class PW_API Vector2D {
     public:
       Vector2D() {};
   };
 }
+

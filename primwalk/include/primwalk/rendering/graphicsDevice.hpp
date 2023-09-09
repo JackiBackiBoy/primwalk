@@ -1,5 +1,4 @@
-#ifndef PW_GRAPHICS_DEVICE_HEADER
-#define PW_GRAPHICS_DEVICE_HEADER
+#pragma once
 
 // vendor
 #ifdef PW_WIN32
@@ -12,6 +11,7 @@
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/rendering/descriptors.hpp"
+#include "primwalk/window.hpp"
 
 // std
 #include <array>
@@ -22,11 +22,27 @@
 #include <string>
 #include <vector>
 
-#include <windows.h>
+#ifdef PW_WIN32
+#include <windows>
+#endif
+
+#ifdef PW_MACOS
+typedef void* id;
+typedef VkFlags VkMetalSurfaceCreateFlagsEXT;
+typedef struct VkMetalSurfaceCreateInfoEXT
+{
+  VkStructureType                 sType;
+  const void* pNext;
+  VkMetalSurfaceCreateFlagsEXT    flags;
+  const void* pLayer;
+} VkMetalSurfaceCreateInfoEXT;
+
+typedef VkResult (*PFN_vkCreateMetalSurfaceEXT)(VkInstance, const VkMetalSurfaceCreateInfoEXT*, const VkAllocationCallbacks*, VkSurfaceKHR*);
+#endif
 
 namespace pw {
   // ------ Vulkan ------
-  struct UniformBufferObject {
+  struct PW_API UniformBufferObject {
     alignas(16) glm::mat4 proj;
   };
 
@@ -47,7 +63,7 @@ namespace pw {
 
   class PW_API GraphicsDevice_Vulkan {
     public:
-      GraphicsDevice_Vulkan(HWND window);
+      GraphicsDevice_Vulkan(Window& window);
       ~GraphicsDevice_Vulkan();
 
       // Forbid copy and move semantics
@@ -110,7 +126,7 @@ namespace pw {
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
       std::vector<const char*> getRequiredExtensions();
 
-      HWND m_Window = NULL;
+      Window& m_Window;
       uint32_t m_CurrentFrame = 0;
       VkInstance m_Instance = VK_NULL_HANDLE;
       VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
@@ -135,7 +151,9 @@ namespace pw {
         void* pUserData);
 
       const std::vector<const char*> m_DeviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+        //VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
       };
 
       const std::vector<const char*> m_ValidationLayers = {
@@ -165,4 +183,3 @@ namespace pw {
   }
 }
 
-#endif

@@ -7,7 +7,6 @@
 #include <cstdint>
 
 // windows
-#include <windows.h>
 
 namespace pw {
   class PW_API MessageHandler {

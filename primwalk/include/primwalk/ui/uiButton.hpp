@@ -1,5 +1,4 @@
-#ifndef PW_UI_BUTTON_HEADER
-#define PW_UI_BUTTON_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -64,4 +63,4 @@ namespace pw {
       Color m_DisplayColor = m_BackgroundColor;
   };
 }
-#endif
+

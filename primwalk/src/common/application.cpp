@@ -18,7 +18,7 @@ namespace pw {
     m_Window = window;
 
     // Create graphics device
-    m_Device = std::make_unique<GraphicsDevice_Vulkan>(m_Window->getHandle());
+    m_Device = std::make_unique<GraphicsDevice_Vulkan>(*m_Window);
     pw::GetDevice() = m_Device.get();
 
     m_Renderer = std::make_unique<Renderer>(*m_Window);
@@ -36,33 +36,6 @@ namespace pw {
 
     testLabel.setText("Primwalk");
     m_GUI.addWidget(&testLabel);
-
-    minimizeButton.setIcon(minimizeIcon);
-    minimizeButton.setWidth(30);
-    minimizeButton.setHeight(30);
-    minimizeButton.setPosition({ window->getWidth() - 90, 0 });
-    minimizeButton.setOnClick([this]() { SendMessage(m_Window->getHandle(), WM_SYSCOMMAND, SC_MINIMIZE, 0); });
-    m_GUI.addWidget(&minimizeButton);
-
-    maximizeButton.setIcon(maximizeIcon);
-    maximizeButton.setWidth(30);
-    maximizeButton.setHeight(30);
-    maximizeButton.setPosition({ window->getWidth() - 60, 0 });
-    maximizeButton.setOnClick([this]() {
-      WINDOWPLACEMENT wp{};
-      GetWindowPlacement(m_Window->getHandle(), &wp);
-      ShowWindow(m_Window->getHandle(), wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
-    });
-    m_GUI.addWidget(&maximizeButton);
-
-    closeButton.setIcon(closeIcon);
-    closeButton.setWidth(30);
-    closeButton.setHeight(30);
-    closeButton.setPosition({ window->getWidth() - 30, 0 });
-    closeButton.setOnClick([this] () { m_Window->close(); });
-    closeButton.setBackgroundHoverColor({ 200, 0, 0 });
-    closeButton.setBackgroundClickColor({ 128, 0, 0 });
-    m_GUI.addWidget(&closeButton);
 
     fileMenu.setText("File");
     fileSubNewMenu.setText("New");
@@ -128,8 +101,8 @@ namespace pw {
       }
 
       if (firstPaint) {
-        ShowWindow(m_Window->getHandle(), SW_SHOW);
-        UpdateWindow(m_Window->getHandle());
+        //ShowWindow(m_Window->getHandle(), SW_SHOW);
+        //UpdateWindow(m_Window->getHandle());
         firstPaint = false;
       }
     }

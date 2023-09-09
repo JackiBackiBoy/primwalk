@@ -1,5 +1,4 @@
-#ifndef PW_FONT_WEIGHT_HEADER
-#define PW_FONT_WEIGHT_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -63,5 +62,3 @@ namespace pw {
     return search->second;
   }
 }
-
-#endif

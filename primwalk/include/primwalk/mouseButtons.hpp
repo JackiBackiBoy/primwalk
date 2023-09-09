@@ -1,5 +1,4 @@
-#ifndef PW_MOUSE_BUTTONS_HEADER
-#define PW_MOUSE_BUTTONS_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -12,4 +11,4 @@ namespace pw {
     // TODO: Add more mouse button states
   };
 }
-#endif
+

@@ -1,5 +1,4 @@
-#ifndef PW_HITBOX_HEADER
-#define PW_HITBOX_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -39,4 +38,3 @@ namespace pw {
   };
 }
 
-#endif

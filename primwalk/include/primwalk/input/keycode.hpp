@@ -158,8 +158,9 @@ namespace pw {
     RightSuper = 347,
     Menu = 348
   };
+}
 
-  namespace input {
+namespace pw::input {
 #ifdef WIN32
     static KeyCode toKeyCode(int keyCode) {
       switch (keyCode) {

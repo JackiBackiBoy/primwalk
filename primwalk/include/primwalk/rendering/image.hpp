@@ -1,5 +1,4 @@
-#ifndef PW_IMAGE_HEADER
-#define PW_IMAGE_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -84,4 +83,4 @@ namespace pw {
     VkDeviceMemory m_ImageMemory = VK_NULL_HANDLE;
   };
 }
-#endif
+

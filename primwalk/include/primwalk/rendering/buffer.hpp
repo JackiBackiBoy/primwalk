@@ -1,5 +1,4 @@
-#ifndef PW_BUFFER_HEADER
-#define PW_BUFFER_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -49,4 +48,4 @@ namespace pw {
       VkMemoryPropertyFlags m_MemoryPropertyFlags;
   };
 }
-#endif
+

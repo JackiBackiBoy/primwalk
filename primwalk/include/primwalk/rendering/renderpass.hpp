@@ -1,5 +1,4 @@
-#ifndef PW_RENDER_PASS_HEADER
-#define PW_RENDER_PASS_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -53,4 +52,4 @@ namespace pw {
     bool m_HasDepthAttachment = false;
   };
 }
-#endif
+

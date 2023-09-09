@@ -1,5 +1,4 @@
-#ifndef PW_FRAMEBUFFER_HEADER
-#define PW_FRAMEBUFFER_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -38,4 +37,4 @@ namespace pw {
     uint32_t m_Width, m_Height;
   };
 }
-#endif
+

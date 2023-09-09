@@ -1,5 +1,4 @@
-#ifndef PW_FONT_HEADER
-#define PW_FONT_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp"
@@ -125,5 +124,3 @@ namespace pw {
       friend class FontManager;
   };
 }
-
-#endif

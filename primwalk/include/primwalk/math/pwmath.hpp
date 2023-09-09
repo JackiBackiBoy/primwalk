@@ -1,5 +1,4 @@
-#ifndef PW_MATH_HEADER
-#define PW_MATH_HEADER
+#pragma once
 
 // primwalk
 #include "primwalk/core.hpp" 
@@ -26,4 +25,4 @@ namespace pw {
       ~Math() = default;
   };
 }
-#endif
+

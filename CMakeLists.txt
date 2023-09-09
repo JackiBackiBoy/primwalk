@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.20.0)
 cmake_policy(SET CMP0091 NEW)
 
-if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
-  set(CMAKE_CXX_COMPILER g++)
-  set(CMAKE_C_COMPILER gcc)
-endif()
+#if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
+  set(CMAKE_CXX_COMPILER clang++)
+  #set(CMAKE_C_COMPILER gcc)
+  #endif()
 
 project(fz)
 
