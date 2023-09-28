@@ -2,13 +2,8 @@
 #include "primwalk/data/shader.hpp"
 
 // std
-#include <iostream>
 #include <fstream>
-#include <sstream>
-
-// vendor
-#include <glm/gtc/type_ptr.hpp>
-
+#include <stdexcept>
 
 namespace pw {
 
@@ -21,13 +16,13 @@ namespace pw {
         throw std::runtime_error("VULKAN SHADER ERROR: Failed to open shader file!");
     }
 
-    size_t fileSize = (size_t) file.tellg();
+    size_t fileSize = (size_t)file.tellg();
     std::vector<char> buffer(fileSize);
 
     file.seekg(0);
     file.read(buffer.data(), fileSize);
-
     file.close();
+
     return buffer;
   }
 }

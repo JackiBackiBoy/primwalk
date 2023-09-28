@@ -9,6 +9,8 @@ namespace pw {
   SubView::SubView(int width, int height, glm::vec2 position) :
     m_Width(width), m_Height(height), m_Position(position)
   {
+    createImages();
+    createRenderPass();
     createFramebuffer();
   }
 
@@ -43,8 +45,8 @@ namespace pw {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_Width);
-    viewport.height = static_cast<float>(m_Height);
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     VkRect2D scissor{ { 0, 0 }, extent };
@@ -67,7 +69,22 @@ namespace pw {
     vkCmdEndRenderPass(commandBuffer);
   }
 
-  void SubView::createFramebuffer()
+  void SubView::resize(int width, int height)
+  {
+    m_Width = width;
+    m_Height = height;
+
+    // Recreate framebuffer and images
+    vkDeviceWaitIdle(pw::GetDevice()->getDevice());
+
+    m_OffscreenFramebuffer->destroy();
+    m_OffscreenImage->destroy();
+
+    createImages();
+    createFramebuffer();
+  }
+
+  void SubView::createImages()
   {
     ImageInfo imageInfo{};
     imageInfo.width = m_Width;
@@ -77,7 +94,10 @@ namespace pw {
     imageInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
 
     m_OffscreenImage = std::make_unique<Image>(imageInfo);
+  }
 
+  void SubView::createRenderPass()
+  {
     RenderPassAttachment colorAttachment = {
       m_OffscreenImage,
       VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -85,9 +105,7 @@ namespace pw {
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
 
-
     // TODO: Add depth attachment
-    //RenderPassAttachment depthAttachment = {}
 
     SubpassInfo subpass{};
     subpass.renderTargets = { 0 };
@@ -99,7 +117,10 @@ namespace pw {
     };
 
     m_OffscreenPass = std::make_unique<RenderPass>(passInfo);
+  }
 
+  void SubView::createFramebuffer()
+  {
     FramebufferInfo framebufferInfo = {
       static_cast<uint32_t>(m_Width),
       static_cast<uint32_t>(m_Height),

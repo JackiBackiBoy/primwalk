@@ -80,15 +80,10 @@ namespace pw {
 
   Hitbox UISlider::hitboxTest(glm::vec2 position)
   {
-    if (getHitbox().contains(position)) {
+    if (Hitbox(getAbsolutePosition() + glm::vec2(0, m_TrackHeight / 2 - m_SliderRadius), m_Width, m_SliderRadius * 2, nullptr).contains(position)) {
       return Hitbox(getAbsolutePosition() + glm::vec2(0, m_TrackHeight / 2 - m_SliderRadius), m_Width, m_SliderRadius * 2, this);
     }
 
-    return Hitbox(getAbsolutePosition() + glm::vec2(0, m_TrackHeight / 2 - m_SliderRadius), m_Width, m_SliderRadius * 2, nullptr);
-  }
-
-  Hitbox UISlider::getHitbox()
-  {
     return Hitbox(getAbsolutePosition() + glm::vec2(0, m_TrackHeight / 2 - m_SliderRadius), m_Width, m_SliderRadius * 2, nullptr);
   }
 

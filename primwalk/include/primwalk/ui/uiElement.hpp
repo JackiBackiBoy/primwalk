@@ -2,10 +2,10 @@
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/rendering/systems/uiRenderSystem.hpp"
-#include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/hitbox.hpp"
+#include "primwalk/rendering/systems/uiRenderSystem.hpp"
 #include "primwalk/ui/mouseCursor.hpp"
+#include "primwalk/ui/uiEvent.hpp"
 
 // std
 #include <functional>
@@ -27,19 +27,18 @@ namespace pw {
       virtual Hitbox hitboxTest(glm::vec2 position) = 0;
 
       // Getters
-      glm::vec2 getPosition() const;
+      inline glm::vec2 getPosition() const { return m_Position; }
       glm::vec2 getAbsolutePosition() const;
-      virtual Hitbox getHitbox() = 0;
       inline MouseCursor getCursor() const { return m_Cursor; }
       inline bool isDraggable() const { return m_IsDraggable; }
       inline bool retainsFocus() const { return m_RetainsFocus; }
 
       // Setters
-      void setPosition(glm::vec2 position);
+      inline void setPosition(glm::vec2 position) { m_Position = position; }
       inline void setOnClick(std::function<void()> onClick) { m_OnClick = onClick; }
 
     protected:
-      glm::vec2 m_Position = { 0, 0 };
+      glm::vec2 m_Position;
       bool m_IsDraggable;
       bool m_RetainsFocus = false;
       std::function<void()> m_OnClick = []() {};

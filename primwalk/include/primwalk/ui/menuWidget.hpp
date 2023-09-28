@@ -20,10 +20,13 @@ namespace pw {
     ~MenuItem() = default;
 
     void addItem(MenuItem* item);
+    void addSeparator();
 
     inline std::string getText() const { return m_Text; }
     bool hitboxTest(glm::vec2 position) const;
+    MenuItem* menuHitTest(glm::vec2 position);
     glm::vec2 getAbsolutePosition() const;
+    MenuItem* getTopParent();
 
     inline void setText(const std::string& text) { m_Text = text; }
 
@@ -34,8 +37,9 @@ namespace pw {
     std::string m_Text = "";
     glm::vec2 m_Position = { 0, 0 };
     float m_Width = 0;
-    float m_ItemHeight = 30;
+    float m_ItemHeight = 20;
     float m_ItemMargin = 10;
+    float m_FontSize = 12;
     size_t m_MenuDepth = 0;
     std::shared_ptr<Font> m_Font = nullptr;
 
@@ -52,8 +56,7 @@ namespace pw {
     void onRender(UIRenderSystem& renderer) override;
     void handleEvent(const UIEvent& event) override;
     Hitbox hitboxTest(glm::vec2 position) override;
-
-    Hitbox getHitbox() override;
+    MenuItem* menuHitTest(glm::vec2 position);
 
   private:
     std::vector<MenuItem*> m_Items;
@@ -71,9 +74,10 @@ namespace pw {
     Color m_BorderClickcolor = { 150, 150, 150 };
     Color m_DisplayBorderColor = m_BorderColor;
 
-    float m_ItemHeight = 30;
+    float m_ItemHeight = 20;
     float m_ItemMargin = 10;
     float m_Width = 0;
+    float m_FontSize = 12;
     int m_MenuDepth = 0;
   };
 }

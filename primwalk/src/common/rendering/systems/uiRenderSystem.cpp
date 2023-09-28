@@ -24,6 +24,7 @@ namespace pw {
 
     // Fonts
     m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
+    m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/motivasans.ttf", 32));
 
     // Textures
     m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
@@ -209,7 +210,31 @@ namespace pw {
     m_Elements.insert({ m_ElementCount++, std::move(element) });
   }
 
-  void UIRenderSystem::drawRect(glm::vec2 position, float width, float height, Color color, uint32_t borderRadius, std::shared_ptr<Texture2D> texture)
+  void UIRenderSystem::removeImage(Image* image)
+  {
+    auto search = m_TextureIDs.find(image);
+
+    if (search == m_TextureIDs.end()) { // no image key found
+      return;
+    }
+
+    // Clear the image from the texture descriptor
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = m_Textures[0]->getImageView(); // default 1x1 white texture
+    imageInfo.sampler = Renderer::m_TextureSampler;
+
+    DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
+      .writeImage(0, &imageInfo, search->second)
+      .overwrite(m_Device.m_TextureDescriptorSet);
+
+    m_FreeTextureIDs.insert(search->second);
+    m_TextureIDs.erase(image);
+  }
+
+  void UIRenderSystem::drawRect(glm::vec2 position, float width, float height,
+    Color color, uint32_t borderRadius, std::shared_ptr<Texture2D> texture,
+    glm::vec2 scissorPos, int scissorWidth, int scissorHeight)
   {
     uint32_t texIndex = 0;
 
@@ -241,6 +266,23 @@ namespace pw {
     params.texIndex = texIndex;
     params.borderRadius = borderRadius;
 
+    glm::vec2 normScissorBL = { 0, 0 };
+    glm::vec2 normScissorBR = { 1, 0 };
+    glm::vec2 normScissorTR = { 1, 1 };
+    glm::vec2 normScissorTL = { 0, 1 };
+
+    if (texture != nullptr && scissorWidth != 1 && scissorHeight != 1) {
+      normScissorBL = { scissorPos.x / (float)texture->getWidth(), scissorPos.y / (float)texture->getHeight() };
+      normScissorBR = { (scissorPos.x + scissorWidth) / (float)texture->getWidth(), scissorPos.y / (float)texture->getHeight() };
+      normScissorTR = { (scissorPos.x + scissorHeight) / (float)texture->getWidth(), (scissorPos.y + scissorHeight) / (float)texture->getHeight() };
+      normScissorTL = { scissorPos.x / (float)texture->getWidth(), (scissorPos.y + scissorHeight) / (float)texture->getHeight() };
+    }
+
+    params.texCoords[0] = normScissorBL;
+    params.texCoords[1] = normScissorBR;
+    params.texCoords[2] = normScissorTR;
+    params.texCoords[3] = normScissorTL;
+
     m_RenderParams.push_back(params);
   }
 
@@ -250,14 +292,14 @@ namespace pw {
       font = m_Fonts[0];
     }
 
-    float xPos = position.x;
-    float yPos = position.y;
+    double xPos = position.x;
+    double yPos = position.y;
 
     if (fontSize == 0) { // 0 indicates that we want to use the standard size
       fontSize = font->getFontSize();
     }
 
-    float scale = fontSize / font->getFontSize();
+    double scale = fontSize / font->getFontSize();
     float texIndex = 2;
 
     if (font != nullptr) {
@@ -286,18 +328,18 @@ namespace pw {
 
       if (text[i] != ' ') {
         // Quad Coordinates
-        float x0 = xPos + glyph.planeBounds.x * fontSize;
-        float y0 = yPos - glyph.planeBounds.y * fontSize;
+        double x0 = xPos + glyph.planeBounds.x * fontSize;
+        double y0 = yPos - glyph.planeBounds.y * fontSize;
 
         // UV Coordinates
-        float s0 = glyph.atlasBounds.x / font->atlasWidth;
-        float t0 = glyph.atlasBounds.w / font->atlasHeight;
-        float s1 = glyph.atlasBounds.z / font->atlasWidth;
-        float t1 = glyph.atlasBounds.y / font->atlasHeight;
+        double s0 = glyph.atlasBounds.x / font->atlasWidth;
+        double t0 = glyph.atlasBounds.w / font->atlasHeight;
+        double s1 = glyph.atlasBounds.z / font->atlasWidth;
+        double t1 = glyph.atlasBounds.y / font->atlasHeight;
 
         FontRenderParams fontParams{};
-        fontParams.position = { x0, y0 + font->getMaxHeight()};
-        fontParams.size = { static_cast<float>(glyph.width) * scale, static_cast<float>(-glyph.height) * scale };
+        fontParams.position = { x0, y0 + std::round((font->getMaxHeight() * scale)) };
+        fontParams.size = { glyph.width * scale, -glyph.height * scale };
         fontParams.color = Color::normalize(color);
         fontParams.texIndex = texIndex;
         fontParams.texCoords[0] = { s0, t1 }; // top right
@@ -308,7 +350,7 @@ namespace pw {
         m_FontRenderParams.emplace_back(fontParams);
       }
 
-      xPos += glyph.advanceX * fontSize;
+      xPos += std::round(glyph.advanceX * fontSize);
     }
   }
 
@@ -319,7 +361,14 @@ namespace pw {
     auto idSearch = m_TextureIDs.find(subView.getImage());
 
     if (idSearch == m_TextureIDs.end()) { // texture does not exist
-      texIndex = m_TextureIDs.size() + 1;
+      if (m_FreeTextureIDs.empty()) {
+        texIndex = m_TextureIDs.size() + 1;
+      }
+      else {
+        texIndex = *m_FreeTextureIDs.begin();
+        m_FreeTextureIDs.erase(m_FreeTextureIDs.begin());
+      }
+
       m_TextureIDs[subView.getImage()] = texIndex;
 
       VkDescriptorImageInfo imageInfo{};
@@ -341,6 +390,16 @@ namespace pw {
     params.color = Color::normalize(Color::White);
     params.texIndex = texIndex;
     params.borderRadius = 0;
+
+    glm::vec2 normScissorBL = { 0, 0 };
+    glm::vec2 normScissorBR = { 1, 0 };
+    glm::vec2 normScissorTR = { 1, 1 };
+    glm::vec2 normScissorTL = { 0, 1 };
+
+    params.texCoords[0] = normScissorBL;
+    params.texCoords[1] = normScissorBR;
+    params.texCoords[2] = normScissorTR;
+    params.texCoords[3] = normScissorTL;
 
     m_RenderParams.push_back(params);
   }
@@ -381,7 +440,7 @@ namespace pw {
     // Uniform buffer
     for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
       auto bufferInfo = m_UniformBuffers[i]->getDescriptorInfo();
-      DescriptorWriter(*uniformSetLayout, *m_DescriptorPool)
+      DescriptorWriter(*uniformSetLayout, *device->m_BindlessDescriptorPool)
         .writeBuffer(0, &bufferInfo)
         .build(m_UniformDescriptorSets[i]);
     }
@@ -390,7 +449,7 @@ namespace pw {
     for (size_t i = 0; i < m_StorageDescriptorSets.size(); i++) {
       auto bufferInfo = m_StorageBuffers[i]->getDescriptorInfo();
 
-      DescriptorWriter(*storageSetLayout, *m_DescriptorPool)
+      DescriptorWriter(*storageSetLayout, *device->m_BindlessDescriptorPool)
         .writeBuffer(0, &bufferInfo)
         .build(m_StorageDescriptorSets[i]);
     }
@@ -568,11 +627,11 @@ namespace pw {
 
   void UIRenderSystem::createDescriptorPool()
   {
-    m_DescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT * 6)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // uniform buffer
-      .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // storage buffer
-      .build();
+    //m_DescriptorPool = DescriptorPool::Builder(m_Device)
+    //  .setMaxSets(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT * 6)
+    //  .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // uniform buffer
+    //  .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // storage buffer
+    //  .build();
 
     m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
     m_StorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);

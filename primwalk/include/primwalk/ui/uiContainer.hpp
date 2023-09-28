@@ -30,9 +30,6 @@ namespace pw {
       return ref;
     }
 
-    // Getters
-    virtual Hitbox getHitbox() override;
-
     // Setters
     inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
     inline void setWidth(int width) { m_Width = width; }

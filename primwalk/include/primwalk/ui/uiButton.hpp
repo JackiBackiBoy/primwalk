@@ -29,9 +29,6 @@ namespace pw {
       virtual void handleEvent(const UIEvent& event) override;
       virtual Hitbox hitboxTest(glm::vec2 position) override;
 
-      // Getters
-      virtual Hitbox getHitbox() override;
-
       // Setters
       inline void setText(const std::string& text) { m_Text = text; }
       void setBackgroundColor(Color color);

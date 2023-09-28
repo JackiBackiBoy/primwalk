@@ -20,6 +20,7 @@ namespace pw {
 
     // Predefined colors
     static Color White;
+    static Color Black;
   };
 }
 

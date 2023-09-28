@@ -18,7 +18,7 @@ namespace pw {
 
   Hitbox UIContainer::hitboxTest(glm::vec2 position)
   {
-    if (!getHitbox().contains(position)) {
+    if (!Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr).contains(position)) {
       return Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr);
     }
 
@@ -30,11 +30,6 @@ namespace pw {
       }
     }
 
-    return Hitbox(getAbsolutePosition(), m_Width, m_Height, this);
-  }
-
-  Hitbox UIContainer::getHitbox()
-  {
     return Hitbox(getAbsolutePosition(), m_Width, m_Height, this);
   }
 

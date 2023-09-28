@@ -15,7 +15,7 @@ float median(vec3 msd) {
 }
 
 float screenPxRange() {
-  vec2 unitRange = vec2(2.0) / vec2(textureSize(vGlobalTextures[int(fragTexIndex)], 0));
+  vec2 unitRange = vec2(4.0) / vec2(textureSize(vGlobalTextures[int(fragTexIndex)], 0));
   vec2 screenTexSize = vec2(1.0) / fwidth(fragTexCoord);
   return max(0.5 * dot(unitRange, screenTexSize), 1.0);
 }
@@ -24,7 +24,7 @@ void main() {
   float threshold = 0.5;
   vec3 msd = texture(vGlobalTextures[int(fragTexIndex)], fragTexCoord).rgb;
   float sd = median(msd);
-  float screenPxDistance = screenPxRange() * (sd - threshold);
+  float screenPxDistance = screenPxRange() * (sd - threshold); // pre-computed uniform value (call screenPxRange for dynamic scale)
   float opacity = clamp(screenPxDistance + threshold, 0.0, 1.0);
 
   outColor = fragColor * vec4(1.0, 1.0, 1.0, opacity);

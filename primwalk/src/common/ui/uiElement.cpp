@@ -2,11 +2,6 @@
 #include "primwalk/ui/uiContainer.hpp"
 
 namespace pw {
-  glm::vec2 UIElement::getPosition() const
-  {
-    return m_Position;
-  }
-
   glm::vec2 UIElement::getAbsolutePosition() const
   {
     if (m_Container != nullptr) {
@@ -15,10 +10,4 @@ namespace pw {
 
     return m_Position;
   }
-
-  void UIElement::setPosition(glm::vec2 position)
-  {
-    m_Position = position;
-  }
-
 }

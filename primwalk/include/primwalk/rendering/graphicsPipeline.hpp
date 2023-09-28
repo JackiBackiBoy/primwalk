@@ -2,10 +2,9 @@
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/rendering/vertex.hpp"
 
 // std
-#include <array>
+#include <cstdint>
 #include <vector>
 #include <string>
 

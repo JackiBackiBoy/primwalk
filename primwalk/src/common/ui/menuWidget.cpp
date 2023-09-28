@@ -9,10 +9,15 @@ namespace pw {
     item->m_Parent = this;
     item->m_MenuDepth = m_MenuDepth + 1;
     item->m_Position = m_Position + glm::vec2(0, (m_ChildItems.size() + 1) * m_ItemHeight);
-    item->m_Font = ResourceManager::Get().findFont("Catamaran", FontWeight::Bold);
-    item->m_Width = 2 * m_ItemMargin + item->m_Font->getTextWidth(item->getText(), item->m_Font->getFontSize());
+    item->m_Font = ResourceManager::Get().findFont("Motiva Sans", FontWeight::Regular);
+    item->m_Width = 2 * m_ItemMargin + item->m_Font->getTextWidth(item->getText(), item->m_FontSize);
 
     m_ChildItems.push_back(item);
+  }
+
+  void MenuItem::addSeparator()
+  {
+    
   }
 
   // ------ Menu Item ------
@@ -33,6 +38,21 @@ namespace pw {
     return false;
   }
 
+  MenuItem* MenuItem::menuHitTest(glm::vec2 position)
+  {
+    for (const auto m : m_ChildItems) {
+      if (m->hitboxTest(position)) {
+        return m->menuHitTest(position);
+      }
+    }
+
+    if (hitboxTest(position)) {
+      return this;
+    }
+
+    return nullptr;
+  }
+
   glm::vec2 MenuItem::getAbsolutePosition() const
   {
     std::string text = m_Text;
@@ -49,6 +69,15 @@ namespace pw {
   }
 
 
+  MenuItem* MenuItem::getTopParent()
+  {
+    if (!m_HasMenuParent) {
+      return reinterpret_cast<MenuItem*>(m_Parent)->getTopParent();
+    }
+
+    return this;
+  }
+
   // ------ Menu Widget ------
   MenuWidget::MenuWidget()
   {
@@ -58,10 +87,10 @@ namespace pw {
   void MenuWidget::addItem(MenuItem* item)
   {
     if (m_Font == nullptr) {
-      m_Font = ResourceManager::Get().findFont("Catamaran", FontWeight::Bold);
+      m_Font = ResourceManager::Get().findFont("Motiva Sans", FontWeight::Regular);
     }
 
-    float itemWidth = 2 * m_ItemMargin + m_Font->getTextWidth(item->getText(), m_Font->getFontSize());
+    float itemWidth = 2 * m_ItemMargin + m_Font->getTextWidth(item->getText(), m_FontSize);
     item->m_Width = itemWidth;
     item->m_Position = { m_Width, 0.0f};
     item->m_Parent = this;
@@ -78,29 +107,30 @@ namespace pw {
 
     glm::vec2 itemPos = getAbsolutePosition();
     for (const auto m : m_Items) {
-      float textWidth = m_Font->getTextWidth(m->getText(), m_Font->getFontSize());
+      float textWidth = m_Font->getTextWidth(m->getText(), m_FontSize);
       float itemWidth = 2 * m_ItemMargin + textWidth;
 
-      renderer.drawText(itemPos + glm::vec2(itemWidth / 2 - textWidth / 2, m_ItemHeight / 2 - m_Font->getMaxHeight() / 2), m->getText(), 0, Color::White);
+      renderer.drawText(itemPos + glm::vec2(itemWidth / 2 - textWidth / 2,
+        m_ItemHeight / 2 - (m_Font->getMaxHeight() * (m_FontSize / m_Font->getFontSize())) / 2),
+        m->getText(), m_FontSize, Color::White, m_Font);
       itemPos.x += itemWidth;
     }
 
     if (m_CurrentItem != nullptr) {
-      renderer.drawRect(m_CurrentItem->getAbsolutePosition(), m_CurrentItem->m_Width, m_ItemHeight, m_BorderHoverColor);
-      renderer.drawRect(m_CurrentItem->getAbsolutePosition() + glm::vec2(1), m_CurrentItem->m_Width - 2, m_ItemHeight - 2, m_DisplayBackgroundColor);
-
       if (m_MenuDepth > 0) {
-        MenuItem* menuHead = m_CurrentItem;
+        MenuItem* menuHead = m_CurrentItem->getTopParent();
         int depth = 0;
 
-        do {
+        while (depth < m_MenuDepth) {
           for (size_t i = 0; i < menuHead->m_ChildItems.size(); i++) {
-            float textWidth = m_Font->getTextWidth(menuHead->m_ChildItems[i]->getText(), m_Font->getFontSize());
+            float textWidth = m_Font->getTextWidth(menuHead->m_ChildItems[i]->getText(), m_FontSize);
             float itemWidth = 2 * m_ItemMargin + textWidth;
 
-            renderer.drawRect(menuHead->getAbsolutePosition() + glm::vec2(0, m_ItemHeight * (i + 1)), itemWidth, m_ItemHeight, m_BackgroundColor);
+            renderer.drawRect(menuHead->getAbsolutePosition() + glm::vec2(0, m_ItemHeight * (i + 1)),
+              itemWidth, m_ItemHeight, m_BackgroundColor);
             renderer.drawText(menuHead->getAbsolutePosition() + glm::vec2(0, m_ItemHeight * (i + 1)) + glm::vec2(itemWidth / 2 - textWidth / 2,
-              m_ItemHeight / 2 - m_Font->getMaxHeight() / 2), menuHead->m_ChildItems[i]->getText(), 0, Color::White);
+              m_ItemHeight / 2 - (m_Font->getMaxHeight() * (m_FontSize / m_Font->getFontSize())) / 2),
+              menuHead->m_ChildItems[i]->getText(), m_FontSize, Color::White, m_Font);
 
             if (!menuHead->m_ChildItems[i]->m_ChildItems.empty()) {
               menuHead = menuHead->m_ChildItems[i];
@@ -108,8 +138,11 @@ namespace pw {
           }
 
           depth++;
-        } while (depth < m_MenuDepth);
+        }
       }
+
+      renderer.drawRect(m_CurrentItem->getAbsolutePosition(), m_CurrentItem->m_Width, m_ItemHeight, m_BorderHoverColor);
+      renderer.drawRect(m_CurrentItem->getAbsolutePosition() + glm::vec2(1), m_CurrentItem->m_Width - 2, m_ItemHeight - 2, m_BackgroundHoverColor);
     }
   }
 
@@ -119,15 +152,7 @@ namespace pw {
     case UIEventType::MouseEnter:
     case UIEventType::MouseMove:
       {
-        glm::vec2 mousePos = event.getMouseData().position;
-        
-        for (const auto m : m_Items) {
-          if (m->hitboxTest(mousePos)) {
-            m_CurrentItem = m;
-            m_DisplayBackgroundColor = m_BackgroundHoverColor;
-            break;
-          }
-        }
+        m_CurrentItem = menuHitTest(event.getMouseData().position);
       }
       break;
     case UIEventType::MouseExit:
@@ -148,30 +173,40 @@ namespace pw {
   // TODO: Returning a hitbox is stupid, just return true or false
   Hitbox MenuWidget::hitboxTest(glm::vec2 position)
   {
-    Hitbox hitbox = getHitbox();
+    Hitbox hitbox(getAbsolutePosition(), m_Width, m_ItemHeight, this);
 
     if (hitbox.contains(position)) {
       return hitbox;
     }
 
-    bool hitSubItem = false;
-    for (const auto m : m_Items) {
-      hitSubItem = m->hitboxTest(position);
+    if (m_MenuDepth > 0) {
+      bool hitSubItem = false;
+      for (const auto m : m_Items) {
+        hitSubItem = m->hitboxTest(position);
+
+        if (hitSubItem) {
+          break;
+        }
+      }
 
       if (hitSubItem) {
-        break;
+        return hitbox;
       }
-    }
-
-    if (hitSubItem) {
-      return hitbox;
     }
 
     return Hitbox(getAbsolutePosition(), m_Width, m_ItemHeight, nullptr);
   }
 
-  Hitbox MenuWidget::getHitbox()
+  MenuItem* MenuWidget::menuHitTest(glm::vec2 position)
   {
-    return Hitbox(getAbsolutePosition(), m_Width, m_ItemHeight, this);
+    for (const auto m : m_Items) {
+      bool hitSubItem = m->hitboxTest(position);
+
+      if (hitSubItem) {
+        return m->menuHitTest(position);
+      }
+    }
+
+    return nullptr;
   }
 }

@@ -318,15 +318,10 @@ namespace pw {
 
   Hitbox UITextField::hitboxTest(glm::vec2 position)
   {
-    if (getHitbox().contains(position)) {
+    if (Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr).contains(position)) {
       return Hitbox(getAbsolutePosition(), m_Width, m_Height, this);
     }
 
-    return Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr);
-  }
-
-  Hitbox UITextField::getHitbox()
-  {
     return Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr);
   }
 

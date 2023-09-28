@@ -9,7 +9,6 @@
 // std
 #include <chrono>
 #include <memory>
-#include <optional>
 #include <string>
 
 namespace pw {
@@ -31,7 +30,6 @@ namespace pw {
     void onRender(UIRenderSystem& renderer) override;
     void handleEvent(const UIEvent& event) override;
     Hitbox hitboxTest(glm::vec2 position) override;
-    Hitbox getHitbox() override;
 
   private:
     int m_Width;

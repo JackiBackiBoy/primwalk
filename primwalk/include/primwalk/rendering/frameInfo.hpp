@@ -13,7 +13,6 @@ namespace pw {
     int windowWidth;
     int windowHeight;
     VkCommandBuffer commandBuffer;
-    // TODO: Add global descriptors
   };
 }
 

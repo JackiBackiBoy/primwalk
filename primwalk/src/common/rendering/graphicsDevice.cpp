@@ -111,7 +111,7 @@ namespace pw {
   #if defined(PW_WIN32)
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = m_Window.m_Handle;
+    createInfo.hwnd = m_Window.getHandle();
     createInfo.hinstance = GetModuleHandle(0);
 
     if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
@@ -241,9 +241,10 @@ namespace pw {
   void GraphicsDevice_Vulkan::createDescriptorPool()
   {
     m_BindlessDescriptorPool = DescriptorPool::Builder(*this)
-      .setMaxSets(MAX_FRAMES_IN_FLIGHT + 1)
+      .setMaxSets(MAX_FRAMES_IN_FLIGHT * 6)
       .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
       .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
+      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT) // uniform buffer
       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_FRAMES_IN_FLIGHT) // storage buffer
       .build();
   }
@@ -540,7 +541,7 @@ namespace pw {
     return indices;
   }
 
-  bool GraphicsDevice_Vulkan::checkDeviceExtensionSupport(VkPhysicalDevice device)
+  bool GraphicsDevice_Vulkan::checkDeviceExtensionSupport(VkPhysicalDevice device) const
   {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);

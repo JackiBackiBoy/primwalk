@@ -8,7 +8,6 @@
 #include "primwalk/windows/resource.hpp"
 #include "primwalk/windows/win32/win32Utilities.hpp"
 #include "primwalk/rendering/frameInfo.hpp"
-#include "primwalk/mouse.hpp"
 #include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/rendering/texture2D.hpp"
 #include "primwalk/input/keycode.hpp"
@@ -23,9 +22,6 @@ namespace pw {
   WindowWin32::WindowWin32(const std::string& name, int width, int height)
     : WindowBase(name, width, height) {
     init();
-  }
-
-  WindowWin32::~WindowWin32() {
   }
 
   int WindowWin32::run() {
@@ -65,14 +61,13 @@ namespace pw {
 
     // 2. Register window and ensure registration success
     if (!RegisterClassEx(&wcex)) {
-      std::cout << "WIN32 ERROR: Could not create window!\n";
-      return 0;
+      throw std::runtime_error("WIN32 ERROR: Failed to register window class!");
     }
 
     // 3. Setup window initialization attributes and create window
     m_Handle = CreateWindowEx(
       0,                                                  // Window extended styles
-      wcex.lpszClassName,                                 // Window class name
+      wName.c_str(),                                      // Window class name
       wName.c_str(),                                      // Window title
       WS_OVERLAPPEDWINDOW,                                // Window style
       Win32Utilities::getScreenCenter().x - m_Width / 2,  // Window X position
@@ -241,15 +236,13 @@ namespace pw {
       {
         auto& mouse = event.getMouseData();
         if (isCursorInTitleBar(mouse.position.x, mouse.position.y)) {
-          if (mouse.causeButtons.leftButton) {
+          if (mouse.causeButtons.leftButton && !m_Fullscreen) {
             if (mouse.clickCount == 1) {
               ReleaseCapture();
               SendMessage(m_Handle, WM_SYSCOMMAND, 0xf012, 0); // Hack: Use of undocumented flag "SC_DRAGMOVE"
             }
             else if (mouse.clickCount == 2) { // caption bar double click)
-              WINDOWPLACEMENT wp{};
-              GetWindowPlacement(m_Handle, &wp);
-              ShowWindow(m_Handle, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+              toggleMaximize();
             }
           }
         }
@@ -259,12 +252,12 @@ namespace pw {
     }
   }
 
-  bool WindowWin32::isCursorInTitleBar(int x, int y)
+  bool WindowWin32::isCursorInTitleBar(int x, int y) const
   {
     return x < m_Width - 90 && y < 29;
   }
 
-  bool WindowWin32::isCursorOnBorder(int x, int y)
+  bool WindowWin32::isCursorOnBorder(int x, int y) const
   {
     RECT windowRect;
     GetWindowRect(m_Handle, &windowRect);
@@ -276,56 +269,33 @@ namespace pw {
   }
 
   // Hit test the frame for resizing and moving.
-  LRESULT WindowWin32::HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam)
+  LRESULT WindowWin32::hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) const
   {
-    // Get the point coordinates for the hit test
     POINT ptMouse = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-
-    // Get the window rectangle
     RECT rcWindow;
     GetWindowRect(hWnd, &rcWindow);
 
-    // Determine if the hit test is for resizing. Default middle (1,1)
-    USHORT uRow = 1;
-    USHORT uCol = 1;
-    bool fOnResizeBorder = false;
+    uint8_t left = ptMouse.x < rcWindow.left + 8;
+    uint8_t right = ptMouse.x > rcWindow.right - 8;
+    uint8_t top = ptMouse.y < rcWindow.top + 8;
+    uint8_t bottom = ptMouse.y > rcWindow.bottom - 8;
+    uint8_t topLeft = left & top;
+    uint8_t topRight = right & top;
+    uint8_t bottomLeft = left & bottom;
+    uint8_t bottomRight = right & bottom;
 
-    // Determine if the point is at the top or bottom of the window
-    if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + 29)
-    {
-      fOnResizeBorder = (ptMouse.y <= rcWindow.top + 8);
-      uRow = 0;
-    }
-    else if (ptMouse.y < rcWindow.bottom && ptMouse.y >= rcWindow.bottom - 10)
-    {
-      uRow = 2;
-    }
+    uint8_t sideBits = bottom << 3 | left << 2 | top << 1 | right;
+    uint8_t cornerBits = bottomRight << 3 | bottomLeft << 2 | topRight << 1 | topLeft;
 
-    // Determine if the point is on the left or right side of the window
-    if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.left + 10)
-    {
-      uCol = 0; // left side
-    }
-    else if (ptMouse.x < rcWindow.right && ptMouse.x >= rcWindow.right - 10)
-    {
-      uCol = 2; // right side
+    if (cornerBits) {
+      return cornerBits + 3 * (4 - (cornerBits >> 3));
     }
 
-    if (ptMouse.x >= rcWindow.left && ptMouse.x < rcWindow.right &&
-        ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.bottom &&
-        uRow == 1 && uCol == 1) {
-          return HTCLIENT;
+    if (sideBits) {
+      return sideBits + (10 - (0x04 & sideBits) - ((0x08 & sideBits) >> 3) * 3);
     }
 
-    // Hit test (HTTOPLEFT, ... HTBOTTOMRIGHT)
-    LRESULT hitTests[3][3] =
-    {
-      { HTTOPLEFT,    fOnResizeBorder ? HTTOP : HTCLIENT,    HTTOPRIGHT },
-      { HTLEFT,       HTNOWHERE,     HTRIGHT },
-      { HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT },
-    };
-
-    return hitTests[uRow][uCol];
+    return HTCLIENT;
 }
 
   LRESULT WindowWin32::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -338,14 +308,7 @@ namespace pw {
       CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
       WindowWin32* window = reinterpret_cast<WindowWin32*>(pCreate->lpCreateParams);
       SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
-      window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
       
-      RECT rcClient;
-      GetWindowRect(hWnd, &rcClient);
-
-      // Inform the application of the frame change
-      SetWindowPos(hWnd, NULL, rcClient.left, rcClient.top, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, SWP_FRAMECHANGED);
-
       result = DefWindowProc(hWnd, message, wParam, lParam);
     }
     else {
@@ -354,12 +317,12 @@ namespace pw {
       switch (message) {
         case WM_ERASEBKGND:
           return 1;
-        case WM_GETMINMAXINFO:
-          if (window != nullptr) {
-            LPMINMAXINFO minMaxInfo = reinterpret_cast<LPMINMAXINFO>(lParam);
-            minMaxInfo->ptMinTrackSize.x = window->m_MinWidth;
-            minMaxInfo->ptMinTrackSize.y = window->m_MinHeight;
-          }
+          break;
+        case WM_NCRBUTTONDOWN:
+        case WM_NCRBUTTONUP:
+        case WM_WINDOWPOSCHANGING:
+        case WM_NCACTIVATE:
+          return 0;
           break;
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
@@ -381,29 +344,21 @@ namespace pw {
           break;
         case WM_NCHITTEST:
         {
-          result = HitTestNCA(hWnd, wParam, lParam);
+          if (window->m_Fullscreen) {
+            return HTCLIENT;
+          }
+
+          result = window->hitTest(hWnd, wParam, lParam);
           wasHandled = true;
 
-          POINT point{};
-          point.x = GET_X_LPARAM(lParam);
-          point.y = GET_Y_LPARAM(lParam);
-          ScreenToClient(hWnd, &point);
-
           if (result == HTCLIENT) {
-          //  Hitbox hitbox = window->m_UIRenderSystem->hitTest({ point.x, point.y });
-          //  if (hitbox.getTarget() != nullptr) {
-          //    window->setCursor(hitbox.getTarget()->getCursor());
-          //  }
-          //  else {
               window->setCursor(MouseCursor::Default);
-          //  }
           }
           else {
-          //  window->setCursor(MouseCursor::None);
             window->setCursor(MouseCursor::None);
           }
 
-          break;
+          return result;
         }
         case WM_KEYDOWN:
           {
@@ -413,7 +368,6 @@ namespace pw {
 
             // Keyboard modifiers
             static_assert(std::is_signed_v<decltype(GetAsyncKeyState(VK_SHIFT))>);
-
             auto r = KeyModifier::None;
 
             if (GetAsyncKeyState(VK_SHIFT) < 0) {
@@ -464,6 +418,21 @@ namespace pw {
             isMaximized = placement.showCmd == SW_SHOWMAXIMIZED;
           }
 
+          if (window->isFullscreen()) {
+            int sizeFrameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi);
+            requestedClientRect->right -= 0;
+            requestedClientRect->left += 0;
+            requestedClientRect->top += 0;
+            requestedClientRect->bottom -= 0;
+
+            const int cxBorder = 0;
+            const int cyBorder = 0;
+
+            //InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
+
+            return 0;
+          }
+
           if (isMaximized) {
             int sizeFrameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi);
             requestedClientRect->right -= frameY + padding;
@@ -486,6 +455,7 @@ namespace pw {
             // altering the NCCALCSIZE_PARAMS structure.
             const int cxBorder = 1;
             const int cyBorder = 1;
+
             InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
           }
 
@@ -493,12 +463,6 @@ namespace pw {
         }
         case WM_PAINT: {
           return 0;
-          break;
-        }
-        case WM_EXITSIZEMOVE:
-        {
-          // In case WM_SIZE is not sent during fast resize
-          window->m_Resizing.store(false, std::memory_order_relaxed);
           break;
         }
         case WM_KILLFOCUS:
@@ -519,26 +483,10 @@ namespace pw {
           // the resizing operation is complete, this means that we can
           // safely render a frame until WM_SIZING is sent again.
           // Calculate new window dimensions if resized
-          window->m_Resizing.store(false, std::memory_order_relaxed);
           window->m_Width = LOWORD(lParam);
           window->m_Height = HIWORD(lParam);
-          
-          if (window != nullptr) {
-            //while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
-          }
 
-          break;
-        }
-        case WM_SIZING:
-        {
-          // When WM_SIZING is sent the rendering thread should render
-          // a frame as fast as possible and then lock rendering until
-          // all related sizing operations have been completed, namely
-          // until the WM_SIZE message is sent.
-          //while (!window->m_FrameDone.load(std::memory_order_relaxed)) {}; // wait for frame completion
-          //window->m_Resizing.store(true, std::memory_order_relaxed); // locks rendering
-          window->m_Resizing.store(true, std::memory_order_relaxed);
-          //window->m_ShouldRender.store(false, std::memory_order_relaxed);
+          window->m_ResizeCallback(window->m_Width, window->m_Height);
           break;
         }
         case WM_SETCURSOR:
@@ -553,17 +501,14 @@ namespace pw {
         {
           // Reset minimized flag upon window restore
           if (wParam == SC_RESTORE) {
-            window->m_IsMinimized.store(false, std::memory_order_relaxed);
-            window->m_RenderingCondition.notify_all();
+            window->m_IsMinimized.store(false);
           }
 
           break;
         }
         case WM_DESTROY:
         {
-          window->m_IsMinimized.store(false, std::memory_order_relaxed);
-          window->m_RenderingCondition.notify_all();
-          //window->m_ShouldClose.store(true, std::memory_order_relaxed);
+          window->m_IsMinimized.store(false);
           window->onDestroy();
 
           PostQuitMessage(0);
@@ -582,23 +527,6 @@ namespace pw {
     return result;
   }
 
-  HWND WindowWin32::getHandle() const {
-    return m_Handle;
-  }
-
-  void WindowWin32::setMinimumSize(uint32_t width, uint32_t height)
-  {
-    UINT dpi = GetDpiForWindow(m_Handle);
-    int minWidth = GetSystemMetricsForDpi(SM_CXMINTRACK, dpi);
-    int minHeight = GetSystemMetricsForDpi(SM_CYMINTRACK, dpi);
-
-    assert(width >= minWidth && "ASSERTION FAILED: Requested minimum width is too small!");
-    assert(height >= minHeight && "ASSERTION FAILED: Requested minimum height is too small!");
-
-    m_MinWidth = width;
-    m_MinHeight = height;
-  }
-
   void WindowWin32::setCursor(MouseCursor cursor)
   {
     m_Cursor = cursor;
@@ -607,11 +535,11 @@ namespace pw {
       return;
     }
 
-    static auto idcAppStarting = LoadCursorW(nullptr, IDC_APPSTARTING);
-    static auto idcArrow = LoadCursorW(nullptr, IDC_ARROW);
-    static auto idcHand = LoadCursorW(nullptr, IDC_HAND);
-    static auto idcIBeam = LoadCursorW(nullptr, IDC_IBEAM);
-    static auto idcNo = LoadCursorW(nullptr, IDC_NO);
+    static auto idcAppStarting = LoadCursor(nullptr, IDC_APPSTARTING);
+    static auto idcArrow = LoadCursor(nullptr, IDC_ARROW);
+    static auto idcHand = LoadCursor(nullptr, IDC_HAND);
+    static auto idcIBeam = LoadCursor(nullptr, IDC_IBEAM);
+    static auto idcNo = LoadCursor(nullptr, IDC_NO);
 
     auto idc = idcNo;
     switch (cursor) {
@@ -632,24 +560,74 @@ namespace pw {
     SetCursor(idc);
   }
 
+  void WindowWin32::toggleFullscreen()
+  {
+    DWORD dwStyle = GetWindowLong(m_Handle, GWL_STYLE);
+
+    // Enter fullscreen mode
+    if (!m_Fullscreen.load()) {
+      bool maximized = false;
+
+      if (m_Maximized.load()) {
+        maximized = true;
+      }
+
+      m_Maximized.store(false);
+      m_Fullscreen.store(true);
+
+      MONITORINFO mi = { sizeof(mi) };
+      if (GetWindowPlacement(m_Handle, &g_wpPrev) &&
+        GetMonitorInfo(MonitorFromWindow(m_Handle,
+          MONITOR_DEFAULTTOPRIMARY), &mi)) {
+
+        if (maximized) {
+          //SetWindowLong(m_Handle, GWL_STYLE,
+          //  dwStyle & ~WS_OVERLAPPEDWINDOW);
+          SetWindowLongPtr(m_Handle, GWL_EXSTYLE, WS_EX_APPWINDOW);
+          SetWindowLongPtr(m_Handle, GWL_STYLE, WS_OVERLAPPED | WS_VISIBLE);
+        }
+
+        SetWindowPos(m_Handle, HWND_TOP,
+          mi.rcMonitor.left, mi.rcMonitor.top,
+          mi.rcMonitor.right - mi.rcMonitor.left,
+          mi.rcMonitor.bottom - mi.rcMonitor.top,
+          SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+      }
+    }
+    // Exit fullscreen mode
+    else {
+
+      m_Fullscreen.store(false);
+      SetWindowLongPtr(m_Handle, GWL_EXSTYLE, 0);
+      SetWindowLongPtr(m_Handle, GWL_STYLE,
+        dwStyle | WS_OVERLAPPEDWINDOW);
+      SetWindowPlacement(m_Handle, &g_wpPrev);
+      SetWindowPos(m_Handle, HWND_TOP, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+        SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  }
+
+  void WindowWin32::toggleMaximize()
+  {
+    if (!m_Fullscreen.load()) {
+      m_Maximized.store(!m_Maximized.load());
+      WINDOWPLACEMENT wp{};
+      GetWindowPlacement(m_Handle, &wp);
+      ShowWindow(m_Handle, wp.showCmd == SW_MAXIMIZE ? SW_RESTORE : SW_MAXIMIZE);
+
+    }
+  }
+
   void WindowWin32::close()
   {
-    m_CloseFlag.store(true, std::memory_order_relaxed);
+    m_CloseFlag.store(true);
     PostMessage(m_Handle, WM_CLOSE, 0, 0);
   }
 
   bool WindowWin32::shouldClose()
   {
     return m_CloseFlag.load(std::memory_order_relaxed);
-  }
-
-  SubView& WindowBase::makeSubView(int width, int height, glm::vec2 position)
-  {
-    auto tmp = std::make_unique<SubView>(width, height, position);
-    auto& ref = *tmp;
-
-    m_SubViews.push_back(std::move(tmp));
-    return ref;
   }
 
 }

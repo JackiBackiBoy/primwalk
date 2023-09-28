@@ -162,7 +162,7 @@ namespace pw {
 
 namespace pw::input {
 #ifdef WIN32
-    static KeyCode toKeyCode(int keyCode) {
+    inline static KeyCode toKeyCode(int keyCode) {
       switch (keyCode) {
       case VK_MENU:
         return KeyCode::Menu;
@@ -358,4 +358,3 @@ namespace pw::input {
     }
   }
 #endif
-}

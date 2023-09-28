@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <set>
 #include <glm/glm.hpp>
 
 namespace pw {
@@ -25,6 +26,7 @@ namespace pw {
     alignas(16) glm::vec4 color;
     alignas(4) uint32_t texIndex;
     alignas(4) uint32_t borderRadius;
+    alignas(8) glm::vec2 texCoords[4];
   };
 
   struct PW_API FontRenderParams {
@@ -55,8 +57,11 @@ namespace pw {
       void onUpdate(const FrameInfo& frameInfo);
       void onRender(const FrameInfo& frameInfo);
       void submitElement(std::unique_ptr<UIElement> element);
+      void removeImage(Image* image);
 
-      void drawRect(glm::vec2 position, float width, float height, Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr);
+      void drawRect(glm::vec2 position,float width, float height,
+        Color color, uint32_t borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr,
+        glm::vec2 scissorPos = { 0, 0 }, int scissorWidth = 1, int scissorHeight = 1);
       void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
       void drawSubView(SubView& subView);
       Hitbox hitTest(glm::vec2 mousePos) const;
@@ -95,11 +100,11 @@ namespace pw {
       std::vector<VkDescriptorSetLayout> m_FontDescriptorSetLayouts;
       std::unique_ptr<DescriptorSetLayout> uniformSetLayout{};
       std::unique_ptr<DescriptorSetLayout> storageSetLayout{};
-      std::unique_ptr<DescriptorPool> m_DescriptorPool{};
 
       std::vector<std::shared_ptr<Texture2D>> m_Textures;
       std::vector<std::shared_ptr<Font>> m_Fonts;
       std::unordered_map<Image*, uint32_t> m_TextureIDs;
+      std::set<uint32_t> m_FreeTextureIDs;
 
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;

@@ -3,6 +3,7 @@
 
 // std
 #include <algorithm>
+#include <array>
 #include <iostream>
 
 namespace pw {
@@ -102,10 +103,10 @@ namespace pw {
 
     auto result = submitCommandBuffers(&commandBuffer, &m_CurrentImageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-      m_FramebufferResized.load(std::memory_order_relaxed)) {
-      m_FramebufferResized.store(false, std::memory_order_relaxed);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized.load(std::memory_order_relaxed)) {
+      
       recreateSwapChain();
+      m_FramebufferResized.store(false, std::memory_order_relaxed);
       ret = true;
     }
     else if (result != VK_SUCCESS) {
@@ -124,8 +125,8 @@ namespace pw {
     extent.height = m_SwapChainFramebuffers[m_CurrentImageIndex]->getHeight();
 
     std::array<VkClearValue, 2> clearValues{};
-    glm::vec4 normColor = Color::normalize(m_ClearColor);
-    clearValues[0].color = { 0.1f, 0.1f, 0.1f, 1.0f };
+    glm::vec4 normColor = Color::normalize({ 29, 29, 29 });
+    clearValues[0].color = { normColor.r, normColor.g, normColor.b, 1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -182,6 +183,7 @@ namespace pw {
     // TODO: Eliminate nasty loop
     do {
       GetClientRect(((WindowWin32&)m_Window).getHandle(), &rc);
+
       width = rc.right - rc.left;
       height = rc.bottom - rc.top;
     } while (width == 0 || height == 0);
@@ -491,15 +493,9 @@ namespace pw {
       return capabilities.currentExtent;
     }
     else {
-      RECT rc;
-      GetClientRect(((WindowWin32&)m_Window).getHandle(), &rc);
-
-      int width = rc.right - rc.left;
-      int height = rc.bottom - rc.top;
-
       VkExtent2D actualExtent = {
-        static_cast<uint32_t>(width),
-        static_cast<uint32_t>(height)
+        static_cast<uint32_t>(m_Window.getWidth()),
+        static_cast<uint32_t>(m_Window.getHeight())
       };
 
       actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);

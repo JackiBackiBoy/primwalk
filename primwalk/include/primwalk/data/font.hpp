@@ -19,14 +19,14 @@
 
 namespace pw {
   struct PW_API GlyphData {
-    int width = 0;
-    int height = 0;
+    double width = 0;
+    double height = 0;
     double bearingX = 0;
     double bearingY = 0;
     double advanceX = 0;
     double bearingUnderline = 0.0;
-    glm::vec4 atlasBounds;
-    glm::vec4 planeBounds;
+    glm::vec4 atlasBounds{};
+    glm::vec4 planeBounds{};
   };
 
   class PW_API Font {

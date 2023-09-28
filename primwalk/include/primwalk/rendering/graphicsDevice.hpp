@@ -14,16 +14,13 @@
 #include "primwalk/window.hpp"
 
 // std
-#include <array>
-#include <atomic>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #ifdef PW_WIN32
-#include <windows>
+#include <windows.h>
 #endif
 
 #ifdef PW_MACOS
@@ -56,7 +53,7 @@ namespace pw {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    bool isComplete() {
+    inline bool isComplete() const {
       return graphicsFamily.has_value() && presentFamily.has_value();
     }
   };
@@ -90,11 +87,11 @@ namespace pw {
       inline SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(m_PhysicalDevice); }
       inline QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(m_PhysicalDevice); }
 
-      static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
       std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
       std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
       VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
+
+      static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
     private:
       void createInstance();
@@ -114,7 +111,7 @@ namespace pw {
         const VkAllocationCallbacks* pAllocator);
 
       bool checkValidationLayerSupport() const;
-      bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+      bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
       bool isDeviceSuitable(VkPhysicalDevice device);
       
       VkResult createDebugUtilsMessengerEXT(

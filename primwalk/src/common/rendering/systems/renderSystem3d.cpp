@@ -53,19 +53,14 @@ namespace pw {
 
     vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_PipelineLayout, 0, 1, &m_UniformDescriptorSets[frameInfo.frameIndex], 0, nullptr);
-    vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_PipelineLayout, 1, 1, &m_Device.m_TextureDescriptorSet, 0, nullptr);
+    //vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+    //  m_PipelineLayout, 1, 1, &m_Device.m_TextureDescriptorSet, 0, nullptr);
 
     vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), 1, 0, 0, 0);
   }
 
   void RenderSystem3D::createDescriptorPool()
   {
-    m_DescriptorPool = DescriptorPool::Builder(m_Device)
-      .setMaxSets(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT * 2)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // uniform buffer
-      .build();
-
     m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
   }
 
@@ -97,7 +92,7 @@ namespace pw {
     // Uniform buffer
     for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
       auto bufferInfo = m_UniformBuffers[i]->getDescriptorInfo();
-      DescriptorWriter(*m_UniformSetLayout, *m_DescriptorPool)
+      DescriptorWriter(*m_UniformSetLayout, *device->m_BindlessDescriptorPool)
         .writeBuffer(0, &bufferInfo)
         .build(m_UniformDescriptorSets[i]);
     }
@@ -128,8 +123,11 @@ namespace pw {
     // Base pipeline
     PipelineConfigInfo pipelineConfig{};
     GraphicsPipeline::defaultPipelineConfigInfo(pipelineConfig);
+    pipelineConfig.bindingDescriptions = Vertex3D::getBindingDescriptions();
+    pipelineConfig.attributeDescriptions = Vertex3D::getAttributeDescriptions();
     pipelineConfig.renderPass = renderPass;
     pipelineConfig.pipelineLayout = m_PipelineLayout;
+
     m_Pipeline = std::make_unique<GraphicsPipeline>(
       m_Device,
       "assets/shaders/shader3d.vert.spv",

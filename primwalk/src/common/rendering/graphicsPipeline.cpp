@@ -1,9 +1,9 @@
-#include "primwalk/rendering/graphicsPipeline.hpp"
 #include "primwalk/data/shader.hpp"
 #include "primwalk/rendering/graphicsDevice.hpp"
+#include "primwalk/rendering/graphicsPipeline.hpp"
+#include "primwalk/rendering/vertex.hpp"
 
 // std
-#include <cstdint>
 #include <stdexcept>
 
 namespace pw {

@@ -1,8 +1,10 @@
 #pragma once
 
+// primwalk
 #include "primwalk/color.hpp"
 #include "primwalk/core.hpp"
 #include "primwalk/ui/uiElement.hpp"
+#include "primwalk/ui/uiEvent.hpp"
 
 namespace pw {
   class PW_API UISlider : public UIElement {
@@ -14,7 +16,6 @@ namespace pw {
     virtual void handleEvent(const UIEvent& event) override;
     virtual Hitbox hitboxTest(glm::vec2 position) override;
 
-    virtual Hitbox getHitbox() override;
     inline float getSliderValue() const { return m_CurrentVal; }
 
     inline void setTrackColor(Color color) { m_TrackColor = color; }

@@ -23,15 +23,20 @@ namespace pw {
     virtual void onUpdate();
     virtual void onRender(const FrameInfo& frameInfo);
     void endPass(VkCommandBuffer commandBuffer);
+    void resize(int width, int height);
 
     inline Image* getImage() const { return m_OffscreenImage.get(); }
     inline int getWidth() const { return m_Width; }
     inline int getHeight() const { return m_Height; }
     inline glm::vec2 getPosition() const { return m_Position; }
 
+    inline void setPosition(glm::vec2 position) { m_Position = position; }
+
     std::unique_ptr<RenderPass> m_OffscreenPass;
 
   private:
+    void createImages();
+    void createRenderPass();
     void createFramebuffer();
 
     int m_Width;

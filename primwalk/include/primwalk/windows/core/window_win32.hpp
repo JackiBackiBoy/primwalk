@@ -1,20 +1,13 @@
 #pragma once
 
-// std
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <functional>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <thread>
-#include <unordered_map>
-#include <vector>
-
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/ui/uiEvent.hpp"
+
+// std
+#include <atomic>
+#include <cstdint>
+#include <string>
 
 // Windows
 #include <windows.h>
@@ -26,7 +19,7 @@ namespace pw {
   class PW_API WindowWin32 : public WindowBase {
     public:
       WindowWin32(const std::string& name, int width, int height);
-      virtual ~WindowWin32();
+      virtual ~WindowWin32() = default;
 
       int run();
 
@@ -37,38 +30,40 @@ namespace pw {
       virtual void onDestroy() {};
 
       virtual void processEvent(const UIEvent& event) override;
-      virtual bool isCursorInTitleBar(int x, int y) override;
-      virtual bool isCursorOnBorder(int x, int y) override;
+      virtual bool isCursorInTitleBar(int x, int y) const override;
+      virtual bool isCursorOnBorder(int x, int y) const override;
+      inline bool isFullscreen() const { return m_Fullscreen.load(); }
+      inline bool isMaximized() const { return m_Maximized.load(); }
 
       // Getters
-      virtual HWND getHandle() const;
+      inline HWND getHandle() const { return m_Handle; }
 
       // Setters
-      virtual void setMinimumSize(uint32_t width, uint32_t height) override;
       virtual void setCursor(MouseCursor cursor) override;
+      void toggleFullscreen();
+      void toggleMaximize();
 
       virtual void close() override;
       virtual bool shouldClose() override;
 
-    private:
+    protected:
       int init();
       UIEvent createMouseEvent(unsigned int message, uint64_t wParam, int64_t lParam);
-
+      inline LRESULT hitTest(HWND hWnd, WPARAM wParam, LPARAM lParam) const;
       static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-      static LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 
       // Rendering
       HDC m_HDC = NULL;
-      std::atomic<bool> m_ShouldRender = true;
-      std::atomic<bool> m_Resizing = false;
-      std::atomic<bool> m_FrameDone = false;
-      std::atomic<bool> m_FirstPaint = true; // false once the first frame has been rendered
       bool m_EnteringWindow = false;
+      std::atomic<bool> m_Fullscreen { false };
+      std::atomic<bool> m_Maximized { false };
 
       HINSTANCE m_Instance = NULL;
       HWND m_Handle = NULL;
       HICON m_Icon = NULL;
       HICON m_IconSmall = NULL;
+      WINDOWPLACEMENT g_wpPrev = { sizeof(g_wpPrev) };
+
       bool m_TrackingMouseLeave = false;
       UIEvent m_MouseButtonEvent = { UIEventType::None };
   };

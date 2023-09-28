@@ -1,12 +1,11 @@
 #pragma once
 
-// std
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 // primwalk
 #include "primwalk/core.hpp"
+
+// std
+#include <string>
+#include <vector>
 
 // vendor
 #include <glm/glm.hpp>

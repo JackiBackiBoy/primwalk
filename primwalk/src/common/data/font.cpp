@@ -46,41 +46,48 @@ namespace pw {
         msdf_atlas::FontGeometry fontGeometry(&glyphs);
         fontGeometry.loadCharset(font, 1.0, msdf_atlas::Charset::ASCII);
 
-        
-
-
-        // Apply MSDF edge coloring. See edge-coloring.h for other coloring strategies.
+        const unsigned long long LCG_MULTIPLIER = 6364136223846793005ull;
+        const unsigned long long LCG_INCREMENT = 1442695040888963407ull;
         const double maxCornerAngle = 3.0;
-        for (msdf_atlas::GlyphGeometry& glyph : glyphs)
-          glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, maxCornerAngle, 0);
+        uint64_t coloringSeed = 0;
+        unsigned long long glyphSeed = coloringSeed;
+        bool expensiveColoring = false;
 
-        // TightAtlasPacker class computes the layout of the atlas.
+        if (expensiveColoring) {
+          msdf_atlas::Workload([&glyphs = glyphs, &coloringSeed](int i, int threadNo) -> bool {
+            const unsigned long long LCG_MULTIPLIER = 6364136223846793005ull;
+            const unsigned long long LCG_INCREMENT = 1442695040888963407ull;
+            unsigned long long glyphSeed = (LCG_MULTIPLIER * (coloringSeed ^ i) + LCG_INCREMENT) * !!coloringSeed;
+            glyphs[i].edgeColoring(msdfgen::edgeColoringInkTrap, 3.0, glyphSeed);
+            return true;
+            }, glyphs.size()).finish(8);
+        }
+        else {
+          for (msdf_atlas::GlyphGeometry& glyph : glyphs) {
+            glyphSeed *= LCG_MULTIPLIER;
+            glyph.edgeColoring(msdfgen::edgeColoringInkTrap, maxCornerAngle, glyphSeed);
+          }
+        }
+
         msdf_atlas::TightAtlasPacker packer;
-
-        packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
-        packer.setMinimumScale(m_FontSize);
+        //packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
         packer.setScale(m_FontSize); // TODO: Make dynamic scale
-        packer.setPixelRange(2.0);
+        packer.setPixelRange(4.0);
         packer.setMiterLimit(1.0);
 
-        // Compute atlas layout - pack glyphs
         packer.pack(glyphs.data(), glyphs.size());
-        // Get final atlas dimensions
         packer.getDimensions(width, height);
-        // The ImmediateAtlasGenerator class facilitates the generation of the atlas bitmap.
         msdf_atlas::ImmediateAtlasGenerator<float, 4, &msdf_atlas::mtsdfGenerator,
-          msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>
-        > generator(width, height);
-        // GeneratorAttributes can be modified to change the generator's default settings.
+          msdf_atlas::BitmapAtlasStorage<msdf_atlas::byte, 4>> generator(width, height);
         msdf_atlas::GeneratorAttributes attributes;
+        attributes.config.overlapSupport = true;
+        attributes.scanlinePass = true;
         generator.setAttributes(attributes);
-        generator.setThreadCount(4);
-        // Generate atlas bitmap
+        generator.setThreadCount(8);
         generator.generate(glyphs.data(), glyphs.size());
-        // The atlas bitmap can now be retrieved via atlasStorage as a BitmapConstRef.
-        // The glyphs array (or fontGeometry) contains positioning data for typesetting text.
+
         success = submitAtlasBitmapAndLayout(generator.atlasStorage(), glyphs);
-        // Cleanup
+
         msdfgen::destroyFont(font);
       }
       msdfgen::deinitializeFreetype(ft);
@@ -142,7 +149,7 @@ namespace pw {
     auto fHeight = static_cast<float>(height);
 
     //glyph
-    for (msdf_atlas::GlyphGeometry g : glyphs) {
+    for (const auto& g : glyphs) {
       GlyphData glyphData = GlyphData();
 
       double pLeft, pBottom, pRight, pTop;

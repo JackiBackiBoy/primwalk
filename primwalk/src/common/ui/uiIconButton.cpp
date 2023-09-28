@@ -10,7 +10,16 @@ namespace pw {
   void UIIconButton::onRender(UIRenderSystem& renderer)
   {
     renderer.drawRect(getAbsolutePosition(), m_Width, m_Height, m_BackgroundDisplayColor);
-    renderer.drawRect(getAbsolutePosition(), m_Width, m_Height, m_IconColor, 0, m_Icon);
+
+    float aspect = (float)m_Icon->getWidth() / m_Icon->getHeight();
+    int iconWidth = m_Width - m_Padding * 2;
+    int iconHeight = m_Height - m_Padding * 2;
+
+    iconWidth = (aspect > 1.0f) ? iconWidth : aspect * iconHeight;
+    iconHeight = (aspect > 1.0f) ? (1.0f / aspect) * iconWidth : iconHeight;
+
+    renderer.drawRect(getAbsolutePosition() + glm::vec2(m_Width / 2 - iconWidth / 2, m_Height / 2 - iconHeight / 2),
+      iconWidth, iconHeight, m_IconColor, 0, m_Icon, m_ScissorPos, m_ScissorWidth, m_ScissorHeight);
   }
 
   void UIIconButton::handleEvent(const UIEvent& event)
@@ -40,16 +49,10 @@ namespace pw {
 
   Hitbox UIIconButton::hitboxTest(glm::vec2 position)
   {
-    if (getHitbox().contains(position)) {
+    if (Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr).contains(position)) {
       return Hitbox(getAbsolutePosition(), m_Width, m_Height, this);
     }
 
     return Hitbox(getAbsolutePosition(), m_Width, m_Height, nullptr);
   }
-
-  Hitbox UIIconButton::getHitbox()
-  {
-    return Hitbox(getAbsolutePosition(), m_Width, m_Height, this);
-  }
-
 }

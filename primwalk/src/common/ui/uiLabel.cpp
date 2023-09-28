@@ -22,16 +22,11 @@ namespace pw {
 
   Hitbox UILabel::hitboxTest(glm::vec2 position)
   {
-    if (getHitbox().contains(position)) {
+    if (Hitbox(getAbsolutePosition(), 0, 0, nullptr).contains(position)) {
       return Hitbox(getAbsolutePosition(), 0, 0, this);
     }
 
     return Hitbox(getAbsolutePosition(), 0, 0, nullptr);
-  }
-
-  Hitbox UILabel::getHitbox()
-  {
-    return { getAbsolutePosition(), 0, 0, this };
   }
 
   void UILabel::setBackgroundColor(Color color)
