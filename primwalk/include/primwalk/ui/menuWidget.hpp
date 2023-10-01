@@ -40,6 +40,7 @@ namespace pw {
     float m_ItemHeight = 20;
     float m_ItemMargin = 10;
     float m_FontSize = 12;
+    int m_MaxChildWidth = 0;
     size_t m_MenuDepth = 0;
     std::shared_ptr<Font> m_Font = nullptr;
 

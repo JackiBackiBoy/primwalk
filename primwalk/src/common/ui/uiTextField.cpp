@@ -115,7 +115,6 @@ namespace pw {
       break;
     case UIEventType::MouseDrag:
       {
-        std::cout << "Mouse drag" << std::endl;
         glm::vec2 mousePos = event.getMouseData().position;
         glm::vec2 relativePos = mousePos - (getAbsolutePosition() + glm::vec2(1 + 10, 1));
 

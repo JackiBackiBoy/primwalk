@@ -33,6 +33,10 @@ namespace pw {
     m_SubViews.push_back(std::move(sceneView));
     m_RenderSystem3D = std::make_unique<RenderSystem3D>(*m_Device, m_SubViews[0]->m_OffscreenPass->getVulkanRenderPass());
 
+    // Models
+    m_Cube = std::make_unique<Model>();
+    m_Cube->loadFromFile("assets/models/cube.gltf");
+
     // Textures
     auto fullscreenIcon = Texture2D::create("assets/icons/fullscreen.png");
     auto minimizeIcon = Texture2D::create("assets/icons/minimize.png");
@@ -94,7 +98,7 @@ namespace pw {
     fullscreenButton.setIcon(fullscreenIcon);
     fullscreenButton.setWidth(32);
     fullscreenButton.setHeight(30);
-    fullscreenButton.setPosition({ window->getWidth() - 122, 0 });
+    fullscreenButton.setPosition({ window->getWidth() - 140, 0 });
     fullscreenButton.setOnClick([this]() { m_Window->toggleFullscreen(); });
     m_GUI.addWidget(&fullscreenButton);
 
@@ -211,10 +215,10 @@ namespace pw {
           subViewInfo.windowWidth = view->getWidth();
           subViewInfo.windowHeight = view->getHeight();
 
-          m_RenderSystem3D->onUpdate(frameInfo);
+          m_RenderSystem3D->onUpdate(subViewInfo);
 
           view->beginPass(commandBuffer);
-          m_RenderSystem3D->onRender(frameInfo);
+          renderScene(subViewInfo);
           view->endPass(commandBuffer);
 
           m_UIRenderSystem->drawSubView(*view);
@@ -248,7 +252,7 @@ namespace pw {
           m_Resizing.store(true);
           m_RenderingMutex.lock();
           
-          fullscreenButton.setPosition({ m_Window->getWidth() - 122, 0 });
+          fullscreenButton.setPosition({ m_Window->getWidth() - 140, 0 });
           minimizeButton.setPosition({ m_Window->getWidth() - 90, 0 });
           maximizeButton.setPosition({ m_Window->getWidth() - 60, 0 });
           closeButton.setPosition({ m_Window->getWidth() - 30, 0 });
@@ -269,4 +273,11 @@ namespace pw {
 
     vkDeviceWaitIdle(m_Device->getDevice());
   }
+
+  void Application::renderScene(const FrameInfo& frameInfo)
+  {
+    m_RenderSystem3D->onRender(frameInfo);
+    m_Cube->draw(frameInfo.commandBuffer);
+  }
+
 }

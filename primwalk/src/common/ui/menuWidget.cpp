@@ -1,6 +1,8 @@
 #include "primwalk/ui/menuWidget.hpp"
 #include "primwalk/managers/resourceManager.hpp"
-#include <iostream>
+
+// std
+#include <algorithm>
 
 namespace pw {
 
@@ -11,6 +13,8 @@ namespace pw {
     item->m_Position = m_Position + glm::vec2(0, (m_ChildItems.size() + 1) * m_ItemHeight);
     item->m_Font = ResourceManager::Get().findFont("Motiva Sans", FontWeight::Regular);
     item->m_Width = 2 * m_ItemMargin + item->m_Font->getTextWidth(item->getText(), item->m_FontSize);
+
+    m_MaxChildWidth = std::max(m_MaxChildWidth, (int)item->m_Width);
 
     m_ChildItems.push_back(item);
   }
@@ -124,11 +128,12 @@ namespace pw {
         while (depth < m_MenuDepth) {
           for (size_t i = 0; i < menuHead->m_ChildItems.size(); i++) {
             float textWidth = m_Font->getTextWidth(menuHead->m_ChildItems[i]->getText(), m_FontSize);
-            float itemWidth = 2 * m_ItemMargin + textWidth;
+            float itemWidth = menuHead->m_MaxChildWidth;
 
             renderer.drawRect(menuHead->getAbsolutePosition() + glm::vec2(0, m_ItemHeight * (i + 1)),
               itemWidth, m_ItemHeight, m_BackgroundColor);
-            renderer.drawText(menuHead->getAbsolutePosition() + glm::vec2(0, m_ItemHeight * (i + 1)) + glm::vec2(itemWidth / 2 - textWidth / 2,
+            renderer.drawText(menuHead->getAbsolutePosition() +
+              glm::vec2(0, m_ItemHeight * (i + 1)) + glm::vec2(itemWidth / 2 - textWidth / 2,
               m_ItemHeight / 2 - (m_Font->getMaxHeight() * (m_FontSize / m_Font->getFontSize())) / 2),
               menuHead->m_ChildItems[i]->getText(), m_FontSize, Color::White, m_Font);
 

@@ -44,6 +44,7 @@ namespace pw {
     glm::vec2 m_Position;
 
     std::unique_ptr<Image> m_OffscreenImage;
+    std::unique_ptr<Image> m_DepthImage;
     std::unique_ptr<Framebuffer> m_OffscreenFramebuffer;
   };
 }

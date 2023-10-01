@@ -4,6 +4,12 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
+// primwalk
+#include "primwalk/core.hpp"
+#include "primwalk/color.hpp"
+#include "primwalk/ui/mouseCursor.hpp"
+#include "primwalk/ui/uiEvent.hpp"
+
 // vendor
 #include <vulkan/vulkan.h>
 
@@ -13,12 +19,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-// primwalk
-#include "primwalk/core.hpp"
-#include "primwalk/color.hpp"
-#include "primwalk/ui/mouseCursor.hpp"
-#include "primwalk/ui/uiEvent.hpp"
 
 namespace pw {
   class PW_API WindowBase {
@@ -40,11 +40,10 @@ namespace pw {
       // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
       virtual void setCursor(MouseCursor cursor) = 0;
+      inline void setResizeCallback(const std::function<void(int width, int height)>& callback) { m_ResizeCallback = callback; }
 
       virtual void close() = 0;
       virtual bool shouldClose() = 0;
-
-      inline void setResizeCallback(const std::function<void(int width, int height)>& callback) { m_ResizeCallback = callback; }
 
     protected:
       std::string m_Name;

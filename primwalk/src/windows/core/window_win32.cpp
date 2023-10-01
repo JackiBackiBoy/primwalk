@@ -1,21 +1,15 @@
-// std
-#include <cassert>
-#include <iostream>
-#include <cmath>
-
 // primwalk
 #include "primwalk/window.hpp"
 #include "primwalk/windows/resource.hpp"
 #include "primwalk/windows/win32/win32Utilities.hpp"
-#include "primwalk/rendering/frameInfo.hpp"
-#include "primwalk/ui/uiIconButton.hpp"
-#include "primwalk/rendering/texture2D.hpp"
 #include "primwalk/input/keycode.hpp"
 #include "primwalk/ui/GUI.hpp"
 
+// std
+#include <cassert>
+#include <stdexcept>
+
 // vendor
-#include <glm/gtc/matrix_transform.hpp>
-#include <dwmapi.h>
 #include <windowsx.h>
 
 namespace pw {
@@ -50,7 +44,7 @@ namespace pw {
     WNDCLASSEX wcex;
     ZeroMemory(&wcex, sizeof(wcex));
     wcex.cbSize        = sizeof(wcex);              // WNDCLASSEX size in bytes
-    wcex.style         = CS_OWNDC | CS_DBLCLKS;     // Window class styles
+    wcex.style         = CS_DBLCLKS;                // Window class styles
     wcex.lpszClassName = wName.c_str();             // Window class name
     wcex.hbrBackground = NULL;                      // Window background brush color
     wcex.hCursor       = LoadIcon(NULL, IDC_ARROW); // Window cursor
@@ -80,8 +74,6 @@ namespace pw {
       this                                                // Window creation parameters
     );
 
-    m_HDC = GetDC(m_Handle);
-
     // Validate window
     if (!m_Handle) { return 0; }
 
@@ -94,7 +86,7 @@ namespace pw {
     MouseEventData& mouse = event.getMouseData();
 
     // Acquire mouse position
-    POINT pt;
+    POINT pt{};
     pt.x = GET_X_LPARAM(lParam);
     pt.y = GET_Y_LPARAM(lParam);
 
@@ -343,23 +335,24 @@ namespace pw {
           window->processEvent(window->createMouseEvent(message, wParam, lParam));
           break;
         case WM_NCHITTEST:
-        {
-          if (window->m_Fullscreen) {
-            return HTCLIENT;
-          }
+          {
+            if (window->m_Fullscreen) {
+              return HTCLIENT;
+            }
 
-          result = window->hitTest(hWnd, wParam, lParam);
-          wasHandled = true;
+            result = window->hitTest(hWnd, wParam, lParam);
+            wasHandled = true;
 
-          if (result == HTCLIENT) {
-              window->setCursor(MouseCursor::Default);
-          }
-          else {
-            window->setCursor(MouseCursor::None);
-          }
+            if (result == HTCLIENT) {
+                window->setCursor(MouseCursor::Default);
+            }
+            else {
+              window->setCursor(MouseCursor::None);
+            }
 
-          return result;
-        }
+            return result;
+          }
+          break;
         case WM_KEYDOWN:
           {
             UIEvent event(UIEventType::KeyboardDown);
@@ -419,17 +412,6 @@ namespace pw {
           }
 
           if (window->isFullscreen()) {
-            int sizeFrameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi);
-            requestedClientRect->right -= 0;
-            requestedClientRect->left += 0;
-            requestedClientRect->top += 0;
-            requestedClientRect->bottom -= 0;
-
-            const int cxBorder = 0;
-            const int cyBorder = 0;
-
-            //InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
-
             return 0;
           }
 

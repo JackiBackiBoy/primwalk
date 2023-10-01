@@ -11,16 +11,17 @@
 #include "primwalk/window.hpp"
 #include "primwalk/rendering/graphicsDevice.hpp"
 #include "primwalk/rendering/renderer.hpp"
-#include "primwalk/rendering/systems/uiRenderSystem.hpp"
 #include "primwalk/rendering/systems/renderSystem3d.hpp"
+#include "primwalk/rendering/systems/uiRenderSystem.hpp"
 #include "primwalk/ui/GUI.hpp"
-#include "primwalk/ui/uiElement.hpp"
-#include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/ui/menuWidget.hpp"
-#include "primwalk/ui/uiLabel.hpp"
-#include "primwalk/ui/uiEvent.hpp"
 #include "primwalk/ui/subView.hpp"
+#include "primwalk/ui/uiElement.hpp"
+#include "primwalk/ui/uiEvent.hpp"
+#include "primwalk/ui/uiIconButton.hpp"
 #include "primwalk/ui/uiImage.hpp"
+#include "primwalk/ui/uiLabel.hpp"
+#include "primwalk/data/model.hpp"
 
 // std
 #include <atomic>
@@ -52,14 +53,17 @@ namespace pw {
       }
 
     private:
+      void renderScene(const FrameInfo& frameInfo);
+
       Window* m_Window = nullptr;
       std::unique_ptr<GraphicsDevice_Vulkan> m_Device;
       std::unique_ptr<Renderer> m_Renderer;
       std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
       std::unique_ptr<RenderSystem3D> m_RenderSystem3D;
       std::vector<std::unique_ptr<SubView>> m_SubViews;
+      std::unique_ptr<Model> m_Cube;
 
-      // Multithreading
+      // Multi-threading
       std::atomic<bool> m_Resizing { false };
       std::mutex m_RenderingMutex;
       std::condition_variable m_RenderCondition;

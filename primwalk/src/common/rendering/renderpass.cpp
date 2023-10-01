@@ -31,59 +31,85 @@ namespace pw {
     }
 
     // Sub-passes
-    std::vector<SubpassDescription> subpassDescriptions(subpassInfos.size());
+    bool hasDepthAttachment = false;
 
-    for (size_t i = 0; i < subpassInfos.size(); i++) {
-      SubpassDescription& subpassDescription = subpassDescriptions[i];
-      subpassDescription.data.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpassDescription.data.colorAttachmentCount = 0;
-      subpassDescription.data.inputAttachmentCount = 0;
-
-      bool hasColor = false;
-      bool hasInput = false;
-
-      for (size_t j = 0; j < subpassInfos[i].renderTargets.size(); j++) {
-        uint32_t renderTarget = subpassInfos[i].renderTargets[j];
-
-        VkAttachmentReference colorReference{};
-        colorReference.attachment = renderTarget;
-
-        bool attachmentIsAlsoInput = false;
-        for (const auto& input : subpassInfos[i].subpassInputs) {
-          if (input == renderTarget) {
-            attachmentIsAlsoInput = true;
-            break;
-          }
-        }
-
-        colorReference.layout = attachmentIsAlsoInput ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        subpassDescription.colorReferences.push_back(colorReference);
-        hasColor = true;
-
-        m_ColorAttachmentCount++;
-      }
-
-      for (const auto& renderTarget : subpassInfos[i].subpassInputs)
-      {
-        VkAttachmentReference inputReference{};
-        inputReference.attachment = renderTarget;
-        inputReference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        subpassDescription.inputReferences.push_back(inputReference);
-        hasInput = true;
-      }
-
-      if (hasColor)
-      {
-        subpassDescription.data.pColorAttachments = subpassDescription.colorReferences.data();
-        subpassDescription.data.colorAttachmentCount = subpassDescription.colorReferences.size();
-      }
-
-      if (hasInput)
-      {
-        subpassDescription.data.pInputAttachments = subpassDescription.inputReferences.data();
-        subpassDescription.data.inputAttachmentCount = subpassDescription.inputReferences.size();
+    for (const auto& a : attachments) {
+      if (a.finalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        hasDepthAttachment = true;
+        break;
       }
     }
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    if (hasDepthAttachment) {
+      VkAttachmentReference depthAttachmentRef{};
+      depthAttachmentRef.attachment = 1;
+      depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+      subpass.pDepthStencilAttachment = &depthAttachmentRef;
+    }
+
+    //std::vector<SubpassDescription> subpassDescriptions(subpassInfos.size());
+
+    //for (size_t i = 0; i < subpassInfos.size(); i++) {
+    //  SubpassDescription& subpassDescription = subpassDescriptions[i];
+    //  subpassDescription.data.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //  subpassDescription.data.colorAttachmentCount = 0;
+    //  subpassDescription.data.inputAttachmentCount = 0;
+
+    //  bool hasColor = false;
+    //  bool hasInput = false;
+
+    //  for (size_t j = 0; j < subpassInfos[i].renderTargets.size(); j++) {
+    //    uint32_t renderTarget = subpassInfos[i].renderTargets[j];
+
+    //    VkAttachmentReference colorReference{};
+    //    colorReference.attachment = renderTarget;
+
+    //    bool attachmentIsAlsoInput = false;
+    //    for (const auto& input : subpassInfos[i].subpassInputs) {
+    //      if (input == renderTarget) {
+    //        attachmentIsAlsoInput = true;
+    //        break;
+    //      }
+    //    }
+
+    //    colorReference.layout = attachmentIsAlsoInput ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //    subpassDescription.colorReferences.push_back(colorReference);
+    //    hasColor = true;
+
+    //    m_ColorAttachmentCount++;
+    //  }
+
+    //  for (const auto& renderTarget : subpassInfos[i].subpassInputs)
+    //  {
+    //    VkAttachmentReference inputReference{};
+    //    inputReference.attachment = renderTarget;
+    //    inputReference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //    subpassDescription.inputReferences.push_back(inputReference);
+    //    hasInput = true;
+    //  }
+
+    //  if (hasColor)
+    //  {
+    //    subpassDescription.data.pColorAttachments = subpassDescription.colorReferences.data();
+    //    subpassDescription.data.colorAttachmentCount = subpassDescription.colorReferences.size();
+    //  }
+
+    //  if (hasInput)
+    //  {
+    //    subpassDescription.data.pInputAttachments = subpassDescription.inputReferences.data();
+    //    subpassDescription.data.inputAttachmentCount = subpassDescription.inputReferences.size();
+    //  }
+    //}
 
     // Dependencies
     std::vector<VkSubpassDependency> dependencies;
@@ -123,7 +149,7 @@ namespace pw {
     }
     else
     {
-      dependencies.resize(2);
+      dependencies.resize(1);
       dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
       dependencies[0].dstSubpass = 0;
       dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
@@ -132,26 +158,21 @@ namespace pw {
       dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
       dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-      dependencies[1].srcSubpass = 0;
-      dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-      dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-      dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-      dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-      dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-    }
-
-    std::vector<VkSubpassDescription> vkSubpassDescriptions{};
-    for (size_t i = 0; i < subpassDescriptions.size(); i++) {
-      vkSubpassDescriptions.push_back(subpassDescriptions[i].data);
+      //dependencies[1].srcSubpass = 0;
+      //dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+      //dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      //dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      //dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      //dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+      //dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     }
 
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size());
     renderPassInfo.pAttachments = attachmentDescriptions.data();
-    renderPassInfo.subpassCount = static_cast<uint32_t>(vkSubpassDescriptions.size());
-    renderPassInfo.pSubpasses = vkSubpassDescriptions.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
     renderPassInfo.pDependencies = dependencies.data();
 

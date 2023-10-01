@@ -177,6 +177,15 @@ namespace pw {
     viewInfo.viewType = viewType;
     viewInfo.format = m_Format;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO: make dynamic
+
+    if (m_Usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+      viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT; // TODO: make dynamic
+
+      if (m_Format >= VK_FORMAT_D16_UNORM_S8_UINT) {
+        viewInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+      }
+    }
+
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = m_MipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;

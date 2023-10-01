@@ -1,7 +1,107 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+set(NAME primwalk)
+set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
+set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include) 
+
+set(SOURCE_FILES
+  ${SOURCE_DIR}/common/application.cpp
+  ${SOURCE_DIR}/common/color.cpp
+  ${SOURCE_DIR}/common/shader.cpp
+  ${SOURCE_DIR}/common/components/camera.cpp
+  ${SOURCE_DIR}/common/data/font.cpp
+  ${SOURCE_DIR}/common/data/model.cpp
+  ${SOURCE_DIR}/common/data/mesh.cpp
+  ${SOURCE_DIR}/common/managers/resourceManager.cpp
+  ${SOURCE_DIR}/common/math/hitbox.cpp
+  ${SOURCE_DIR}/common/math/pwmath.cpp
+  ${SOURCE_DIR}/common/rendering/buffer.cpp
+  ${SOURCE_DIR}/common/rendering/descriptors.cpp
+  ${SOURCE_DIR}/common/rendering/framebuffer.cpp
+  ${SOURCE_DIR}/common/rendering/graphicsDevice.cpp
+  ${SOURCE_DIR}/common/rendering/graphicsPipeline.cpp
+  ${SOURCE_DIR}/common/rendering/image.cpp
+  ${SOURCE_DIR}/common/rendering/renderer.cpp
+  ${SOURCE_DIR}/common/rendering/renderpass.cpp
+  ${SOURCE_DIR}/common/rendering/texture2D.cpp
+  ${SOURCE_DIR}/common/rendering/systems/renderSystem3d.cpp
+  ${SOURCE_DIR}/common/rendering/systems/uiRenderSystem.cpp
+  ${SOURCE_DIR}/common/ui/GUI.cpp
+  ${SOURCE_DIR}/common/ui/menuWidget.cpp
+  ${SOURCE_DIR}/common/ui/subView.cpp
+  ${SOURCE_DIR}/common/ui/uiButton.cpp
+  ${SOURCE_DIR}/common/ui/uiContainer.cpp
+  ${SOURCE_DIR}/common/ui/uiElement.cpp
+  ${SOURCE_DIR}/common/ui/uiEvent.cpp
+  ${SOURCE_DIR}/common/ui/uiIconButton.cpp
+  ${SOURCE_DIR}/common/ui/uiImage.cpp
+  ${SOURCE_DIR}/common/ui/uiLabel.cpp
+  ${SOURCE_DIR}/common/ui/uiSlider.cpp
+  ${SOURCE_DIR}/common/ui/uiTextField.cpp
+
+  ${SOURCE_DIR}/windows/resource.hpp
+  ${SOURCE_DIR}/windows/core/window_win32.cpp
+  ${SOURCE_DIR}/windows/win32/win32Utilities.cpp
+)
+
+set(HEADER_FILES
+  ${INCLUDE_DIR}/${NAME}/application.hpp
+  ${INCLUDE_DIR}/${NAME}/color.hpp
+  ${INCLUDE_DIR}/${NAME}/core.hpp
+  ${INCLUDE_DIR}/${NAME}/hitbox.hpp
+  ${INCLUDE_DIR}/${NAME}/mouseButtons.hpp
+  ${INCLUDE_DIR}/${NAME}/primwalk.hpp
+  ${INCLUDE_DIR}/${NAME}/window.hpp
+  ${INCLUDE_DIR}/${NAME}/components/camera.hpp
+  ${INCLUDE_DIR}/${NAME}/data/font.hpp
+  ${INCLUDE_DIR}/${NAME}/data/fontWeight.hpp
+  ${INCLUDE_DIR}/${NAME}/data/model.hpp
+  ${INCLUDE_DIR}/${NAME}/data/mesh.hpp
+  ${INCLUDE_DIR}/${NAME}/data/shader.hpp
+  ${INCLUDE_DIR}/${NAME}/input/keycode.hpp
+  ${INCLUDE_DIR}/${NAME}/managers/resourceManager.hpp
+  ${INCLUDE_DIR}/${NAME}/math/pwmath.hpp
+  ${INCLUDE_DIR}/${NAME}/math/vector2d.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/buffer.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/descriptors.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/framebuffer.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/frameInfo.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/graphicsAPI.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/graphicsDevice.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/graphicsPipeline.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/image.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/renderer.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/renderpass.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/texture2D.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/vertex.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/vertex3d.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/systems/renderSystem3d.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/systems/uiRenderSystem.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/GUI.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/menuWidget.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/messageHandler.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/mouseCursor.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/subView.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiButton.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiContainer.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiElement.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiEvent.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiIconButton.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiImage.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiLabel.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiSlider.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiTextField.hpp
+  ${INCLUDE_DIR}/${NAME}/vendor/stb/stb_image.hpp
+
+  ${INCLUDE_DIR}/${NAME}/windows/resource.hpp
+  ${INCLUDE_DIR}/${NAME}/windows/core/window_win32.hpp
+  ${INCLUDE_DIR}/${NAME}/windows/input/mouse_win32.hpp
+  ${INCLUDE_DIR}/${NAME}/windows/win32/win32Utilities.hpp
+)
+
 # Platform specifics
 if (WIN32)
+  set(CMAKE_INSTALL_PREFIX ${CMAKE_HOME_DIRECTORY}/build/install_config)
   set(PLATFORM "windows")
   add_definitions(-DPW_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX)
 elseif(APPLE)
@@ -9,10 +109,6 @@ elseif(APPLE)
   enable_language(OBJCXX CXX)
   add_definitions(-DPW_MACOS)
 endif()
-
-set(NAME primwalk)
-set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
-set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include) 
 
 # Binary output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -83,73 +179,6 @@ set(MSDFGEN_LIBRARIES ${CMAKE_HOME_DIRECTORY}/build/vendor/msdf-atlas-gen)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Retrieve all source and header files
-if(WIN32)
-  file(GLOB_RECURSE SOURCE_FILES
-  ${SOURCE_DIR}/common/*.cpp
-  ${SOURCE_DIR}/common/*.c
-  ${SOURCE_DIR}/windows/*.cpp
-  ${SOURCE_DIR}/windows/*.c
-  )
-  file(GLOB_RECURSE HEADER_FILES
-  ${INCLUDE_DIR}/data/*.hpp
-  ${INCLUDE_DIR}/data/*.h
-  ${INCLUDE_DIR}/input/*.hpp
-  ${INCLUDE_DIR}/input/*.h
-  ${INCLUDE_DIR}/windows/*.hpp
-  ${INCLUDE_DIR}/windows/*.h
-  ${INCLUDE_DIR}/managers/*.hpp
-  ${INCLUDE_DIR}/math/*.hpp
-  ${INCLUDE_DIR}/math/*.h
-  ${INCLUDE_DIR}/rendering/*.hpp
-  ${INCLUDE_DIR}/rendering/*.h
-  ${INCLUDE_DIR}/ui/*.hpp
-  ${INCLUDE_DIR}/vendor/*.hpp
-  ${INCLUDE_DIR}/vendor/*.h
-  ${INCLUDE_DIR}/application.hpp
-  ${INCLUDE_DIR}/color.hpp
-  ${INCLUDE_DIR}/core.hpp
-  ${INCLUDE_DIR}/primwalk.hpp
-  ${INCLUDE_DIR}/mouse.hpp
-  ${INCLUDE_DIR}/mouseButtons.hpp
-  ${INCLUDE_DIR}/hitbox.hpp
-  ${INCLUDE_DIR}/window.hpp
-  )
-elseif(APPLE)
-  file(GLOB_RECURSE SOURCE_FILES
-    ${SOURCE_DIR}/common/*.cpp
-    ${SOURCE_DIR}/common/*.c
-    ${SOURCE_DIR}/common/*.mm
-    ${SOURCE_DIR}/macos/*.cpp
-    ${SOURCE_DIR}/macos/*.c
-    ${SOURCE_DIR}/macos/*.mm
-  )
-  file(GLOB_RECURSE HEADER_FILES
-    ${INCLUDE_DIR}/data/*.hpp
-    ${INCLUDE_DIR}/data/*.h
-    ${INCLUDE_DIR}/input/*.hpp
-    ${INCLUDE_DIR}/input/*.h
-    ${INCLUDE_DIR}/macos/*.hpp
-    ${INCLUDE_DIR}/macos/*.h
-    ${INCLUDE_DIR}/managers/*.hpp
-    ${INCLUDE_DIR}/math/*.hpp
-    ${INCLUDE_DIR}/math/*.h
-    ${INCLUDE_DIR}/rendering/*.hpp
-    ${INCLUDE_DIR}/rendering/*.h
-    ${INCLUDE_DIR}/ui/*.hpp
-    ${INCLUDE_DIR}/vendor/*.hpp
-    ${INCLUDE_DIR}/vendor/*.h
-    ${INCLUDE_DIR}/application.hpp
-    ${INCLUDE_DIR}/color.hpp
-    ${INCLUDE_DIR}/core.hpp
-    ${INCLUDE_DIR}/primwalk.hpp
-    ${INCLUDE_DIR}/mouse.hpp
-    ${INCLUDE_DIR}/mouseButtons.hpp
-    ${INCLUDE_DIR}/hitbox.hpp
-    ${INCLUDE_DIR}/window.hpp
-  )
-endif()
-
 add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES} ${STB_FILES})
 
 # Eliminate target prefixes
@@ -178,22 +207,24 @@ endif()
 target_include_directories(${NAME} PUBLIC
   ${GLM_INCLUDE_DIR}
   ${Vulkan_INCLUDE_DIRS}
+  ${ASSIMP_INCLUDE_DIR}
   ${MSDFGEN_INCLUDE_DIR}
   ${STB_IMAGE_INCLUDE_DIR}
 )
 
 target_link_directories(${NAME} PUBLIC
+  ${ASSIMP_LIBRARIES}
   ${MSDFGEN_LIBRARIES}
 )
 
 if (WIN32)
-  target_link_libraries(${NAME} PUBLIC
-    Dwmapi.lib
+  target_link_libraries(${NAME}
+    assimp
     msdf-atlas-gen
     ${Vulkan_LIBRARIES}
   )
 elseif(APPLE)
-  target_link_libraries(${NAME} PUBLIC
+  target_link_libraries(${NAME}
     msdf-atlas-gen
     "-framework Cocoa"
     ${Vulkan_LIBRARIES}

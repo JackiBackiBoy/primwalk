@@ -76,6 +76,7 @@ namespace pw {
       void endSingleTimeCommands(VkCommandBuffer commandBuffer);
       VkCommandBuffer beginSingleTimeCommands();
       uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+      VkFormat getSupportedDepthFormat();
 
       // Getters
       inline VkDevice getDevice() const { return m_Device; }

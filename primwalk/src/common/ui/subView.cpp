@@ -17,6 +17,7 @@ namespace pw {
   SubView::~SubView()
   {
     m_OffscreenImage->destroy();
+    m_DepthImage->destroy();
     m_OffscreenFramebuffer->destroy();
     vkDestroyRenderPass(pw::GetDevice()->getDevice(), m_OffscreenPass->getVulkanRenderPass(), nullptr);
   }
@@ -79,6 +80,7 @@ namespace pw {
 
     m_OffscreenFramebuffer->destroy();
     m_OffscreenImage->destroy();
+    m_DepthImage->destroy();
 
     createImages();
     createFramebuffer();
@@ -86,6 +88,9 @@ namespace pw {
 
   void SubView::createImages()
   {
+    GraphicsDevice_Vulkan* device = pw::GetDevice();
+
+    // Color
     ImageInfo imageInfo{};
     imageInfo.width = m_Width;
     imageInfo.height = m_Height;
@@ -94,6 +99,16 @@ namespace pw {
     imageInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
 
     m_OffscreenImage = std::make_unique<Image>(imageInfo);
+
+    // Depth
+    ImageInfo depthImageInfo{};
+    depthImageInfo.width = m_Width;
+    depthImageInfo.height = m_Height;
+    depthImageInfo.depth = 1;
+    depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    depthImageInfo.format = device->getSupportedDepthFormat();
+
+    m_DepthImage = std::make_unique<Image>(depthImageInfo);
   }
 
   void SubView::createRenderPass()
@@ -106,11 +121,17 @@ namespace pw {
     };
 
     // TODO: Add depth attachment
+    RenderPassAttachment depthAttachment = {
+      m_DepthImage,
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
 
     SubpassInfo subpass{};
     subpass.renderTargets = { 0 };
 
-    std::vector<RenderPassAttachment> attachments = { colorAttachment };
+    std::vector<RenderPassAttachment> attachments = { colorAttachment, depthAttachment };
     RenderPassInfo passInfo = {
       attachments,
       { subpass }
@@ -125,7 +146,7 @@ namespace pw {
       static_cast<uint32_t>(m_Width),
       static_cast<uint32_t>(m_Height),
       m_OffscreenPass->getVulkanRenderPass(),
-      { { m_OffscreenImage } }
+      { { m_OffscreenImage, m_DepthImage } }
     };
 
     m_OffscreenFramebuffer = std::make_unique<Framebuffer>(framebufferInfo);
