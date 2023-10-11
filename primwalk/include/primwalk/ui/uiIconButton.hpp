@@ -45,11 +45,11 @@ namespace pw {
     bool m_Hovered = false;
     bool m_Pressed = false;
 
-    Color m_BackgroundColor = { 255, 255, 255, 0 }; // transparent by default
-    Color m_BackgroundHoverColor = { 128, 128, 128 };
-    Color m_BackgroundClickColor = { 128, 128, 128 };
-    Color m_BackgroundDisplayColor = m_BackgroundColor;
-    Color m_IconColor = { 255, 255, 255 }; // white by default (multiplicative color)
+    Color m_BackgroundColor;
+    Color m_BackgroundHoverColor;
+    Color m_BackgroundClickColor;
+    Color m_BackgroundDisplayColor;
+    Color m_IconColor = Color::White;
 
     glm::vec2 m_ScissorPos = { 0, 0 };
     int m_ScissorWidth = 1;

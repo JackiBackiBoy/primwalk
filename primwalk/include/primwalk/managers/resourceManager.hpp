@@ -20,8 +20,8 @@ namespace pw {
 
     static ResourceManager& Get();
     std::shared_ptr<Texture2D> loadTexture(const std::string& path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
-    std::shared_ptr<Font> loadFont(const std::string& path, double fontSize, FontWeight weight = FontWeight::Regular);
 
+    std::shared_ptr<Font> loadFont(const std::string& path, double fontSize, FontWeight weight = FontWeight::Regular);
     std::shared_ptr<Font> findFont(const std::string& family, const FontWeight& weight, bool italic = false);
 
   private:

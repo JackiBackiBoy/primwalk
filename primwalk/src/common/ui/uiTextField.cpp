@@ -187,7 +187,7 @@ namespace pw {
       {
         if (m_Text.length() > 0) {
           switch (event.getKeyboardData().pressedKey) {
-          case KeyCode::Backspace:
+          case KeyCode::KeyboardButtonBackspace:
             {
               m_IsHighlighting = false;
 
@@ -211,7 +211,7 @@ namespace pw {
               m_SelectionEnd = 0;
             }
             break;
-          case KeyCode::A:
+          case KeyCode::KeyboardButtonA:
             {
               KeyModifier modifier = event.getKeyboardData().modifier;
               if (modifier == KeyModifier::Control) { // Ctrl + A
@@ -221,7 +221,7 @@ namespace pw {
               }
             }
             break;
-          case KeyCode::Left:
+          case KeyCode::KeyboardButtonLeft:
             {
               KeyModifier modifier = event.getKeyboardData().modifier;
               if (modifier == KeyModifier::None && m_CaretIndex > 0) {
@@ -257,7 +257,7 @@ namespace pw {
               }
             }
             break;
-          case KeyCode::Right:
+          case KeyCode::KeyboardButtonRight:
             {
               KeyModifier modifier = event.getKeyboardData().modifier;
               if (modifier == KeyModifier::None && m_CaretIndex < m_Text.length() && !m_IsHighlighting) {

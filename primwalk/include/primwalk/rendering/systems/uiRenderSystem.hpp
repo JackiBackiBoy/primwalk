@@ -49,7 +49,7 @@ namespace pw {
 
   class PW_API UIRenderSystem {
     public:
-      UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts);
+      UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass);
       ~UIRenderSystem();
 
       // Events
@@ -68,7 +68,7 @@ namespace pw {
 
     private:
       void createDescriptorSetLayout();
-      void createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts);
+      void createPipelineLayout();
       void createPipeline(VkRenderPass renderPass);
       void createVertexBuffer();
       void createIndexBuffer();
@@ -103,8 +103,6 @@ namespace pw {
 
       std::vector<std::shared_ptr<Texture2D>> m_Textures;
       std::vector<std::shared_ptr<Font>> m_Fonts;
-      std::unordered_map<Image*, uint32_t> m_TextureIDs;
-      std::set<uint32_t> m_FreeTextureIDs;
 
       std::unique_ptr<Buffer> m_VertexBuffer;
       std::unique_ptr<Buffer> m_IndexBuffer;

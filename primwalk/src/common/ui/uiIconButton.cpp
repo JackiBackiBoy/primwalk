@@ -1,9 +1,16 @@
 #include "primwalk/ui/uiIconButton.hpp"
+#include "primwalk/ui/gui.hpp"
 
 namespace pw {
 
   UIIconButton::UIIconButton() : UIElement()
   {
+    pw::gui::GUIConfig config = pw::gui::GUI::getDefaultConfig();
+    m_BackgroundColor = { 255, 255, 255, 0 };
+    m_BackgroundHoverColor = config.hoverColor;
+    m_BackgroundClickColor = config.clickColor;
+    m_BackgroundDisplayColor = m_BackgroundColor;
+
     m_Cursor = MouseCursor::Hand;
   }
 

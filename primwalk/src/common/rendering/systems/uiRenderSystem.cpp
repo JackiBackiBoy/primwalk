@@ -19,12 +19,12 @@
 
 namespace pw {
 
-  UIRenderSystem::UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout>& setLayouts) :
+  UIRenderSystem::UIRenderSystem(GraphicsDevice_Vulkan& device, VkRenderPass renderPass) :
     m_Device(device) {
 
     // Fonts
-    m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
     m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/motivasans.ttf", 32));
+    m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
 
     // Textures
     m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
@@ -37,10 +37,12 @@ namespace pw {
       .writeImage(0, &imageInfo, 0)
       .overwrite(m_Device.m_TextureDescriptorSet);
 
+    m_Device.addTextureID(m_Textures[0]->getImage());
+
     createDescriptorPool();
     createUniformBuffers();
     createDescriptorSetLayout();
-    createPipelineLayout(setLayouts);
+    createPipelineLayout();
     createPipeline(renderPass);
     createVertexBuffer();
     createIndexBuffer();
@@ -212,11 +214,12 @@ namespace pw {
 
   void UIRenderSystem::removeImage(Image* image)
   {
-    auto search = m_TextureIDs.find(image);
-
-    if (search == m_TextureIDs.end()) { // no image key found
+    if (!m_Device.hasTextureID(image)) {
       return;
     }
+
+    uint32_t id = m_Device.addTextureID(m_Textures[0]->getImage());
+    m_Device.removeTextureID(image);
 
     // Clear the image from the texture descriptor
     VkDescriptorImageInfo imageInfo{};
@@ -225,11 +228,8 @@ namespace pw {
     imageInfo.sampler = Renderer::m_TextureSampler;
 
     DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-      .writeImage(0, &imageInfo, search->second)
+      .writeImage(0, &imageInfo, id)
       .overwrite(m_Device.m_TextureDescriptorSet);
-
-    m_FreeTextureIDs.insert(search->second);
-    m_TextureIDs.erase(image);
   }
 
   void UIRenderSystem::drawRect(glm::vec2 position, float width, float height,
@@ -239,12 +239,10 @@ namespace pw {
     uint32_t texIndex = 0;
 
     if (texture != nullptr) {
-      auto idSearch = m_TextureIDs.find(texture->getImage());
+      bool hasID = m_Device.hasTextureID(texture->getImage());
+      texIndex = m_Device.addTextureID(texture->getImage());
 
-      if (idSearch == m_TextureIDs.end()) { // texture does not exist
-        texIndex = m_TextureIDs.size() + 1;
-        m_TextureIDs[texture->getImage()] = texIndex;
-
+      if (!hasID) {
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = texture->getImageView();
@@ -253,9 +251,6 @@ namespace pw {
         DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
           .writeImage(0, &imageInfo, texIndex)
           .overwrite(m_Device.m_TextureDescriptorSet);
-      }
-      else {
-        texIndex = idSearch->second;
       }
     }
 
@@ -303,12 +298,10 @@ namespace pw {
     float texIndex = 2;
 
     if (font != nullptr) {
-      auto idSearch = m_TextureIDs.find(font->getTextureAtlas().getImage());
+      bool hasID = m_Device.hasTextureID(font->getTextureAtlas().getImage());
+      texIndex = m_Device.addTextureID(font->getTextureAtlas().getImage());
 
-      if (idSearch == m_TextureIDs.end()) { // texture does not exist
-        texIndex = m_TextureIDs.size() + 1;
-        m_TextureIDs[font->getTextureAtlas().getImage()] = texIndex;
-
+      if (!hasID) {
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = font->getTextureAtlas().getImageView();
@@ -318,10 +311,8 @@ namespace pw {
           .writeImage(0, &imageInfo, texIndex)
           .overwrite(m_Device.m_TextureDescriptorSet);
       }
-      else {
-        texIndex = idSearch->second;
-      }
     }
+
 
     for (size_t i = 0; i < text.length(); i++) {
       GlyphData glyph = font->getGlyph(static_cast<uint32_t>(text[i]));
@@ -356,21 +347,10 @@ namespace pw {
 
   void UIRenderSystem::drawSubView(SubView& subView)
   {
-    uint32_t texIndex = 0;
+    bool hasID = m_Device.hasTextureID(subView.getImage());
+    uint32_t texIndex = m_Device.addTextureID(subView.getImage());
 
-    auto idSearch = m_TextureIDs.find(subView.getImage());
-
-    if (idSearch == m_TextureIDs.end()) { // texture does not exist
-      if (m_FreeTextureIDs.empty()) {
-        texIndex = m_TextureIDs.size() + 1;
-      }
-      else {
-        texIndex = *m_FreeTextureIDs.begin();
-        m_FreeTextureIDs.erase(m_FreeTextureIDs.begin());
-      }
-
-      m_TextureIDs[subView.getImage()] = texIndex;
-
+    if (!hasID) { // texture does not exist
       VkDescriptorImageInfo imageInfo{};
       imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
       imageInfo.imageView = subView.getImage()->getVulkanImageView();
@@ -379,9 +359,6 @@ namespace pw {
       DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
         .writeImage(0, &imageInfo, texIndex)
         .overwrite(m_Device.m_TextureDescriptorSet);
-    }
-    else {
-      texIndex = idSearch->second;
     }
 
     RenderParams params{};
@@ -476,7 +453,7 @@ namespace pw {
     };
   }
 
-  void UIRenderSystem::createPipelineLayout(std::vector<VkDescriptorSetLayout>& setLayouts)
+  void UIRenderSystem::createPipelineLayout()
   {
     // Base pipeline layout
     VkPipelineLayoutCreateInfo basePipelineLayoutInfo{};

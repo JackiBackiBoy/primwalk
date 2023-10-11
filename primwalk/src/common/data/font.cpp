@@ -70,9 +70,9 @@ namespace pw {
         }
 
         msdf_atlas::TightAtlasPacker packer;
-        //packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
+        packer.setDimensionsConstraint(msdf_atlas::TightAtlasPacker::DimensionsConstraint::SQUARE);
         packer.setScale(m_FontSize); // TODO: Make dynamic scale
-        packer.setPixelRange(4.0);
+        packer.setPixelRange(2.0);
         packer.setMiterLimit(1.0);
 
         packer.pack(glyphs.data(), glyphs.size());

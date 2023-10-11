@@ -9,10 +9,18 @@ set(SOURCE_FILES
   ${SOURCE_DIR}/common/color.cpp
   ${SOURCE_DIR}/common/shader.cpp
   ${SOURCE_DIR}/common/components/camera.cpp
+  ${SOURCE_DIR}/common/components/component.cpp
+  ${SOURCE_DIR}/common/components/entity.cpp
   ${SOURCE_DIR}/common/data/font.cpp
   ${SOURCE_DIR}/common/data/model.cpp
   ${SOURCE_DIR}/common/data/mesh.cpp
+  ${SOURCE_DIR}/common/data/scene.cpp
+  ${SOURCE_DIR}/common/input/input.cpp
+  ${SOURCE_DIR}/common/input/rawInput.cpp
+  ${SOURCE_DIR}/common/managers/componentManager.cpp
+  ${SOURCE_DIR}/common/managers/entityManager.cpp
   ${SOURCE_DIR}/common/managers/resourceManager.cpp
+  ${SOURCE_DIR}/common/managers/systemManager.cpp
   ${SOURCE_DIR}/common/math/hitbox.cpp
   ${SOURCE_DIR}/common/math/pwmath.cpp
   ${SOURCE_DIR}/common/rendering/buffer.cpp
@@ -24,8 +32,9 @@ set(SOURCE_FILES
   ${SOURCE_DIR}/common/rendering/renderer.cpp
   ${SOURCE_DIR}/common/rendering/renderpass.cpp
   ${SOURCE_DIR}/common/rendering/texture2D.cpp
-  ${SOURCE_DIR}/common/rendering/systems/renderSystem3d.cpp
   ${SOURCE_DIR}/common/rendering/systems/uiRenderSystem.cpp
+  ${SOURCE_DIR}/common/systems/renderSystem3d.cpp
+  ${SOURCE_DIR}/common/systems/system.cpp
   ${SOURCE_DIR}/common/ui/GUI.cpp
   ${SOURCE_DIR}/common/ui/menuWidget.cpp
   ${SOURCE_DIR}/common/ui/subView.cpp
@@ -36,6 +45,8 @@ set(SOURCE_FILES
   ${SOURCE_DIR}/common/ui/uiIconButton.cpp
   ${SOURCE_DIR}/common/ui/uiImage.cpp
   ${SOURCE_DIR}/common/ui/uiLabel.cpp
+  ${SOURCE_DIR}/common/ui/uiListBox.cpp
+  ${SOURCE_DIR}/common/ui/uiPanel.cpp
   ${SOURCE_DIR}/common/ui/uiSlider.cpp
   ${SOURCE_DIR}/common/ui/uiTextField.cpp
 
@@ -53,13 +64,25 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/primwalk.hpp
   ${INCLUDE_DIR}/${NAME}/window.hpp
   ${INCLUDE_DIR}/${NAME}/components/camera.hpp
+  ${INCLUDE_DIR}/${NAME}/components/component.hpp
+  ${INCLUDE_DIR}/${NAME}/components/componentArray.hpp
+  ${INCLUDE_DIR}/${NAME}/components/entity.hpp
+  ${INCLUDE_DIR}/${NAME}/components/renderable.hpp
+  ${INCLUDE_DIR}/${NAME}/components/tag.hpp
+  ${INCLUDE_DIR}/${NAME}/components/transform.hpp
   ${INCLUDE_DIR}/${NAME}/data/font.hpp
   ${INCLUDE_DIR}/${NAME}/data/fontWeight.hpp
-  ${INCLUDE_DIR}/${NAME}/data/model.hpp
   ${INCLUDE_DIR}/${NAME}/data/mesh.hpp
+  ${INCLUDE_DIR}/${NAME}/data/model.hpp
+  ${INCLUDE_DIR}/${NAME}/data/scene.hpp
   ${INCLUDE_DIR}/${NAME}/data/shader.hpp
   ${INCLUDE_DIR}/${NAME}/input/keycode.hpp
+  ${INCLUDE_DIR}/${NAME}/input/input.hpp
+  ${INCLUDE_DIR}/${NAME}/input/rawInput.hpp
+  ${INCLUDE_DIR}/${NAME}/managers/componentManager.hpp
+  ${INCLUDE_DIR}/${NAME}/managers/entityManager.hpp
   ${INCLUDE_DIR}/${NAME}/managers/resourceManager.hpp
+  ${INCLUDE_DIR}/${NAME}/managers/systemManager.hpp
   ${INCLUDE_DIR}/${NAME}/math/pwmath.hpp
   ${INCLUDE_DIR}/${NAME}/math/vector2d.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/buffer.hpp
@@ -75,8 +98,9 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/rendering/texture2D.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/vertex.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/vertex3d.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/systems/renderSystem3d.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/systems/uiRenderSystem.hpp
+  ${INCLUDE_DIR}/${NAME}/systems/renderSystem3d.hpp
+  ${INCLUDE_DIR}/${NAME}/systems/system.hpp
   ${INCLUDE_DIR}/${NAME}/ui/GUI.hpp
   ${INCLUDE_DIR}/${NAME}/ui/menuWidget.hpp
   ${INCLUDE_DIR}/${NAME}/ui/messageHandler.hpp
@@ -89,6 +113,8 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/ui/uiIconButton.hpp
   ${INCLUDE_DIR}/${NAME}/ui/uiImage.hpp
   ${INCLUDE_DIR}/${NAME}/ui/uiLabel.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiListBox.hpp
+  ${INCLUDE_DIR}/${NAME}/ui/uiPanel.hpp
   ${INCLUDE_DIR}/${NAME}/ui/uiSlider.hpp
   ${INCLUDE_DIR}/${NAME}/ui/uiTextField.hpp
   ${INCLUDE_DIR}/${NAME}/vendor/stb/stb_image.hpp
@@ -116,13 +142,16 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Compiler specification
-# if(NOT CMAKE_BUILD_TYPE)
-#   set(CMAKE_BUILD_TYPE Release)
-# endif()
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
-# set(CMAKE_CXX_FLAGS "-Wall")
-# set(CMAKE_CXX_FLAGS_DEBUG "-g")
-# set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+if (MSVC)
+else()
+  set(CMAKE_CXX_FLAGS "-Wall")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+endif()
 
 project(${NAME})
 

@@ -243,7 +243,7 @@ namespace pw {
     m_BindlessDescriptorPool = DescriptorPool::Builder(*this)
       .setMaxSets(MAX_FRAMES_IN_FLIGHT * 6)
       .setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
-      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024) // image sampler
+      .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMAGE_DESCRIPTORS) // image sampler
       .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT) // uniform buffer
       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_FRAMES_IN_FLIGHT) // storage buffer
       .build();
@@ -253,7 +253,7 @@ namespace pw {
   {
     m_TextureSetLayout = DescriptorSetLayout::Builder(*this)
       .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
-      .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
+      .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_IMAGE_DESCRIPTORS,
         VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
       .build();
 
@@ -600,7 +600,7 @@ namespace pw {
 
   VkFormat GraphicsDevice_Vulkan::getSupportedDepthFormat()
   {
-    VkFormat depthFormat;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
 
     // Since all depth formats may be optional, we need to find a suitable depth format to use
       // Start with the highest precision packed format
@@ -623,6 +623,47 @@ namespace pw {
     }
 
     return depthFormat;
+  }
+
+  uint32_t GraphicsDevice_Vulkan::addTextureID(Image* image)
+  {
+    if (image == nullptr) {
+      return -1;
+    }
+
+    auto search = m_TextureIDs.find(image);
+
+    if (search == m_TextureIDs.end()) { // image not associated with any existing texture id, thus create one
+      uint32_t id = m_TextureIDs.size();
+
+      if (!m_VacantTextureIDs.empty()) {
+        id = *m_VacantTextureIDs.begin();
+        m_VacantTextureIDs.erase(m_VacantTextureIDs.begin());
+      }
+
+      m_TextureIDs.insert({ image, id });
+      return id;
+    }
+
+    // image already has associated texture id, return that
+    return search->second;
+  }
+
+  bool GraphicsDevice_Vulkan::hasTextureID(Image* image)
+  {
+    return m_TextureIDs.find(image) != m_TextureIDs.end();
+  }
+
+  void GraphicsDevice_Vulkan::removeTextureID(Image* image)
+  {
+    auto search = m_TextureIDs.find(image);
+
+    if (search == m_TextureIDs.end()) { // attempt to remove non-existent image
+      return;
+    }
+
+    m_VacantTextureIDs.emplace(search->second);
+    m_TextureIDs.erase(image);
   }
 
   VkCommandBuffer GraphicsDevice_Vulkan::beginSingleTimeCommands()

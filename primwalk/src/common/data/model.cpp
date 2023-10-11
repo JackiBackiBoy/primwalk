@@ -19,7 +19,6 @@ namespace pw {
       enginePath,
       aiProcess_Triangulate |
       aiProcess_FlipUVs |
-      aiProcess_MakeLeftHanded |
       aiProcess_JoinIdenticalVertices |
       aiProcess_CalcTangentSpace);
 

@@ -15,7 +15,7 @@ float median(vec3 msd) {
 }
 
 float screenPxRange() {
-  vec2 unitRange = vec2(4.0) / vec2(textureSize(vGlobalTextures[int(fragTexIndex)], 0));
+  vec2 unitRange = vec2(2.0) / vec2(textureSize(vGlobalTextures[int(fragTexIndex)], 0));
   vec2 screenTexSize = vec2(1.0) / fwidth(fragTexCoord);
   return max(0.5 * dot(unitRange, screenTexSize), 1.0);
 }

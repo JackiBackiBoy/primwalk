@@ -2,9 +2,10 @@
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/rendering/image.hpp"
+#include "primwalk/color.hpp"
 #include "primwalk/rendering/framebuffer.hpp"
 #include "primwalk/rendering/frameInfo.hpp"
+#include "primwalk/rendering/image.hpp"
 #include "primwalk/rendering/renderpass.hpp"
 
 // std
@@ -31,6 +32,7 @@ namespace pw {
     inline glm::vec2 getPosition() const { return m_Position; }
 
     inline void setPosition(glm::vec2 position) { m_Position = position; }
+    inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
 
     std::unique_ptr<RenderPass> m_OffscreenPass;
 
@@ -42,6 +44,7 @@ namespace pw {
     int m_Width;
     int m_Height;
     glm::vec2 m_Position;
+    Color m_BackgroundColor = Color::Black;
 
     std::unique_ptr<Image> m_OffscreenImage;
     std::unique_ptr<Image> m_DepthImage;

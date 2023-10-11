@@ -5,6 +5,19 @@ namespace pw::gui {
   UIElement* m_FocusElement = nullptr;
   std::vector<UIElement*> m_Widgets;
 
+  UIElement* hitTest(glm::vec2 mousePos)
+  {
+    for (auto w = m_Widgets.rbegin(); w != m_Widgets.rend(); ++w) {
+      Hitbox hitbox = (*w)->hitboxTest(mousePos);
+
+      if (hitbox.getTarget() != nullptr) {
+        return hitbox.getTarget();
+      }
+    }
+
+    return nullptr;
+  }
+
   bool processEvent(const UIEvent& event)
   {
     switch (event.getType()) {
@@ -127,4 +140,6 @@ namespace pw::gui {
       w->onRender(renderer);
     }
   }
+
+  GUIConfig GUI::defaultConfig{};
 }

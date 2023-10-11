@@ -1,17 +1,10 @@
 #pragma once
 
-#ifdef PW_WIN32
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
-
 // primwalk
 #include "primwalk/core.hpp"
 #include "primwalk/color.hpp"
 #include "primwalk/ui/mouseCursor.hpp"
 #include "primwalk/ui/uiEvent.hpp"
-
-// vendor
-#include <vulkan/vulkan.h>
 
 // std
 #include <atomic>
@@ -30,14 +23,11 @@ namespace pw {
       virtual bool isCursorInTitleBar(int x, int y) const = 0;
       virtual bool isCursorOnBorder(int x, int y) const = 0;
 
-      virtual void onUpdate(float dt) {};
       virtual void processEvent(const UIEvent& event) = 0;
 
-      // Getters
       inline int getWidth() const { return m_Width; }
       inline int getHeight() const { return m_Height; }
 
-      // Setters
       inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
       virtual void setCursor(MouseCursor cursor) = 0;
       inline void setResizeCallback(const std::function<void(int width, int height)>& callback) { m_ResizeCallback = callback; }

@@ -127,7 +127,7 @@ namespace pw {
     createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     createInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     createInfo.sampling = VK_SAMPLE_COUNT_1_BIT;
-    createInfo.generateMipMaps = true;
+    createInfo.generateMipMaps = false;
     m_Image = Image::create(createInfo);
 
     VkCommandBuffer commandBuffer = device->beginSingleTimeCommands();

@@ -13,21 +13,12 @@
 #include <windows.h>
 
 namespace pw {
-  // Forward declarations
-  class UIIconButton;
-
   class PW_API WindowWin32 : public WindowBase {
     public:
       WindowWin32(const std::string& name, int width, int height);
       ~WindowWin32() = default;
 
       int run();
-
-      // Event functions
-      void onCreate();
-      void onResize() {};
-      void onUpdate(float dt) override;
-      void onDestroy() {};
 
       void processEvent(const UIEvent& event) override;
       bool isCursorInTitleBar(int x, int y) const override;

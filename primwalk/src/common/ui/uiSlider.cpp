@@ -7,12 +7,6 @@
 
 namespace pw {
 
-  UISlider::UISlider(glm::vec2 position, int width, float minVal, float maxVal, float defaultVal) :
-    UIElement(position, true), m_Width(width), m_MinVal(minVal), m_MaxVal(maxVal), m_DefaultVal(maxVal)
-  {
-    m_CurrentVal = std::clamp(defaultVal, minVal, maxVal);
-  }
-
   void UISlider::onRender(UIRenderSystem& renderer)
   {
     float newMaxVal = m_MaxVal - m_MinVal;

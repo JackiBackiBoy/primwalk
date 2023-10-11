@@ -34,6 +34,7 @@ namespace pw {
     uint32_t subpass = 0;
   };
 
+  // Forward declarations
   class GraphicsDevice_Vulkan;
 
   class PW_API GraphicsPipeline {

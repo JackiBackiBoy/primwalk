@@ -3,13 +3,15 @@
 #include "primwalk/windows/resource.hpp"
 #include "primwalk/windows/win32/win32Utilities.hpp"
 #include "primwalk/input/keycode.hpp"
+#include "primwalk/input/rawInput.hpp"
 #include "primwalk/ui/GUI.hpp"
 
 // std
+#include <iostream>
 #include <cassert>
 #include <stdexcept>
 
-// vendor
+// windows
 #include <windowsx.h>
 
 namespace pw {
@@ -41,8 +43,7 @@ namespace pw {
     std::wstring wName = Win32Utilities::stringToWideString(m_Name);
 
     // 1. Setup window class attributes
-    WNDCLASSEX wcex;
-    ZeroMemory(&wcex, sizeof(wcex));
+    WNDCLASSEX wcex{};
     wcex.cbSize        = sizeof(wcex);              // WNDCLASSEX size in bytes
     wcex.style         = CS_DBLCLKS;                // Window class styles
     wcex.lpszClassName = wName.c_str();             // Window class name
@@ -71,11 +72,28 @@ namespace pw {
       NULL,                                               // Window parent
       NULL,                                               // Window menu
       m_Instance,                                         // Window instance
-      this                                                // Window creation parameters
+      this                                                // Additional data (Hack: this allows for early access to the window pointer)
     );
 
     // Validate window
     if (!m_Handle) { return 0; }
+
+    // Raw input device registration
+    RAWINPUTDEVICE rid[2] = {};
+
+    // Register mouse:
+    rid[0].usUsagePage = 0x01;
+    rid[0].usUsage = 0x02;
+    rid[0].dwFlags = 0;
+    rid[0].hwndTarget = 0;
+
+    // Register keyboard:
+    rid[1].usUsagePage = 0x01;
+    rid[1].usUsage = 0x06;
+    rid[1].dwFlags = 0;
+    rid[1].hwndTarget = 0;
+
+    RegisterRawInputDevices(rid, 2, sizeof(rid[0]));
 
     return 1;
   }
@@ -86,9 +104,7 @@ namespace pw {
     MouseEventData& mouse = event.getMouseData();
 
     // Acquire mouse position
-    POINT pt{};
-    pt.x = GET_X_LPARAM(lParam);
-    pt.y = GET_Y_LPARAM(lParam);
+    POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 
     if (message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL) {
       ScreenToClient(m_Handle, &pt);
@@ -140,27 +156,33 @@ namespace pw {
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
     case WM_XBUTTONUP:
-      event.setType(UIEventType::MouseUp);
-      event.getMouseData().clickCount = 0;
+      {
+        event.setType(UIEventType::MouseUp);
+        event.getMouseData().clickCount = 0;
 
-      if (!buttonPressed) {
-        ReleaseCapture();
+        if (!buttonPressed) {
+          ReleaseCapture();
+        }
       }
       break;
     case WM_LBUTTONDBLCLK:
     case WM_MBUTTONDBLCLK:
     case WM_RBUTTONDBLCLK:
     case WM_XBUTTONDBLCLK:
-      event.setType(UIEventType::MouseDown);
-      event.getMouseData().clickCount = 2;
+      {
+        event.setType(UIEventType::MouseDown);
+        event.getMouseData().clickCount = 2;
+      }
       break;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
     case WM_XBUTTONDOWN:
-      event.setType(UIEventType::MouseDown);
-      event.getMouseData().clickCount = 1;
-      SetCapture(m_Handle);
+      {
+        event.setType(UIEventType::MouseDown);
+        event.getMouseData().clickCount = 1;
+        SetCapture(m_Handle);
+      }
       break;
     case WM_MOUSELEAVE:
     case WM_NCMOUSELEAVE:
@@ -170,23 +192,26 @@ namespace pw {
       }
       break;
     case WM_MOUSEMOVE:
-      // Hack: The Windows OS sends a WM_MOUSEMOVE message together with mouse down
-      // flag when the window becomes the foreground window. Thus, we must also
-      // check whether the mouse down event is the first since regaining the
-      // foreground window focus. When handling WM_SETFOCUS we set the
-      // m_EnteringWindow flag to 'true' which indicates this.
-      // If that is the case, then we will not interpret that as a mouse-drag event
-      // and then reset m_EnteringWindow to 'false'.
-      event.setType((buttonPressed && !m_EnteringWindow) ? UIEventType::MouseDrag : UIEventType::MouseMove);
+      {
+        // Hack: The Windows OS sends a WM_MOUSEMOVE message together with mouse down
+        // flag when the window becomes the foreground window. Thus, we must also
+        // check whether the mouse down event is the first since regaining the
+        // foreground window focus. When handling WM_SETFOCUS we set the
+        // m_EnteringWindow flag to 'true' which indicates this.
+        // If that is the case, then we will not interpret that as a mouse-drag event
+        // and then reset m_EnteringWindow to 'false'.
+        event.setType((buttonPressed && !m_EnteringWindow) ? UIEventType::MouseDrag : UIEventType::MouseMove);
 
-      if (m_EnteringWindow) {
-        m_EnteringWindow = false;
+        if (m_EnteringWindow) {
+          m_EnteringWindow = false;
+        }
       }
-
       break;
     case WM_MOUSEWHEEL:
     case WM_MOUSEHWHEEL:
-      event.setType(UIEventType::MouseWheel);
+      {
+        event.setType(UIEventType::MouseWheel);
+      }
       break;
     }
 
@@ -209,13 +234,6 @@ namespace pw {
     }
 
     return event;
-  }
-
-  // ------ Event functions ------
-  void WindowWin32::onCreate() {
-  }
-
-  void WindowWin32::onUpdate(float dt) {
   }
 
   void WindowWin32::processEvent(const UIEvent& event)
@@ -276,12 +294,13 @@ namespace pw {
     uint8_t bottomLeft = left & bottom;
     uint8_t bottomRight = right & bottom;
 
-    uint8_t sideBits = bottom << 3 | left << 2 | top << 1 | right;
     uint8_t cornerBits = bottomRight << 3 | bottomLeft << 2 | topRight << 1 | topLeft;
 
     if (cornerBits) {
       return cornerBits + 3 * (4 - (cornerBits >> 3));
     }
+
+    uint8_t sideBits = bottom << 3 | left << 2 | top << 1 | right;
 
     if (sideBits) {
       return sideBits + (10 - (0x04 & sideBits) - ((0x08 & sideBits) >> 3) * 3);
@@ -291,111 +310,147 @@ namespace pw {
 }
 
   LRESULT WindowWin32::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    LRESULT result = 0;
     WindowWin32* window = nullptr;
     window = reinterpret_cast<WindowWin32*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-    if (message == WM_NCCREATE) {
-      // Set window pointer on create
-      CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-      WindowWin32* window = reinterpret_cast<WindowWin32*>(pCreate->lpCreateParams);
-      SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
-      
-      result = DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    else {
-      bool wasHandled = false;
+    LRESULT result = 0;
+    bool wasHandled = false;
 
-      switch (message) {
-        case WM_ERASEBKGND:
-          return 1;
-          break;
-        case WM_NCRBUTTONDOWN:
-        case WM_NCRBUTTONUP:
-        case WM_WINDOWPOSCHANGING:
-        case WM_NCACTIVATE:
-          return 0;
-          break;
-        case WM_LBUTTONDOWN:
-        case WM_MBUTTONDOWN:
-        case WM_RBUTTONDOWN:
-        case WM_XBUTTONDOWN:
-        case WM_LBUTTONUP:
-        case WM_MBUTTONUP:
-        case WM_RBUTTONUP:
-        case WM_XBUTTONUP:
-        case WM_LBUTTONDBLCLK:
-        case WM_MBUTTONDBLCLK:
-        case WM_RBUTTONDBLCLK:
-        case WM_XBUTTONDBLCLK:
-        case WM_MOUSEWHEEL:
-        case WM_MOUSEHWHEEL:
-        case WM_MOUSEMOVE:
-        case WM_MOUSELEAVE:
+    switch (message) {
+      case WM_NCCREATE:
+        {
+          // Set window pointer on create
+          CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
+          WindowWin32* window = reinterpret_cast<WindowWin32*>(pCreate->lpCreateParams);
+          SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)window);
+
+          RECT rcClient;
+          GetWindowRect(hWnd, &rcClient);
+
+          // Inform the application of the frame change
+          SetWindowPos(hWnd,
+            NULL,
+            rcClient.left, rcClient.top,
+            rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
+            SWP_FRAMECHANGED);
+
+          wasHandled = true;
+          result = DefWindowProc(hWnd, message, wParam, lParam);
+        }
+        break;
+      case WM_ERASEBKGND:
+        {
+          result = 1;
+          wasHandled = true;
+        }
+        break;
+      case WM_NCRBUTTONDOWN:
+      case WM_NCRBUTTONUP:
+      case WM_WINDOWPOSCHANGING:
+      case WM_NCACTIVATE:
+        {
+          result = 0;
+          wasHandled = true;
+        }
+        break;
+      case WM_LBUTTONDOWN:
+      case WM_MBUTTONDOWN:
+      case WM_RBUTTONDOWN:
+      case WM_XBUTTONDOWN:
+      case WM_LBUTTONUP:
+      case WM_MBUTTONUP:
+      case WM_RBUTTONUP:
+      case WM_XBUTTONUP:
+      case WM_LBUTTONDBLCLK:
+      case WM_MBUTTONDBLCLK:
+      case WM_RBUTTONDBLCLK:
+      case WM_XBUTTONDBLCLK:
+      case WM_MOUSEWHEEL:
+      case WM_MOUSEHWHEEL:
+      case WM_MOUSEMOVE:
+      case WM_MOUSELEAVE:
+        {
           window->processEvent(window->createMouseEvent(message, wParam, lParam));
-          break;
-        case WM_NCHITTEST:
-          {
-            if (window->m_Fullscreen) {
-              return HTCLIENT;
-            }
-
-            result = window->hitTest(hWnd, wParam, lParam);
-            wasHandled = true;
-
-            if (result == HTCLIENT) {
-                window->setCursor(MouseCursor::Default);
-            }
-            else {
-              window->setCursor(MouseCursor::None);
-            }
-
-            return result;
+        }
+        break;
+      case WM_NCHITTEST:
+        {
+          if (window->m_Fullscreen) {
+            return HTCLIENT;
           }
-          break;
-        case WM_KEYDOWN:
-          {
-            UIEvent event(UIEventType::KeyboardDown);
-            auto& data = event.getKeyboardData();
-            data.pressedKey = pw::input::toKeyCode(wParam);
 
-            // Keyboard modifiers
-            static_assert(std::is_signed_v<decltype(GetAsyncKeyState(VK_SHIFT))>);
-            auto r = KeyModifier::None;
+          result = window->hitTest(hWnd, wParam, lParam);
+          wasHandled = true;
 
-            if (GetAsyncKeyState(VK_SHIFT) < 0) {
-              r |= KeyModifier::Shift;
-            }
-            if (GetAsyncKeyState(VK_CONTROL) < 0) {
-              r |= KeyModifier::Control;
-            }
-            if (GetAsyncKeyState(VK_MENU) < 0) {
-              r |= KeyModifier::Alt;
-            }
-            if (GetAsyncKeyState(VK_LWIN) < 0 || GetAsyncKeyState(VK_RWIN) < 0) {
-              r |= KeyModifier::Super;
-            }
+          MouseCursor cursor = MouseCursor::None;
 
-            data.modifier = r;
+          if (result == HTCLIENT) {
+            cursor = MouseCursor::Default;
+            POINT mousePos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            ScreenToClient(hWnd, &mousePos);
+            auto target = pw::gui::hitTest({ mousePos.x, mousePos.y });
 
+            if (target != nullptr) {
+              cursor = target->getCursor();
+            }
+          }
+
+          window->setCursor(cursor);
+        }
+        break;
+      case WM_KEYDOWN:
+        {
+          UIEvent event(UIEventType::KeyboardDown);
+          auto& data = event.getKeyboardData();
+          data.pressedKey = pw::input::toKeyCode(wParam);
+
+          // Keyboard modifiers
+          static_assert(std::is_signed_v<decltype(GetAsyncKeyState(VK_SHIFT))>);
+          auto r = KeyModifier::None;
+
+          if (GetAsyncKeyState(VK_SHIFT) < 0) {
+            r |= KeyModifier::Shift;
+          }
+          if (GetAsyncKeyState(VK_CONTROL) < 0) {
+            r |= KeyModifier::Control;
+          }
+          if (GetAsyncKeyState(VK_MENU) < 0) {
+            r |= KeyModifier::Alt;
+          }
+          if (GetAsyncKeyState(VK_LWIN) < 0 || GetAsyncKeyState(VK_RWIN) < 0) {
+            r |= KeyModifier::Super;
+          }
+
+          data.modifier = r;
+
+          window->processEvent(event);
+        }
+        break;
+      case WM_CHAR:
+        {
+          if (wParam > 31) { // Only pass codepoints that are valid characters
+            UIEvent event(UIEventType::KeyboardChar);
+            event.getCharData().codePoint = static_cast<uint32_t>(wParam);
             window->processEvent(event);
           }
-          break;
-        case WM_CHAR:
-          {
-            // Only pass codepoints that are valid characters
-            if (wParam > 31) {
-              UIEvent event(UIEventType::KeyboardChar);
-              event.getCharData().codePoint = static_cast<uint32_t>(wParam);
-              window->processEvent(event);
-            }
-          }
-          break;
-        // Handling this message allows us to extend the client area of the window
-        // into the title bar region. Which effectively makes the whole window
-        // region accessible for drawing, including the title bar.
-        case WM_NCCALCSIZE:
+        }
+        break;
+      case WM_INPUT:
         {
+          // Raw input handling
+          pw::input::rawinput::parseMessage((void*)lParam);
+        }
+        break;
+      case WM_NCCALCSIZE:
+        {
+          // Handling this message allows us to extend the client area of the window
+          // into the title bar region. Which effectively makes the whole window
+          // region accessible for drawing, including the title bar.
+
+          if (window->isFullscreen()) {
+            return 0;
+          }
+
           UINT dpi = GetDpiForWindow(hWnd);
           int frameX = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
           int frameY = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
@@ -409,10 +464,6 @@ namespace pw {
           placement.length = sizeof(WINDOWPLACEMENT);
           if (GetWindowPlacement(hWnd, &placement)) {
             isMaximized = placement.showCmd == SW_SHOWMAXIMIZED;
-          }
-
-          if (window->isFullscreen()) {
-            return 0;
           }
 
           if (isMaximized) {
@@ -437,29 +488,33 @@ namespace pw {
             // altering the NCCALCSIZE_PARAMS structure.
             const int cxBorder = 1;
             const int cyBorder = 1;
-
             InflateRect((LPRECT)lParam, -cxBorder, -cyBorder);
           }
 
-          return 0;
+          result = 0;
+          wasHandled = true;
         }
-        case WM_PAINT: {
-          return 0;
-          break;
+        break;
+      case WM_PAINT: {
+        {
+          result = 0;
+          wasHandled = true;
         }
-        case WM_KILLFOCUS:
+        break;
+      }
+      case WM_KILLFOCUS:
         {
           window->processEvent({ UIEventType::FocusLost });
-          break;
         }
-        case WM_SETFOCUS:
-          {
-            if (window != nullptr) {
-              window->m_EnteringWindow = true;
-            }
+        break;
+      case WM_SETFOCUS:
+        {
+          if (window != nullptr) {
+            window->m_EnteringWindow = true;
           }
-          break;
-        case WM_SIZE:
+        }
+        break;
+      case WM_SIZE:
         {
           // This message is sent after WM_SIZING, which indicates that
           // the resizing operation is complete, this means that we can
@@ -467,43 +522,43 @@ namespace pw {
           // Calculate new window dimensions if resized
           window->m_Width = LOWORD(lParam);
           window->m_Height = HIWORD(lParam);
-
           window->m_ResizeCallback(window->m_Width, window->m_Height);
-          break;
         }
-        case WM_SETCURSOR:
+        break;
+      case WM_SETCURSOR:
         {
           if (LOWORD(lParam) == HTCLIENT) {
-            return TRUE;
+            result = 1;
+            wasHandled = true;
           }
-
-          break;
         }
-        case WM_SYSCOMMAND:
+        break;
+      case WM_SYSCOMMAND:
         {
           // Reset minimized flag upon window restore
           if (wParam == SC_RESTORE) {
             window->m_IsMinimized.store(false);
           }
-
-          break;
         }
-        case WM_DESTROY:
+        break;
+      case WM_CLOSE:
+        {
+          PostQuitMessage(0);
+        }
+        break;
+      case WM_DESTROY:
         {
           window->m_IsMinimized.store(false);
-          window->onDestroy();
-
           PostQuitMessage(0);
 
           wasHandled = true;
           result = 1;
-          break;
         }
-      }
+        break;
+    }
 
-      if (!wasHandled) {
-        result = DefWindowProc(hWnd, message, wParam, lParam);
-      }
+    if (!wasHandled) {
+      result = DefWindowProc(hWnd, message, wParam, lParam);
     }
 
     return result;

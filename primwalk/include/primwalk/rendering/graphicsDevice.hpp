@@ -12,11 +12,14 @@
 #include "primwalk/core.hpp"
 #include "primwalk/rendering/descriptors.hpp"
 #include "primwalk/window.hpp"
+#include "primwalk/rendering/image.hpp"
 
 // std
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #ifdef PW_WIN32
@@ -44,9 +47,9 @@ namespace pw {
   };
 
   struct PW_API SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
+    VkSurfaceCapabilitiesKHR capabilities{};
+    std::vector<VkSurfaceFormatKHR> formats{};
+    std::vector<VkPresentModeKHR> presentModes{};
   };
 
   struct PW_API QueueFamilyIndices {
@@ -92,7 +95,12 @@ namespace pw {
       std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
       VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
 
+      uint32_t addTextureID(Image* image);
+      bool hasTextureID(Image* image);
+      void removeTextureID(Image* image);
+
       static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+      static constexpr int MAX_IMAGE_DESCRIPTORS = 1024;
 
     private:
       void createInstance();
@@ -151,12 +159,14 @@ namespace pw {
       const std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-        //VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
       };
 
       const std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation"
       };
+
+      std::unordered_map<Image*, uint32_t> m_TextureIDs{};
+      std::set<uint32_t> m_VacantTextureIDs{};
 
 #ifdef NDEBUG
       const bool m_EnableValidationLayers = false;

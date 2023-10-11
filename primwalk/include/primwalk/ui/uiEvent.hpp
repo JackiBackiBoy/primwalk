@@ -49,7 +49,7 @@ namespace pw {
   };
 
   struct PW_API KeyboardEventData {
-    KeyCode pressedKey = KeyCode::Unknown;
+    KeyCode pressedKey = KeyCode::None;
     KeyModifier modifier = KeyModifier::None;
   };
 

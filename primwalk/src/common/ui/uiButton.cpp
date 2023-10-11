@@ -1,7 +1,21 @@
 #include "primwalk/ui/uiButton.hpp"
 #include "primwalk/data/font.hpp"
+#include "primwalk/ui/gui.hpp"
 
 namespace pw {
+
+  UIButton::UIButton()
+  {
+    pw::gui::GUIConfig config = pw::gui::GUI::getDefaultConfig();
+    m_BackgroundColor = config.primaryColor;
+    m_BackgroundHoverColor = config.hoverColor;
+    m_BackgroundClickColor = config.clickColor;
+    m_TextColor = config.textColor;
+    m_FontSize = config.smallFontSize;
+    m_DisplayColor = m_BackgroundColor;
+
+    m_Cursor = MouseCursor::Hand;
+  }
 
   void UIButton::onRender(UIRenderSystem& renderer)
   {

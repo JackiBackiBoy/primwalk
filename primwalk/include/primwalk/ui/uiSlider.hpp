@@ -9,7 +9,7 @@
 namespace pw {
   class PW_API UISlider : public UIElement {
   public:
-    UISlider(glm::vec2 position, int width, float minVal, float maxVal, float defaultVal);
+    UISlider() : UIElement(glm::vec2(0), true) {};
     virtual ~UISlider() = default;
 
     virtual void onRender(UIRenderSystem& renderer) override;
@@ -22,11 +22,11 @@ namespace pw {
     inline void setSliderColor(Color color) { m_SliderColor = color; }
 
   private:
-    int m_Width;
-    float m_MinVal;
-    float m_MaxVal;
-    float m_DefaultVal;
-    float m_CurrentVal;
+    int m_Width = 100;
+    float m_MinVal = 0;
+    float m_MaxVal = 100;
+    float m_DefaultVal = 50;
+    float m_CurrentVal = 50;
     int m_TrackHeight = 4;
     int m_SliderRadius = 6;
 
