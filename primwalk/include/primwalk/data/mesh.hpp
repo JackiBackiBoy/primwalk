@@ -10,10 +10,10 @@
 #include <vulkan/vulkan.h>
 
 namespace pw {
-  struct PW_API Mesh {
-    uint32_t indices;
-    uint32_t materialIndex;
-    uint32_t baseVertex;
-    uint32_t baseIndex;
-  };
+	struct PW_API Mesh {
+		uint32_t indices;
+		uint32_t materialIndex;
+		uint32_t baseVertex;
+		uint32_t baseIndex;
+	};
 }

@@ -1,7 +1,6 @@
 // primwalk
 #include "primwalk/window.hpp"
 #include "primwalk/windows/resource.hpp"
-#include "primwalk/windows/win32/win32Utilities.hpp"
 #include "primwalk/input/keycode.hpp"
 #include "primwalk/input/rawInput.hpp"
 #include "primwalk/ui/GUI.hpp"
@@ -30,7 +29,7 @@ namespace pw {
     }
 
     // Convert string name to wide string
-    UnregisterClass(Win32Utilities::stringToWideString(m_Name).c_str(), m_Instance);
+    UnregisterClass(stringToWideString(m_Name).c_str(), m_Instance);
     return (int)msg.wParam;
   }
 
@@ -40,12 +39,12 @@ namespace pw {
     m_IconSmall = LoadIcon(m_Instance, MAKEINTRESOURCE(IDI_APP_ICON));
 
     // Convert string name to wide string
-    std::wstring wName = Win32Utilities::stringToWideString(m_Name);
+    std::wstring wName = stringToWideString(m_Name);
 
     // 1. Setup window class attributes
     WNDCLASSEX wcex{};
     wcex.cbSize        = sizeof(wcex);              // WNDCLASSEX size in bytes
-    wcex.style         = CS_DBLCLKS;                // Window class styles
+    wcex.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;                // Window class styles
     wcex.lpszClassName = wName.c_str();             // Window class name
     wcex.hbrBackground = NULL;                      // Window background brush color
     wcex.hCursor       = LoadIcon(NULL, IDC_ARROW); // Window cursor
@@ -61,18 +60,18 @@ namespace pw {
 
     // 3. Setup window initialization attributes and create window
     m_Handle = CreateWindowEx(
-      0,                                                  // Window extended styles
-      wName.c_str(),                                      // Window class name
-      wName.c_str(),                                      // Window title
-      WS_OVERLAPPEDWINDOW,                                // Window style
-      Win32Utilities::getScreenCenter().x - m_Width / 2,  // Window X position
-      Win32Utilities::getScreenCenter().y - m_Height / 2, // Window Y position
-      m_Width,                                            // Window width
-      m_Height,                                           // Window height
-      NULL,                                               // Window parent
-      NULL,                                               // Window menu
-      m_Instance,                                         // Window instance
-      this                                                // Additional data (Hack: this allows for early access to the window pointer)
+      0,                    // Window extended styles
+      wName.c_str(),        // Window class name
+      wName.c_str(),        // Window title
+      WS_OVERLAPPEDWINDOW,  // Window style
+      CW_USEDEFAULT,        // Window X position
+      CW_USEDEFAULT,        // Window Y position
+      m_Width,              // Window width
+      m_Height,             // Window height
+      NULL,                 // Window parent
+      NULL,                 // Window menu
+      m_Instance,           // Window instance
+      this                  // Additional data (Hack: this allows for early access to the window pointer)
     );
 
     // Validate window
@@ -338,21 +337,12 @@ namespace pw {
           result = DefWindowProc(hWnd, message, wParam, lParam);
         }
         break;
-      case WM_ERASEBKGND:
-        {
-          result = 1;
-          wasHandled = true;
-        }
-        break;
-      case WM_NCRBUTTONDOWN:
-      case WM_NCRBUTTONUP:
-      case WM_WINDOWPOSCHANGING:
-      case WM_NCACTIVATE:
-        {
-          result = 0;
-          wasHandled = true;
-        }
-        break;
+	  case WM_ERASEBKGND:
+	  {
+		  result = 1;
+		  wasHandled = true;
+	  }
+	  break;
       case WM_LBUTTONDOWN:
       case WM_MBUTTONDOWN:
       case WM_RBUTTONDOWN:
@@ -495,13 +485,6 @@ namespace pw {
           wasHandled = true;
         }
         break;
-      case WM_PAINT: {
-        {
-          result = 0;
-          wasHandled = true;
-        }
-        break;
-      }
       case WM_KILLFOCUS:
         {
           window->processEvent({ UIEventType::FocusLost });

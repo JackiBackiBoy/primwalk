@@ -4,9 +4,9 @@
 #include "primwalk/core.hpp"
 
 namespace pw {
-  class PW_API Vector2D {
-    public:
-      Vector2D() {};
-  };
+	class PW_API Vector2D {
+	public:
+		Vector2D() {};
+	};
 }
 

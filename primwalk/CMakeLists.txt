@@ -14,7 +14,6 @@ set(SOURCE_FILES
   ${SOURCE_DIR}/common/data/font.cpp
   ${SOURCE_DIR}/common/data/model.cpp
   ${SOURCE_DIR}/common/data/mesh.cpp
-  ${SOURCE_DIR}/common/data/scene.cpp
   ${SOURCE_DIR}/common/input/input.cpp
   ${SOURCE_DIR}/common/input/rawInput.cpp
   ${SOURCE_DIR}/common/managers/componentManager.cpp
@@ -26,7 +25,7 @@ set(SOURCE_FILES
   ${SOURCE_DIR}/common/rendering/buffer.cpp
   ${SOURCE_DIR}/common/rendering/descriptors.cpp
   ${SOURCE_DIR}/common/rendering/framebuffer.cpp
-  ${SOURCE_DIR}/common/rendering/graphicsDevice.cpp
+  ${SOURCE_DIR}/common/rendering/graphicsDevice_Vulkan.cpp
   ${SOURCE_DIR}/common/rendering/graphicsPipeline.cpp
   ${SOURCE_DIR}/common/rendering/image.cpp
   ${SOURCE_DIR}/common/rendering/renderer.cpp
@@ -52,7 +51,6 @@ set(SOURCE_FILES
 
   ${SOURCE_DIR}/windows/resource.hpp
   ${SOURCE_DIR}/windows/core/window_win32.cpp
-  ${SOURCE_DIR}/windows/win32/win32Utilities.cpp
 )
 
 set(HEADER_FILES
@@ -74,7 +72,6 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/data/fontWeight.hpp
   ${INCLUDE_DIR}/${NAME}/data/mesh.hpp
   ${INCLUDE_DIR}/${NAME}/data/model.hpp
-  ${INCLUDE_DIR}/${NAME}/data/scene.hpp
   ${INCLUDE_DIR}/${NAME}/data/shader.hpp
   ${INCLUDE_DIR}/${NAME}/input/keycode.hpp
   ${INCLUDE_DIR}/${NAME}/input/input.hpp
@@ -91,6 +88,7 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/rendering/frameInfo.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/graphicsAPI.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/graphicsDevice.hpp
+  ${INCLUDE_DIR}/${NAME}/rendering/graphicsDevice_Vulkan.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/graphicsPipeline.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/image.hpp
   ${INCLUDE_DIR}/${NAME}/rendering/renderer.hpp
@@ -103,7 +101,6 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/${NAME}/systems/system.hpp
   ${INCLUDE_DIR}/${NAME}/ui/GUI.hpp
   ${INCLUDE_DIR}/${NAME}/ui/menuWidget.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/messageHandler.hpp
   ${INCLUDE_DIR}/${NAME}/ui/mouseCursor.hpp
   ${INCLUDE_DIR}/${NAME}/ui/subView.hpp
   ${INCLUDE_DIR}/${NAME}/ui/uiButton.hpp
@@ -121,8 +118,6 @@ set(HEADER_FILES
 
   ${INCLUDE_DIR}/${NAME}/windows/resource.hpp
   ${INCLUDE_DIR}/${NAME}/windows/core/window_win32.hpp
-  ${INCLUDE_DIR}/${NAME}/windows/input/mouse_win32.hpp
-  ${INCLUDE_DIR}/${NAME}/windows/win32/win32Utilities.hpp
 )
 
 # Platform specifics
@@ -144,13 +139,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Compiler specification
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
-endif()
-
-if (MSVC)
-else()
-  set(CMAKE_CXX_FLAGS "-Wall")
-  set(CMAKE_CXX_FLAGS_DEBUG "-g")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif()
 
 project(${NAME})

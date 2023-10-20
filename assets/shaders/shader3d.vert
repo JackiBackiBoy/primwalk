@@ -7,6 +7,8 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout(push_constant) uniform Push {
     mat4 modelMatrix;
+    vec3 color;
+    uint diffuseTexIndex;
 } push;
 
 layout(location = 0) in vec3 inPosition;

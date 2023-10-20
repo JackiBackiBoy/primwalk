@@ -6,75 +6,68 @@
 #include "primwalk/components/component.hpp"
 
 // std
+#include <cassert>
 #include <memory>
 #include <typeinfo>
 #include <unordered_map>
 
 namespace pw {
-  class PW_API ComponentManager {
-  public:
-    // Remove copy/move constructors
-    ComponentManager(const ComponentManager&) = delete;
-    ComponentManager(ComponentManager&&) = delete;
-    ComponentManager& operator=(const ComponentManager&) = delete;
-    ComponentManager& operator=(ComponentManager&&) = delete;
+	class PW_API ComponentManager {
+	public:
+		ComponentManager() = default;
+		~ComponentManager() = default;
 
-    static ComponentManager& Get();
+		template<typename T>
+		void registerComponent() {
+			const char* typeName = typeid(T).name();
 
-    template<typename T>
-    void registerComponent() {
-      const char* typeName = typeid(T).name();
+			assert(m_ComponentTypes.find(typeName) == m_ComponentTypes.end() && "ERROR: Component type already registered!");
 
-      assert(m_ComponentTypes.find(typeName) == m_ComponentTypes.end() && "ERROR: Component type already registered!");
-      
-      m_ComponentTypes.insert({ typeName, m_NextComponentType });
-      m_ComponentArrays.insert({ typeName, std::make_shared<ComponentArray<T>>() });
+			m_ComponentTypes.insert({ typeName, m_NextComponentType });
+			m_ComponentArrays.insert({ typeName, std::make_shared<ComponentArray<T>>() });
 
-      m_NextComponentType++;
-    }
+			m_NextComponentType++;
+		}
 
-    template<typename T>
-    component_type getComponentType() {
-      const char* typeName = typeid(T).name();
+		template<typename T>
+		component_type getComponentType() {
+			const char* typeName = typeid(T).name();
 
-      assert(m_ComponentTypes.find(typeName) != m_ComponentTypes.end() && "Component not registered before use");
+			assert(m_ComponentTypes.find(typeName) != m_ComponentTypes.end() && "Component not registered before use");
 
-      return m_ComponentTypes[typeName];
-    }
+			return m_ComponentTypes[typeName];
+		}
 
-    template<typename T, typename... Args>
-    T& addComponent(entity_id entity, Args&&... args) {
-      getComponentArray<T>()->insert(entity, std::forward<Args>(args)...);
-      return getComponent<T>(entity);
-    }
+		template<typename T, typename... Args>
+		T& addComponent(entity_id entity, Args&&... args) {
+			getComponentArray<T>()->insert(entity, std::forward<Args>(args)...);
+			return getComponent<T>(entity);
+		}
 
-    template<typename T>
-    void removeComponent(entity_id entity) {
-      getComponentArray<T>()->remove(entity);
-    }
+		template<typename T>
+		void removeComponent(entity_id entity) {
+			getComponentArray<T>()->remove(entity);
+		}
 
-    template<typename T>
-    T& getComponent(entity_id entity) {
-      return getComponentArray<T>()->get(entity);
-    }
+		template<typename T>
+		T& getComponent(entity_id entity) {
+			return getComponentArray<T>()->get(entity);
+		}
 
-    void entityDestroyed(entity_id entity);
+		void entityDestroyed(entity_id entity);
 
-  private:
-    ComponentManager() = default;
-    ~ComponentManager() = default;
+	private:
+		std::unordered_map<std::string_view, component_type> m_ComponentTypes{};
+		std::unordered_map<std::string_view, std::shared_ptr<IComponentArray>> m_ComponentArrays{};
+		component_type m_NextComponentType{};
 
-    std::unordered_map<const char*, component_type> m_ComponentTypes{};
-    std::unordered_map<const char*, std::shared_ptr<IComponentArray>> m_ComponentArrays{};
-    component_type m_NextComponentType{};
+		template<typename T>
+		std::shared_ptr<ComponentArray<T>> getComponentArray() {
+			const char* typeName = typeid(T).name();
 
-    template<typename T>
-    std::shared_ptr<ComponentArray<T>> getComponentArray() {
-      const char* typeName = typeid(T).name();
+			assert(m_ComponentTypes.find(typeName) != m_ComponentTypes.end() && "ERROR: Component not registered before use!");
 
-      assert(m_ComponentTypes.find(typeName) != m_ComponentTypes.end() && "ERROR: Component not registered before use!");
-      
-      return std::static_pointer_cast<ComponentArray<T>>(m_ComponentArrays[typeName]);
-    }
-  };
+			return std::static_pointer_cast<ComponentArray<T>>(m_ComponentArrays[typeName]);
+		}
+	};
 }

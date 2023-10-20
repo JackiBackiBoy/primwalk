@@ -2,7 +2,6 @@
 
 // primwalk
 #include "primwalk/core.hpp"
-#include "primwalk/color.hpp"
 #include "primwalk/ui/mouseCursor.hpp"
 #include "primwalk/ui/uiEvent.hpp"
 
@@ -14,38 +13,36 @@
 #include <vector>
 
 namespace pw {
-  class PW_API WindowBase {
-    public:
-      WindowBase(const std::string& name, int width, int height) :
-        m_Name(name), m_Width(width), m_Height(height) {};
-      virtual ~WindowBase() = default;
+	class PW_API WindowBase {
+	public:
+		WindowBase(const std::string& name, int width, int height) :
+			m_Name(name), m_Width(width), m_Height(height) {};
+		virtual ~WindowBase() = default;
 
-      virtual bool isCursorInTitleBar(int x, int y) const = 0;
-      virtual bool isCursorOnBorder(int x, int y) const = 0;
+		virtual bool isCursorInTitleBar(int x, int y) const = 0;
+		virtual bool isCursorOnBorder(int x, int y) const = 0;
 
-      virtual void processEvent(const UIEvent& event) = 0;
+		virtual void processEvent(const UIEvent& event) = 0;
 
-      inline int getWidth() const { return m_Width; }
-      inline int getHeight() const { return m_Height; }
+		inline int getWidth() const { return m_Width; }
+		inline int getHeight() const { return m_Height; }
 
-      inline void setBackgroundColor(Color color) { m_BackgroundColor = color; }
-      virtual void setCursor(MouseCursor cursor) = 0;
-      inline void setResizeCallback(const std::function<void(int width, int height)>& callback) { m_ResizeCallback = callback; }
+		virtual void setCursor(MouseCursor cursor) = 0;
+		inline void setResizeCallback(const std::function<void(int width, int height)>& callback) { m_ResizeCallback = callback; }
 
-      virtual void close() = 0;
-      virtual bool shouldClose() = 0;
+		virtual void close() = 0;
+		virtual bool shouldClose() = 0;
 
-    protected:
-      std::string m_Name;
-      int m_Width;
-      int m_Height;
-      Color m_BackgroundColor = Color::White;
-      MouseCursor m_Cursor = MouseCursor::None;
-      
-      std::atomic<bool> m_IsMinimized { false };
-      std::atomic<bool> m_CloseFlag { false };
-      std::function<void(int, int)> m_ResizeCallback = [](int width, int height) {};
-  };
+	protected:
+		std::string m_Name;
+		int m_Width;
+		int m_Height;
+		MouseCursor m_Cursor = MouseCursor::None;
+
+		std::atomic<bool> m_IsMinimized { false };
+		std::atomic<bool> m_CloseFlag { false };
+		std::function<void(int, int)> m_ResizeCallback = [](int width, int height) {};
+	};
 }
 
 // Platform specific implementation

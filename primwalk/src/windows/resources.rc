@@ -5,21 +5,21 @@
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
 
 VS_VERSION_INFO VERSIONINFO
-  FILEVERSION    1,0,0,0
-  PRODUCTVERSION 1,0,0,0
+  FILEVERSION    1,2,0,0
+  PRODUCTVERSION 1,2,0,0
 BEGIN
   BLOCK "StringFileInfo"
   BEGIN
     BLOCK "040904b0"
     BEGIN
-      VALUE "FileDescription", "Forza Coach\0"
-      VALUE "ProductVersion", "1.0.0.0\0"
-      VALUE "FileVersion", "1.0.0.0\0"
-      VALUE "ProductName", "Forza Coach\0"
-      VALUE "InternalName", "Forza Coach"
-      VALUE "OriginalFilename", "Forza Coach"
-      VALUE "CompanyName", "Jack Henrikson\0"
-      VALUE "LegalCopyright", "Copyright (C) Jack Henrikson 2021-2022\0"
+      VALUE "FileDescription", "Primwalk Engine\0"
+      VALUE "ProductVersion", "1.2.0.0\0"
+      VALUE "FileVersion", "1.2.0.0\0"
+      VALUE "ProductName", "Primwalk Engine\0"
+      VALUE "InternalName", "Primwalk Engine"
+      VALUE "OriginalFilename", "Primwalk Engine"
+      VALUE "CompanyName", "A10 Solutions\0"
+      VALUE "LegalCopyright", "Copyright (C) A10 Solutions 2021-2023\0"
       VALUE "Licence", "LGPL\0"
       VALUE "Info", "http://sources.redhat.com/pthreads-win32/\0"
     END
@@ -32,12 +32,12 @@ END
 
 STRINGTABLE
 BEGIN
-  IDS_APP_TITLE "Forza Coach (Beta)"
+  IDS_APP_TITLE "Primwalk Engine"
   IDS_WINDOW_NAMES_COLUMN "Name"
   IDS_WINDOW_IDS_COLUMN "ID"
   IDS_WINDOW_MATCHES_COLUMN "Matches"
 END
 
-IDI_APP_ICON_16 ICON "assets/icons/fzcoach16x16.ico"
-IDI_APP_ICON ICON "fzcoach.ico"
+IDI_APP_ICON_16 ICON "assets/icons/primwalk16x16.ico"
+IDI_APP_ICON ICON "primwalk.ico"
 

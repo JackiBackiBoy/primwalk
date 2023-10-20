@@ -4,19 +4,19 @@
 #include <glm/glm.hpp>
 
 namespace pw {
-  class PW_API MouseOSX : public MouseBase {
-    public:
-      virtual ~MouseOSX() {};
-    
-      static MouseOSX& Instance();
+	class PW_API MouseOSX : public MouseBase {
+	public:
+		virtual ~MouseOSX() {};
 
-      virtual glm::vec2 getRelativePos() override;
-      virtual glm::vec2 getAbsolutePos() override;
-    
-    protected:
-      MouseOSX() {};
+		static MouseOSX& Instance();
 
-      friend class WindowOSX;
-  };
+		virtual glm::vec2 getRelativePos() override;
+		virtual glm::vec2 getAbsolutePos() override;
+
+	protected:
+		MouseOSX() {};
+
+		friend class WindowOSX;
+	};
 }
 

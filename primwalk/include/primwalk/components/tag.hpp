@@ -7,7 +7,7 @@
 #include <string>
 
 namespace pw {
-  struct PW_API Tag {
-    std::string name = "entity";
-  };
+	struct PW_API Tag {
+		std::string name = "entity";
+	};
 }

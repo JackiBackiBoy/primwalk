@@ -5,8 +5,10 @@
 #include "primwalk/window.hpp"
 #include "primwalk/components/entity.hpp"
 #include "primwalk/data/model.hpp"
-#include "primwalk/data/scene.hpp"
-#include "primwalk/rendering/graphicsDevice.hpp"
+#include "primwalk/managers/componentManager.hpp"
+#include "primwalk/managers/entityManager.hpp"
+#include "primwalk/managers/systemManager.hpp"
+#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
 #include "primwalk/rendering/renderer.hpp"
 #include "primwalk/rendering/systems/uiRenderSystem.hpp"
 #include "primwalk/systems/renderSystem3d.hpp"
@@ -32,96 +34,87 @@
 #include <vector>
 
 namespace pw {
+	class PW_API Application {
+	public:
+		Application();
+		virtual ~Application() = default;
 
-  // Singleton design pattern
-  class PW_API Application {
-    public:
-      Application();
-      virtual ~Application() = default;
+		/* Called once at application startup */
+		virtual void onStart() = 0;
 
-      void setWindow(Window* window);
-      void run();
+		/* Called once per frame */
+		virtual void onUpdate(float dt) = 0;
 
-      void onRender();
+		/* Called 60 times per second */
+		virtual void onFixedUpdate(float dt) = 0;
 
-      template<typename UIType, typename Key, typename... Args>
-      UIType& makeElement(Key const& key, Args&&...args) {
-        auto tmp = std::make_unique<UIType>(std::forward<Args>(args)...);
-        auto& ref = *tmp;
+		void initialize();
+		void run();
 
-        m_UIRenderSystem->submitElement(std::move(tmp));
-        return ref;
-      }
+		Entity* createEntity(const std::string& name);
 
-    private:
-      void updateScene(float dt);
-      void renderScene(const FrameInfo& frameInfo);
+	private:
+		void gameLoop();
+		void updateScene(float dt);
+		void renderScene(const FrameInfo& frameInfo);
 
-      Window* m_Window = nullptr;
-      std::unique_ptr<GraphicsDevice_Vulkan> m_Device;
-      std::unique_ptr<Renderer> m_Renderer;
-      std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
-      std::shared_ptr<RenderSystem3D> m_RenderSystem3D;
+		std::unique_ptr<Window> m_Window;
+		std::unique_ptr<GraphicsDevice> m_Device;
+		std::unique_ptr<Renderer> m_Renderer;
+		std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
+		std::shared_ptr<RenderSystem3D> m_RenderSystem3D;
+		std::unique_ptr<SubView> m_SceneView;
+		std::unique_ptr<Model> m_Cube;
 
-      std::unique_ptr<SubView> m_SceneView;
-      std::unique_ptr<Model> m_Cube;
+		// Multi-threading
+		std::atomic<bool> m_Resizing { false };
+		std::mutex m_RenderingMutex;
+		std::condition_variable m_RenderCondition;
 
-      // Multi-threading
-      std::atomic<bool> m_Resizing { false };
-      std::mutex m_RenderingMutex;
-      std::condition_variable m_RenderCondition;
+		// GUI
+		UILabel testLabel;
+		UIImage engineLogo;
+		UIIconButton fullscreenButton;
+		UIIconButton minimizeButton;
+		UIIconButton maximizeButton;
+		UIIconButton closeButton;
+		UIIconButton selectButton;
+		UIIconButton moveButton;
+		UIIconButton rotateButton;
+		UIIconButton scaleButton;
+		MenuWidget menu;
+		MenuItem fileMenu;
+		MenuItem fileSubNewMenu;
+		MenuItem fileSubOpenMenu;
+		MenuItem editMenu;
+		MenuItem assetsMenu;
+		MenuItem toolsMenu;
+		MenuItem windowMenu;
+		MenuItem helpMenu;
+		MenuItem helpView;
+		MenuItem helpGettingStarted;
+		MenuItem helpTipsAndTricks;
+		MenuItem helpKeyboardShortcuts;
+		MenuItem helpWhatsNew;
+		MenuItem helpCheckForUpdates;
+		MenuItem helpReleaseNotes;
+		MenuItem helpRoadmap;
+		MenuItem helpAbout;
+		UIIconButton playButton;
+		UIIconButton pauseButton;
+		UIPanel sceneExplorer;
+		UIListBox sceneEntitiesListBox;
+		UIPanel propertiesPanel;
+		pw::gui::GUI m_GUI;
+		bool m_ScenePaused = false;
 
-      UILabel testLabel;
+		// Entities
+		std::vector<std::unique_ptr<Entity>> m_Entities{};
+		std::shared_ptr<Texture2D> icons = nullptr;
 
-      // Header
-      UIImage engineLogo;
-      UIIconButton fullscreenButton;
-      UIIconButton minimizeButton;
-      UIIconButton maximizeButton;
-      UIIconButton closeButton;
-
-      // Top navigation-bar
-      UIIconButton selectButton;
-      UIIconButton moveButton;
-      UIIconButton rotateButton;
-      UIIconButton scaleButton;
-
-      // Top menu
-      MenuWidget menu;
-      MenuItem fileMenu;
-      MenuItem fileSubNewMenu;
-      MenuItem fileSubOpenMenu;
-      MenuItem editMenu;
-      MenuItem assetsMenu;
-      MenuItem toolsMenu;
-      MenuItem windowMenu;
-      MenuItem helpMenu;
-      MenuItem helpView;
-      MenuItem helpGettingStarted;
-      MenuItem helpTipsAndTricks;
-      MenuItem helpKeyboardShortcuts;
-      MenuItem helpWhatsNew;
-      MenuItem helpCheckForUpdates;
-      MenuItem helpReleaseNotes;
-      MenuItem helpRoadmap;
-      MenuItem helpAbout;
-
-      // Scene controls
-      UIIconButton playButton;
-      UIIconButton pauseButton;
-      bool m_ScenePaused = false;
-
-      UIPanel sceneExplorer;
-      UIListBox sceneEntitiesList;
-
-      UIPanel propertiesPanel;
-
-      pw::gui::GUI m_GUI;
-
-      // Entities
-      Entity cubeEntity;
-      std::vector<std::unique_ptr<Entity>> m_Entities{};
-      std::shared_ptr<Texture2D> icons = nullptr;
-  };
+		ComponentManager m_ComponentManager{};
+		EntityManager m_EntityManager{};
+		SystemManager m_SystemManager{};
+	};
 }
 
