@@ -1,5 +1,5 @@
-#include "primwalk/rendering/image.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "image.hpp"
+#include "graphicsDevice_Vulkan.hpp"
 
 // std
 #include <algorithm>

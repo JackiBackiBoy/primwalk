@@ -1,4 +1,4 @@
-#include "primwalk/color.hpp"
+#include "color.hpp"
 
 namespace pw {
 	glm::vec4 Color::normalize(const Color& color) {

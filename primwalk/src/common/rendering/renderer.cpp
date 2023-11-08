@@ -1,4 +1,4 @@
-#include "primwalk/rendering/renderer.hpp"
+#include "renderer.hpp"
 
 // std
 #include <algorithm>
@@ -63,7 +63,6 @@ namespace pw {
 		VkResult result = vkAcquireNextImageKHR(m_Device.getDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_CurrentImageIndex);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-			recreateSwapChain();
 			return nullptr;
 		}
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -92,9 +91,8 @@ namespace pw {
 
 		auto result = submitCommandBuffers(&commandBuffer, &m_CurrentImageIndex);
 
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized.load(std::memory_order_relaxed)) {
-			recreateSwapChain();
-			m_FramebufferResized.store(false, std::memory_order_relaxed);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+			//recreateSwapChain();
 			ret = true;
 		}
 		else if (result != VK_SUCCESS) {
@@ -142,6 +140,11 @@ namespace pw {
 		vkCmdEndRenderPass(commandBuffer);
 	}
 
+	void Renderer::resizeSwapChain(uint32_t width, uint32_t height) {
+		//vkDeviceWaitIdle(m_Device.getDevice());
+		recreateSwapChain();
+	}
+
 	void Renderer::recreateSwapChain() {
 		#ifdef PW_WIN32
 		int width = 0, height = 0;
@@ -156,8 +159,7 @@ namespace pw {
 		} while (width == 0 || height == 0);
 		#endif
 
-		vkDeviceWaitIdle(m_Device.getDevice());
-
+		m_Device.waitForGPU();
 		cleanupSwapChain();
 		createSwapChain();
 		createImages();

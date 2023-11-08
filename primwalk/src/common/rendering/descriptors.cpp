@@ -1,6 +1,6 @@
 // primwalk
-#include "primwalk/rendering/descriptors.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "descriptors.hpp"
+#include "graphicsDevice_Vulkan.hpp"
 
 // std
 #include <stdexcept>

@@ -1,4 +1,4 @@
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "graphicsDevice_Vulkan.hpp"
 
 // std
 #include <algorithm>
@@ -21,6 +21,19 @@ namespace pw {
 		createCommandPool();
 		createDescriptorPool();
 		createDescriptorSetLayouts();
+	}
+
+	CommandList GraphicsDevice_Vulkan::beginFrame() {
+		CommandList cmd = {};
+		return cmd;
+	}
+
+	void GraphicsDevice_Vulkan::endFrame() {
+
+	}
+
+	void GraphicsDevice_Vulkan::waitForGPU() {
+		vkDeviceWaitIdle(m_Device);
 	}
 
 	GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan() {
@@ -57,10 +70,10 @@ namespace pw {
 		VkInstanceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
-		createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+		//createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
 		auto requiredExtensions = getRequiredExtensions();
-		requiredExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+		//requiredExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 		createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
@@ -580,7 +593,7 @@ namespace pw {
 		// Since all depth formats may be optional, we need to find a suitable depth format to use
 		// Start with the highest precision packed format
 		std::vector<VkFormat> formatList = {
-			VK_FORMAT_D32_SFLOAT_S8_UINT,
+			//VK_FORMAT_D32_SFLOAT_S8_UINT,
 			VK_FORMAT_D32_SFLOAT,
 			VK_FORMAT_D24_UNORM_S8_UINT,
 			VK_FORMAT_D16_UNORM_S8_UINT,
@@ -593,6 +606,7 @@ namespace pw {
 
 			if (formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
 				depthFormat = format;
+				break;
 			}
 		}
 

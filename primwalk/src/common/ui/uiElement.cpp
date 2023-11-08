@@ -1,5 +1,5 @@
-#include "primwalk/ui/uiElement.hpp"
-#include "primwalk/ui/uiContainer.hpp"
+#include "uiElement.hpp"
+#include "uiContainer.hpp"
 
 namespace pw {
 	glm::vec2 UIElement::getAbsolutePosition() const {

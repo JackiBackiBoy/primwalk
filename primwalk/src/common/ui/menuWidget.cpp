@@ -1,5 +1,5 @@
-#include "primwalk/ui/menuWidget.hpp"
-#include "primwalk/managers/resourceManager.hpp"
+#include "menuWidget.hpp"
+#include "../managers/resourceManager.hpp"
 
 // std
 #include <algorithm>

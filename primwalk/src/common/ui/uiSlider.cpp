@@ -1,5 +1,5 @@
-#include "primwalk/ui/uiSlider.hpp"
-#include "primwalk/math/pwmath.hpp"
+#include "uiSlider.hpp"
+#include "../math/pwmath.hpp"
 
 // std
 #include <algorithm>

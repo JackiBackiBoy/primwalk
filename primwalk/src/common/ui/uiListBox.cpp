@@ -1,6 +1,7 @@
-#include "primwalk/ui/uiListBox.hpp"
-#include "primwalk/managers/resourceManager.hpp"
-#include "primwalk/ui/GUI.hpp"
+#include "uiListBox.hpp"
+#include "GUI.hpp"
+#include "../managers/resourceManager.hpp"
+
 
 namespace pw {
 

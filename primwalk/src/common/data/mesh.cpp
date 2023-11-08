@@ -1,4 +1,4 @@
-#include "primwalk/data/mesh.hpp"
+#include "mesh.hpp"
 
 namespace pw {
 

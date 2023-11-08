@@ -1,5 +1,5 @@
-#include "primwalk/rendering/renderpass.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "renderpass.hpp"
+#include "graphicsDevice_Vulkan.hpp"
 
 // std
 #include <stdexcept>

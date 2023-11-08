@@ -1,4 +1,4 @@
-#include "primwalk/rendering/buffer.hpp"
+#include "buffer.hpp"
 
 namespace pw {
 

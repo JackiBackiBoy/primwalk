@@ -1,4 +1,4 @@
-#include "primwalk/managers/componentManager.hpp"
+#include "componentManager.hpp"
 
 namespace pw {
 

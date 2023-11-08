@@ -1,6 +1,6 @@
-#include "primwalk/ui/uiButton.hpp"
-#include "primwalk/data/font.hpp"
-#include "primwalk/ui/gui.hpp"
+#include "uiButton.hpp"
+#include "gui.hpp"
+#include "../data/font.hpp"
 
 namespace pw {
 

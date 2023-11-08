@@ -1,4 +1,4 @@
-#include "primwalk/ui/uiEvent.hpp"
+#include "uiEvent.hpp"
 
 namespace pw {
 

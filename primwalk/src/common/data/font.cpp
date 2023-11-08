@@ -1,6 +1,6 @@
-#include "primwalk/data/font.hpp"
-#include "primwalk/math/pwmath.hpp"
-#include "primwalk/managers/resourceManager.hpp"
+#include "font.hpp"
+#include "../math/pwmath.hpp"
+#include "../managers/resourceManager.hpp"
 
 // std
 #include <cstdint>

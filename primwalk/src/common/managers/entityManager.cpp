@@ -1,4 +1,4 @@
-#include "primwalk/managers/entityManager.hpp"
+#include "entityManager.hpp"
 
 // std
 #include <cassert>

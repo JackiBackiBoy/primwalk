@@ -1,5 +1,4 @@
-#include "primwalk/hitbox.hpp"
-#include "primwalk/ui/uiElement.hpp"
+#include "hitbox.hpp"
 
 namespace pw {
 

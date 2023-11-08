@@ -1,5 +1,5 @@
-#include "primwalk/ui/uiIconButton.hpp"
-#include "primwalk/ui/gui.hpp"
+#include "uiIconButton.hpp"
+#include "gui.hpp"
 
 namespace pw {
 

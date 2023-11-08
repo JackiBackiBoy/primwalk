@@ -1,4 +1,4 @@
-#include "primwalk/ui/GUI.hpp"
+#include "GUI.hpp"
 
 namespace pw::gui {
 	UIElement* m_TargetElement = nullptr;

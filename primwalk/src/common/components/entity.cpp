@@ -1,8 +1,8 @@
-#include "primwalk/components/entity.hpp"
+#include "entity.hpp"
 
-#include "primwalk/components/tag.hpp"
-#include "primwalk/components/transform.hpp"
-#include "primwalk/components/renderable.hpp"
+#include "tag.hpp"
+#include "transform.hpp"
+#include "renderable.hpp"
 
 namespace pw {
 	Entity::Entity(const std::string& name,

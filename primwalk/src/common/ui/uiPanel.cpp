@@ -1,4 +1,4 @@
-#include "primwalk/ui/uiPanel.hpp"
+#include "uiPanel.hpp"
 
 namespace pw {
 

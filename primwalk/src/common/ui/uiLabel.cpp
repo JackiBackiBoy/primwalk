@@ -1,4 +1,4 @@
-#include "primwalk/ui/uiLabel.hpp"
+#include "uiLabel.hpp"
 
 namespace pw {
 

@@ -1,7 +1,7 @@
-#include "primwalk/rendering/texture2D.hpp"
-#include "primwalk/rendering/buffer.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
-#include "primwalk/managers/resourceManager.hpp"
+#include "texture2D.hpp"
+#include "buffer.hpp"
+#include "graphicsDevice_Vulkan.hpp"
+#include "../managers/resourceManager.hpp"
 
 // std
 #include <stdexcept>
@@ -12,8 +12,9 @@
 
 namespace pw {
 
-	Texture2D::Texture2D(const std::string& path, int channels, VkFormat imageFormat) {
-		std::string truePath = BASE_DIR + path;
+	Texture2D::Texture2D(const std::string& path, int channels, VkFormat imageFormat, bool absolutePath) {
+		std::string truePath = (absolutePath ? path : BASE_DIR + path);
+
 		stbi_uc* pixels = stbi_load(truePath.c_str(), &m_Width, &m_Height, &m_Channels, channels);
 
 		if (!pixels) {

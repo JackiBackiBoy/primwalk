@@ -1,15 +1,17 @@
-#include "primwalk/input/input.hpp"
-#include "primwalk/input/rawInput.hpp"
+#include "input.hpp"
+#include "rawInput.hpp"
 
+#include <unordered_map>
 #include <windows.h>
 
 namespace pw::input {
-	pw::input::MouseState mouse;
-	pw::input::KeyboardState keyboard;
+	pw::input::MouseState mouse{};
+	pw::input::KeyboardState keyboard{};
+	std::unordered_map<KeyCode, bool> downStates{};
 
 	void initialize()
 	{
-
+		pw::input::rawinput::initialize();
 	}
 
 	void getKeyboardState(KeyboardState* state)
@@ -34,6 +36,12 @@ namespace pw::input {
 		mouse.rightDown |= (GetAsyncKeyState(VK_RBUTTON) < 0);
 		mouse.middleDown |= (GetAsyncKeyState(VK_MBUTTON) < 0);
 		#endif
+
+		for (auto& i : downStates) {
+			if (!isDown(i.first)) {
+				i.second = false;
+			}
+		}
 	}
 
 	bool isDown(const KeyCode& button)
@@ -193,4 +201,23 @@ namespace pw::input {
 		// TODO: Add cross platform return value
 		return false;
 	}
+
+	bool PW_API isDownOnce(const KeyCode& button) {
+		const auto& search = downStates.find(button);
+		if (search == downStates.end()) {
+			if (isDown(button)) {
+				downStates.insert({ button, true });
+				return true;
+			}
+
+			return false;
+		}
+
+		if (!search->second) {
+			downStates.erase(search->first);
+		}
+
+		return false;
+	}
+
 }

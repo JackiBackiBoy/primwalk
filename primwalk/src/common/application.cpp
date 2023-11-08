@@ -1,11 +1,13 @@
-#include "primwalk/application.hpp"
-#include "primwalk/input/input.hpp"
-#include "primwalk/components/camera.hpp"
-#include "primwalk/components/renderable.hpp"
-#include "primwalk/components/tag.hpp"
-#include "primwalk/components/transform.hpp"
+#include "application.hpp"
+#include "input/input.hpp"
+#include "components/camera.hpp"
+#include "components/directionLight.hpp"
+#include "components/renderable.hpp"
+#include "components/pointLight.hpp"
+#include "components/tag.hpp"
+#include "components/transform.hpp"
 
-#include "primwalk/math/pwmath.hpp"
+#include "math/pwmath.hpp"
 
 // std
 #include <thread>
@@ -19,17 +21,19 @@ namespace pw {
 		pw::GetDevice() = m_Device.get();
 		m_Renderer = std::make_unique<Renderer>((GraphicsDevice_Vulkan&)(*m_Device), *m_Window);
 
-		// Rendering systems
-		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getSwapChainRenderPass());
-
-		m_SceneView = std::make_unique<SubView>(m_Window->getWidth() / 2, m_Window->getHeight() / 2,
-			glm::vec2(m_Window->getWidth() / 4, 100));
-
 		// Components
+		m_ComponentManager.registerComponent<Camera>();
+		m_ComponentManager.registerComponent<DirectionLight>();
+		m_ComponentManager.registerComponent<PointLight>();
 		m_ComponentManager.registerComponent<Renderable>();
 		m_ComponentManager.registerComponent<Tag>();
 		m_ComponentManager.registerComponent<Transform>();
 
+		// Render systems
+		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getSwapChainRenderPass());
+
+		m_SceneView = std::make_unique<SubView>(m_Window->getWidth() / 2, m_Window->getHeight() / 2,
+			glm::vec2(m_Window->getWidth() / 4, 100));
 		m_RenderSystem3D = m_SystemManager.registerSystem<RenderSystem3D>(
 			(GraphicsDevice_Vulkan&)(*m_Device), m_SceneView->m_OffscreenPass->getVulkanRenderPass());
 		{
@@ -40,6 +44,10 @@ namespace pw {
 		}
 
 		initialize();
+
+		// Create entities
+		Entity* camera = createEntity("Camera");
+		camera->getComponent<Transform>().position = { 5.0f, 5.0f, 0.0f };
 	}
 
 	void Application::initialize() {
@@ -109,7 +117,6 @@ namespace pw {
 		fullscreenButton.setWidth(32);
 		fullscreenButton.setHeight(30);
 		fullscreenButton.setPosition({ m_Window->getWidth() - 140, 0 });
-		fullscreenButton.setOnClick([this]() { m_Window->toggleFullscreen(); });
 		m_GUI.addWidget(&fullscreenButton);
 
 		minimizeButton.setIcon(minimizeIcon);
@@ -123,7 +130,6 @@ namespace pw {
 		maximizeButton.setWidth(30);
 		maximizeButton.setHeight(30);
 		maximizeButton.setPosition({ m_Window->getWidth() - 60, 0 });
-		maximizeButton.setOnClick([this]() { m_Window->toggleMaximize(); });
 		m_GUI.addWidget(&maximizeButton);
 
 		closeButton.setIcon(closeIcon);
@@ -227,31 +233,40 @@ namespace pw {
 	}
 
 	void Application::run() {
-		std::thread gameThread([this](){ gameLoop(); });
-		m_Window->run(); // window message pump runs in parallel with game thread
-		gameThread.join();
-	}
-
-	Entity* Application::createEntity(const std::string& name) {
-		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager));
-		return (*(m_Entities.end() - 1)).get();
-	}
-
-	void Application::gameLoop() {
 		bool firstPaint = true;
 		auto lastTime = std::chrono::high_resolution_clock::now();
 		float speed = 5.0f;
-		float orbitDistance = 3.0f;
-		glm::vec3 orbitOrigin = { 0, 0, 0 };
 		auto& camera = Camera::MainCamera;
 
+		ShowWindow(m_Window->getHandle(), SW_SHOW);
 		onStart();
+
+		m_Window->setResizeCallback([this](int width, int height) {
+			m_Renderer->resizeSwapChain((uint32_t)width, (uint32_t)height);
+			fullscreenButton.setPosition({ width - 140, 0 });
+			minimizeButton.setPosition({ width - 90, 0 });
+			maximizeButton.setPosition({ width - 60, 0 });
+			closeButton.setPosition({ width - 30, 0 });
+			engineLogo.setPosition({ (width - engineLogo.getWidth()) / 2, engineLogo.getPosition().y });
+
+			playButton.setPosition({ width / 2 - 32, 30 });
+			pauseButton.setPosition({ width / 2, 30 });
+			sceneExplorer.setWidth(width / 4 - 8);
+			sceneExplorer.setHeight(height - sceneExplorer.getPosition().y - 4);
+			sceneEntitiesListBox.setWidth(sceneExplorer.getWidth() - 8);
+			sceneEntitiesListBox.setHeight(height - sceneEntitiesListBox.getPosition().y - 8);
+
+			propertiesPanel.setPosition({ (3 * width) / 4.0f + 4, 100 });
+			propertiesPanel.setWidth(width / 4 - 8);
+			propertiesPanel.setHeight(height - sceneExplorer.getPosition().y - 4);
+
+			m_UIRenderSystem->removeImage(m_SceneView->getImage());
+			m_SceneView->setPosition({ width / 4, 100 });
+			m_SceneView->resize(width / 2, height / 2);
+		});
 
 		// Game loop
 		while (!m_Window->shouldClose()) {
-			std::unique_lock<std::mutex> lock(m_RenderingMutex);
-			m_RenderCondition.wait(lock, [this]() { return !m_Resizing.load(); });
-
 			// Delta time
 			auto newTime = std::chrono::high_resolution_clock::now();
 			float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - lastTime).count();
@@ -259,129 +274,106 @@ namespace pw {
 
 			// Input polling
 			pw::input::update();
+			pw::input::KeyboardState keyboard;
 			pw::input::MouseState mouseState;
+			pw::input::getKeyboardState(&keyboard);
 			pw::input::getMouseState(&mouseState);
 
-			if (auto commandBuffer = m_Renderer->beginFrame()) {
-				int frameIndex = m_Renderer->getFrameIndex();
-
-				// Input
-				if (mouseState.rightDown) {
-					camera->setYaw(camera->getYaw() + mouseState.deltaPosition.x * dt);
-					camera->setPitch(camera->getPitch() + mouseState.deltaPosition.y * dt);
+			// Input
+			if (pw::input::isDown(KeyCode::MouseButtonMiddle)) {
+				// Middle mouse + Left Shift = horizontal/vertical move
+				if (pw::input::isDown(KeyCode::KeyboardButtonLShift)) {
+					camera->position += camera->getRight() * mouseState.deltaPosition.x * dt * speed;
+					camera->position += camera->getUp() * mouseState.deltaPosition.y * dt * speed;
 				}
-
-				if (pw::input::isDown(KeyCode::MouseButtonMiddle)) {
-					// Middle mouse + Left Shift = horizontal/vertical move
-					if (pw::input::isDown(KeyCode::KeyboardButtonLShift)) {
-						camera->setPosition(camera->getPosition() - camera->getRight() * mouseState.deltaPosition.x * dt * speed);
-						camera->setPosition(camera->getPosition() + camera->getUp() * mouseState.deltaPosition.y * dt * speed);
-					}
-					// Only Middle mouse = orbit move
-					else {
-						camera->setYaw(camera->getYaw() + mouseState.deltaPosition.x * dt);
-						camera->setPitch(camera->getPitch() + mouseState.deltaPosition.y * dt);
-						camera->update();
-						camera->setPosition(orbitOrigin - camera->getForward() * orbitDistance);
-					}
-				}
+				// Only Middle mouse = orbit move
 				else {
-					if (mouseState.wheelDelta != 0.0f) {
-						orbitDistance = std::max(0.01f, orbitDistance - mouseState.wheelDelta * 0.1f * (orbitDistance));
-						camera->setPosition(orbitOrigin - camera->getForward() * orbitDistance);
-					}
+					camera->setYaw(camera->getYaw() - mouseState.deltaPosition.x * dt);
+					camera->setPitch(camera->getPitch() - mouseState.deltaPosition.y * dt);
 				}
-
-				if (m_ScenePaused) {
-					dt = 0.0f;
+			}
+			else {
+				if (mouseState.wheelDelta != 0.0f) {
+					camera->position += camera->getForward() * (std::signbit(mouseState.wheelDelta) ? -1.0f : 1.0f);
 				}
-
-				// Update
-				FrameInfo frameInfo{};
-				frameInfo.frameIndex = frameIndex;
-				frameInfo.frameTime = dt;
-				frameInfo.commandBuffer = commandBuffer;
-				frameInfo.windowWidth = (float)m_Window->getWidth();
-				frameInfo.windowHeight = (float)m_Window->getHeight();
-
-				// Scene view
-				FrameInfo subViewInfo = frameInfo;
-				subViewInfo.windowWidth = m_SceneView->getWidth();
-				subViewInfo.windowHeight = m_SceneView->getHeight();
-
-				onUpdate(dt);
-				onFixedUpdate(dt);
-
-				camera->update();
-				m_RenderSystem3D->onUpdate(subViewInfo);
-
-				updateScene(dt);
-				m_SceneView->beginPass(commandBuffer);
-				renderScene(subViewInfo);
-				m_SceneView->endPass(commandBuffer);
-
-				m_UIRenderSystem->drawSubView(*m_SceneView);
-
-				// Render GUI
-				m_GUI.onRender(*m_UIRenderSystem);
-				m_UIRenderSystem->onUpdate(frameInfo);
-
-				// Render
-				m_Renderer->beginSwapChainRenderPass(commandBuffer);
-				m_UIRenderSystem->onRender(frameInfo);
-				m_Renderer->endSwapChainRenderPass(commandBuffer);
-
-				m_Renderer->endFrame();
-				m_Renderer->m_FramebufferResized.store(false);
 			}
 
-			if (firstPaint) {
-				ShowWindow(m_Window->getHandle(), SW_SHOW);
-				UpdateWindow(m_Window->getHandle());
-				firstPaint = false;
-
-				// Window resizing and render synchronization.
-				// When a resize occurs, the callback function
-				// will notify the renderer of a framebuffer
-				// resize and will halt the window messaging
-				// thread until the swapchain has been
-				// recreated.
-				m_Window->setResizeCallback([this](int width, int height) {
-					m_Renderer->m_FramebufferResized.store(true);
-					m_Resizing.store(true);
-					m_RenderingMutex.lock();
-		  
-					fullscreenButton.setPosition({ width - 140, 0 });
-					minimizeButton.setPosition({ width - 90, 0 });
-					maximizeButton.setPosition({ width - 60, 0 });
-					closeButton.setPosition({ width - 30, 0 });
-					engineLogo.setPosition({ (width - engineLogo.getWidth()) / 2, engineLogo.getPosition().y });
-
-					playButton.setPosition({ width / 2 - 32, 30 });
-					pauseButton.setPosition({ width / 2, 30 });
-					sceneExplorer.setWidth(width / 4 - 8);
-					sceneExplorer.setHeight(height - sceneExplorer.getPosition().y - 4);
-					sceneEntitiesListBox.setWidth(sceneExplorer.getWidth() - 8);
-					sceneEntitiesListBox.setHeight(height - sceneEntitiesListBox.getPosition().y - 8);
-
-					propertiesPanel.setPosition({ (3 * width) / 4.0f + 4, 100 });
-					propertiesPanel.setWidth(width / 4 - 8);
-					propertiesPanel.setHeight(height - sceneExplorer.getPosition().y - 4);
-
-					m_UIRenderSystem->removeImage(m_SceneView->getImage());
-					m_SceneView->setPosition({ width / 4, 100 });
-					m_SceneView->resize(width / 2, height / 2);
-
-					m_Resizing.store(false);
-					m_RenderingMutex.unlock();
-					m_RenderCondition.notify_all();
-				});
+			if (pw::input::isDown(KeyCode::KeyboardButtonLControl) && pw::input::isDownOnce(KeyCode::KeyboardButtonX)) {
+				m_DebugMode = !m_DebugMode;
 			}
 
-			lock.unlock();
+			if (m_ScenePaused) {
+				dt = 0.0f;
+			}
+
+			camera->update();
+
+			onUpdate(dt);
+			onFixedUpdate(dt);
+
+			if (m_DebugMode) {
+				m_RenderSystem3D->drawDebugBox({ 0.0f, 0.01f, 0.0f }, glm::vec3(2.0f));
+			}
+
+			// Rendering
+			onRender(dt);
+
+			m_Window->pollEvents();
 		}
 
-		vkDeviceWaitIdle(((GraphicsDevice_Vulkan*)m_Device.get())->getDevice());
+		m_Device->waitForGPU();
+	}
+
+	Entity* Application::createEntity(const std::string& name) {
+		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager));
+		return (*(m_Entities.end() - 1)).get();
+	}
+
+	Entity* Application::createLightEntity(const std::string& name) {
+		auto entity = std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager);
+		entity->addComponent<PointLight>().color = { 1.0f, 1.0f, 1.0f, 0.1f };
+		m_Entities.push_back(std::move(entity));
+
+		return (*(m_Entities.end() - 1)).get();
+	}
+
+	void Application::onRender(float dt) {
+		// Begin command list
+		auto commandBuffer = m_Renderer->beginFrame();
+		int frameIndex = m_Renderer->getFrameIndex();
+
+		// Update
+		FrameInfo frameInfo{};
+		frameInfo.frameIndex = m_Renderer->getFrameIndex();
+		frameInfo.frameTime = dt;
+		frameInfo.commandBuffer = commandBuffer;
+		frameInfo.windowWidth = (float)m_Window->getWidth();
+		frameInfo.windowHeight = (float)m_Window->getHeight();
+
+		// Scene view
+		FrameInfo subViewInfo = frameInfo;
+		subViewInfo.windowWidth = m_SceneView->getWidth();
+		subViewInfo.windowHeight = m_SceneView->getHeight();
+
+		m_RenderSystem3D->onUpdate(subViewInfo, m_ComponentManager);
+
+		updateScene(dt);
+		m_SceneView->beginPass(commandBuffer);
+		renderScene(subViewInfo);
+		m_SceneView->endPass(commandBuffer);
+
+		m_UIRenderSystem->drawSubView(*m_SceneView);
+
+		// Render GUI
+		m_GUI.onRender(*m_UIRenderSystem);
+		m_UIRenderSystem->onUpdate(frameInfo);
+
+		// Render
+		m_Renderer->beginSwapChainRenderPass(commandBuffer);
+		m_UIRenderSystem->onRender(frameInfo);
+		m_Renderer->endSwapChainRenderPass(commandBuffer);
+
+		m_Renderer->endFrame();
 	}
 
 	void Application::updateScene(float dt) {
@@ -391,8 +383,7 @@ namespace pw {
 			sceneEntitiesListBox.addItem({
 				e->getComponent<Tag>().name,
 				icons, {224, 0}, 32, 32,
-				[this]() {
-				} });
+				[this]() {}});
 		}
 	}
 

@@ -1,4 +1,4 @@
-#include "primwalk/data/model.hpp"
+#include "model.hpp"
 #include <assimp/scene.h>
 
 // std
@@ -10,17 +10,16 @@
 
 namespace pw {
 
-	void Model::loadFromFile(const std::string& path)
-	{
+	void Model::loadFromFile(const std::string& path) {
 		std::string enginePath = BASE_DIR + path;
 
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(
 			enginePath,
 			aiProcess_Triangulate |
-			aiProcess_FlipUVs |
-			aiProcess_JoinIdenticalVertices |
-			aiProcess_CalcTangentSpace);
+			aiProcess_CalcTangentSpace |
+			aiProcess_PreTransformVertices |
+			aiProcess_FlipUVs);
 
 		if (!scene) {
 			std::string error = importer.GetErrorString();
@@ -37,20 +36,30 @@ namespace pw {
 		createIndexBuffer(m_Indices);
 	}
 
-	void Model::draw(VkCommandBuffer commandBuffer)
-	{
+	void Model::bind(VkCommandBuffer commandBuffer) {
 		VkBuffer buffers[] = { m_VertexBuffer->getBuffer() };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-		for (size_t i = 0; i < m_Meshes.size(); i++) {
-			vkCmdDrawIndexed(commandBuffer, m_Meshes[i].indices, 1, m_Meshes[i].baseIndex, m_Meshes[i].baseVertex, 0);
-		}
 	}
 
-	void Model::createVertexBuffer(const std::vector<Vertex3D>& vertices)
-	{
+	std::shared_ptr<pw::Texture2D> Model::getDiffuseMap(uint32_t materialIndex) {
+		if (m_DiffuseMaps.empty() || materialIndex >= m_DiffuseMaps.size()) {
+			return nullptr;
+		}
+
+		return m_DiffuseMaps[materialIndex];
+	}
+
+	std::shared_ptr<pw::Texture2D> Model::getNormalMap(uint32_t materialIndex) {
+		if (m_NormalMaps.empty() || materialIndex >= m_NormalMaps.size()) {
+			return nullptr;
+		}
+
+		return m_NormalMaps[materialIndex];
+	}
+
+	void Model::createVertexBuffer(const std::vector<Vertex3D>& vertices) {
 		GraphicsDevice_Vulkan* device = (GraphicsDevice_Vulkan*&)pw::GetDevice();
 
 		uint32_t vertexCount = static_cast<uint32_t>(vertices.size());
@@ -80,8 +89,7 @@ namespace pw {
 		device->copyBuffer(stagingBuffer.getBuffer(), m_VertexBuffer->getBuffer(), bufferSize);
 	}
 
-	void Model::createIndexBuffer(const std::vector<uint32_t>& indices)
-	{
+	void Model::createIndexBuffer(const std::vector<uint32_t>& indices) {
 		GraphicsDevice_Vulkan* device = (GraphicsDevice_Vulkan*&)pw::GetDevice();
 
 		uint32_t indexCount = static_cast<uint32_t>(indices.size());
@@ -110,10 +118,9 @@ namespace pw {
 		device->copyBuffer(stagingBuffer.getBuffer(), m_IndexBuffer->getBuffer(), bufferSize);
 	}
 
-	void Model::initFromScene(const aiScene* scene)
-	{
+	void Model::initFromScene(const aiScene* scene) {
 		m_Meshes.resize(scene->mNumMeshes);
-		m_DiffuseTextures.reserve(scene->mNumMaterials); // TODO: Fix material count
+		m_DiffuseMaps.reserve(scene->mNumMaterials); // TODO: Fix material count
 
 		uint32_t numVertices = 0;
 		uint32_t numIndices = 0;
@@ -123,8 +130,7 @@ namespace pw {
 		initMeshes(scene);
 	}
 
-	void Model::initMeshes(const aiScene* scene)
-	{
+	void Model::initMeshes(const aiScene* scene) {
 		const aiVector3D zero3D(0.0f, 0.0f, 0.0f);
 		const aiMesh* mesh = nullptr;
 		size_t vertexID = 0;
@@ -137,12 +143,20 @@ namespace pw {
 			for (size_t j = 0; j < mesh->mNumVertices; j++) {
 				const aiVector3D& position = mesh->mVertices[j];
 				const aiVector3D& normal = mesh->mNormals[j];
-				//const aiVector3D& tangent = mesh->mTangents[j];
-				//const aiVector3D& bitangent = mesh->mBitangents[j];
+				const aiVector3D& tangent = mesh->mTangents[j];
+				const aiVector3D& bitangent = mesh->mBitangents[j];
 				const aiVector3D& texCoord = mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0][j] : zero3D;
 
 				m_Vertices[vertexID].position = glm::vec3(position.x, position.y, position.z);
 				m_Vertices[vertexID].normal = glm::vec3(normal.x, normal.y, normal.z);
+
+				if (mesh->mTangents != nullptr) {
+					m_Vertices[vertexID].tangent = glm::vec3(tangent.x, tangent.y, tangent.z);
+				}
+
+				if (mesh->mBitangents != nullptr) {
+					m_Vertices[vertexID].bitangent = glm::vec3(bitangent.x, bitangent.y, bitangent.z);
+				}
 				m_Vertices[vertexID].texCoord = glm::vec2(texCoord.x, texCoord.y);
 				vertexID++;
 			}
@@ -160,26 +174,19 @@ namespace pw {
 		}
 	}
 
-	void Model::initMaterials(const aiScene* scene, const std::string& modelDir)
-	{
+	void Model::initMaterials(const aiScene* scene, const std::string& modelDir) {
 		for (size_t i = 0; i < scene->mNumMaterials; i++) {
 			const aiMaterial* material = scene->mMaterials[i];
 
-			aiString tempPath;
+			auto diffuseMap = getEmbeddedTexture(material, scene, aiTextureType_DIFFUSE, modelDir);
+			auto normalMap = getEmbeddedTexture(material, scene, aiTextureType_NORMALS, modelDir);
 
-			// Diffuse map texture
-			if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
-			material->GetTexture(aiTextureType_DIFFUSE, 0, &tempPath);
-			const aiTexture* texture = scene->GetEmbeddedTexture(tempPath.C_Str());
-
-			m_DiffuseTextures.push_back(std::make_shared<Texture2D>(
-				reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth));
-			}
+			if (diffuseMap) { m_DiffuseMaps.insert({ i, diffuseMap }); }
+			if (normalMap) { m_NormalMaps.insert({ i, normalMap }); }
 		}
 	}
 
-	void Model::countVerticesIndices(const aiScene* scene, uint32_t& numVertices, uint32_t& numIndices)
-	{
+	void Model::countVerticesIndices(const aiScene* scene, uint32_t& numVertices, uint32_t& numIndices) {
 		for (size_t i = 0; i < m_Meshes.size(); i++) {
 			m_Meshes[i].materialIndex = static_cast<uint32_t>(scene->mMeshes[i]->mMaterialIndex);
 			m_Meshes[i].indices = static_cast<uint32_t>(scene->mMeshes[i]->mNumFaces * 3);
@@ -191,17 +198,34 @@ namespace pw {
 		}
 	}
 
-	void Model::reserveSpace(const uint32_t& numVertices, const uint32_t& numIndices)
-	{
+	void Model::reserveSpace(const uint32_t& numVertices, const uint32_t& numIndices) {
 		m_Vertices.resize(numVertices);
 		m_Indices.resize(numIndices);
 	}
 
-	void Model::getTexturePath(const aiMaterial* material, const aiTextureType& texType, aiString& dstPath)
-	{
+	void Model::getTexturePath(const aiMaterial* material, const aiTextureType& texType, aiString& dstPath) {
 		if (material->GetTexture(texType, 0, &dstPath, NULL, NULL, NULL, NULL) != AI_SUCCESS) {
 			throw std::runtime_error("ASSIMP ERROR: Failed to retrieve model texture!");
 		}
+	}
+
+	std::shared_ptr<Texture2D>  Model::getEmbeddedTexture(const aiMaterial* material, const aiScene* scene, const aiTextureType& texType, const std::string& modelDir) {
+		if (material->GetTextureCount(texType) == 0) {
+			return nullptr;
+		}
+
+		aiString tempPath;
+
+		material->GetTexture(texType, 0, &tempPath);
+		const aiTexture* texture = scene->GetEmbeddedTexture(tempPath.C_Str());
+
+		if (texture) { // has embedded texture
+			return std::make_shared<Texture2D>(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth);
+		}
+
+		// read texture from the given texture path
+		std::string fullPath = modelDir + "/" + tempPath.C_Str();
+		return std::make_shared<Texture2D>(fullPath, 4, VK_FORMAT_R8G8B8A8_SRGB, true);
 	}
 
 }

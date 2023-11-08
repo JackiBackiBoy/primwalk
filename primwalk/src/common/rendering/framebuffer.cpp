@@ -1,5 +1,5 @@
-#include "primwalk/rendering/framebuffer.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "framebuffer.hpp"
+#include "graphicsDevice_Vulkan.hpp"
 
 // std
 #include <stdexcept>

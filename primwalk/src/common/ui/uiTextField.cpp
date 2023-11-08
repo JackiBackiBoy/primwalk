@@ -1,5 +1,5 @@
-#include "primwalk/ui/uiTextField.hpp"
-#include "primwalk/input/keycode.hpp"
+#include "uiTextField.hpp"
+#include "../input/keycode.hpp"
 #include <iostream>
 
 namespace pw {

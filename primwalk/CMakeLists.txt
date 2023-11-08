@@ -2,122 +2,117 @@ cmake_minimum_required(VERSION 3.20.0)
 
 set(NAME primwalk)
 set(SOURCE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/src) 
-set(INCLUDE_DIR ${CMAKE_HOME_DIRECTORY}/${NAME}/include) 
 
 set(SOURCE_FILES
-  ${SOURCE_DIR}/common/application.cpp
-  ${SOURCE_DIR}/common/color.cpp
-  ${SOURCE_DIR}/common/shader.cpp
-  ${SOURCE_DIR}/common/components/camera.cpp
-  ${SOURCE_DIR}/common/components/component.cpp
-  ${SOURCE_DIR}/common/components/entity.cpp
-  ${SOURCE_DIR}/common/data/font.cpp
-  ${SOURCE_DIR}/common/data/model.cpp
-  ${SOURCE_DIR}/common/data/mesh.cpp
-  ${SOURCE_DIR}/common/input/input.cpp
-  ${SOURCE_DIR}/common/input/rawInput.cpp
-  ${SOURCE_DIR}/common/managers/componentManager.cpp
-  ${SOURCE_DIR}/common/managers/entityManager.cpp
-  ${SOURCE_DIR}/common/managers/resourceManager.cpp
-  ${SOURCE_DIR}/common/managers/systemManager.cpp
-  ${SOURCE_DIR}/common/math/hitbox.cpp
-  ${SOURCE_DIR}/common/math/pwmath.cpp
-  ${SOURCE_DIR}/common/rendering/buffer.cpp
-  ${SOURCE_DIR}/common/rendering/descriptors.cpp
-  ${SOURCE_DIR}/common/rendering/framebuffer.cpp
-  ${SOURCE_DIR}/common/rendering/graphicsDevice_Vulkan.cpp
-  ${SOURCE_DIR}/common/rendering/graphicsPipeline.cpp
-  ${SOURCE_DIR}/common/rendering/image.cpp
-  ${SOURCE_DIR}/common/rendering/renderer.cpp
-  ${SOURCE_DIR}/common/rendering/renderpass.cpp
-  ${SOURCE_DIR}/common/rendering/texture2D.cpp
-  ${SOURCE_DIR}/common/rendering/systems/uiRenderSystem.cpp
-  ${SOURCE_DIR}/common/systems/renderSystem3d.cpp
-  ${SOURCE_DIR}/common/systems/system.cpp
-  ${SOURCE_DIR}/common/ui/GUI.cpp
-  ${SOURCE_DIR}/common/ui/menuWidget.cpp
-  ${SOURCE_DIR}/common/ui/subView.cpp
-  ${SOURCE_DIR}/common/ui/uiButton.cpp
-  ${SOURCE_DIR}/common/ui/uiContainer.cpp
-  ${SOURCE_DIR}/common/ui/uiElement.cpp
-  ${SOURCE_DIR}/common/ui/uiEvent.cpp
-  ${SOURCE_DIR}/common/ui/uiIconButton.cpp
-  ${SOURCE_DIR}/common/ui/uiImage.cpp
-  ${SOURCE_DIR}/common/ui/uiLabel.cpp
-  ${SOURCE_DIR}/common/ui/uiListBox.cpp
-  ${SOURCE_DIR}/common/ui/uiPanel.cpp
-  ${SOURCE_DIR}/common/ui/uiSlider.cpp
-  ${SOURCE_DIR}/common/ui/uiTextField.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/core.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/primwalk.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/window.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/application.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/application.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/color.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/color.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/camera.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/camera.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/component.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/component.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/componentArray.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/directionLight.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/entity.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/entity.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/pointLight.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/renderable.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/tag.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/components/transform.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/font.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/font.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/fontWeight.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/model.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/model.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/mesh.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/mesh.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/shader.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/data/shader.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/input.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/input.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/keycode.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/mouseButtons.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/rawInput.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/input/rawInput.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/componentManager.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/componentManager.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/entityManager.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/entityManager.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/resourceManager.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/resourceManager.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/systemManager.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/systemManager.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/hitbox.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/hitbox.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/pwmath.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/pwmath.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/framebuffer.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/framebuffer.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/frameInfo.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsAPI.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsDevice.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsDevice_Vulkan.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsDevice_Vulkan.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsPipeline.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/graphicsPipeline.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/image.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/image.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderer.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderer.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpass.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpass.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/texture2D.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/texture2D.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex3d.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/renderSystem3d.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/renderSystem3d.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/GUI.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/GUI.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/mouseCursor.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/subView.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/subView.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiContainer.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiContainer.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiElement.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiElement.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiEvent.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiEvent.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiIconButton.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiIconButton.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiImage.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiImage.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiLabel.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiLabel.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiListBox.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiListBox.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiPanel.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiPanel.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiSlider.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiSlider.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiTextField.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiTextField.hpp
 
-  ${SOURCE_DIR}/windows/resource.hpp
-  ${SOURCE_DIR}/windows/core/window_win32.cpp
-)
-
-set(HEADER_FILES
-  ${INCLUDE_DIR}/${NAME}/application.hpp
-  ${INCLUDE_DIR}/${NAME}/color.hpp
-  ${INCLUDE_DIR}/${NAME}/core.hpp
-  ${INCLUDE_DIR}/${NAME}/hitbox.hpp
-  ${INCLUDE_DIR}/${NAME}/mouseButtons.hpp
-  ${INCLUDE_DIR}/${NAME}/primwalk.hpp
-  ${INCLUDE_DIR}/${NAME}/window.hpp
-  ${INCLUDE_DIR}/${NAME}/components/camera.hpp
-  ${INCLUDE_DIR}/${NAME}/components/component.hpp
-  ${INCLUDE_DIR}/${NAME}/components/componentArray.hpp
-  ${INCLUDE_DIR}/${NAME}/components/entity.hpp
-  ${INCLUDE_DIR}/${NAME}/components/renderable.hpp
-  ${INCLUDE_DIR}/${NAME}/components/tag.hpp
-  ${INCLUDE_DIR}/${NAME}/components/transform.hpp
-  ${INCLUDE_DIR}/${NAME}/data/font.hpp
-  ${INCLUDE_DIR}/${NAME}/data/fontWeight.hpp
-  ${INCLUDE_DIR}/${NAME}/data/mesh.hpp
-  ${INCLUDE_DIR}/${NAME}/data/model.hpp
-  ${INCLUDE_DIR}/${NAME}/data/shader.hpp
-  ${INCLUDE_DIR}/${NAME}/input/keycode.hpp
-  ${INCLUDE_DIR}/${NAME}/input/input.hpp
-  ${INCLUDE_DIR}/${NAME}/input/rawInput.hpp
-  ${INCLUDE_DIR}/${NAME}/managers/componentManager.hpp
-  ${INCLUDE_DIR}/${NAME}/managers/entityManager.hpp
-  ${INCLUDE_DIR}/${NAME}/managers/resourceManager.hpp
-  ${INCLUDE_DIR}/${NAME}/managers/systemManager.hpp
-  ${INCLUDE_DIR}/${NAME}/math/pwmath.hpp
-  ${INCLUDE_DIR}/${NAME}/math/vector2d.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/buffer.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/descriptors.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/framebuffer.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/frameInfo.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/graphicsAPI.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/graphicsDevice.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/graphicsDevice_Vulkan.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/graphicsPipeline.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/image.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/renderer.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/renderpass.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/texture2D.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/vertex.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/vertex3d.hpp
-  ${INCLUDE_DIR}/${NAME}/rendering/systems/uiRenderSystem.hpp
-  ${INCLUDE_DIR}/${NAME}/systems/renderSystem3d.hpp
-  ${INCLUDE_DIR}/${NAME}/systems/system.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/GUI.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/menuWidget.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/mouseCursor.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/subView.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiButton.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiContainer.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiElement.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiEvent.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiIconButton.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiImage.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiLabel.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiListBox.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiPanel.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiSlider.hpp
-  ${INCLUDE_DIR}/${NAME}/ui/uiTextField.hpp
-  ${INCLUDE_DIR}/${NAME}/vendor/stb/stb_image.hpp
-
-  ${INCLUDE_DIR}/${NAME}/windows/resource.hpp
-  ${INCLUDE_DIR}/${NAME}/windows/core/window_win32.hpp
+  # Windows specific
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/windows/resource.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/windows/window_win32.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/windows/window_win32.hpp
 )
 
 # Platform specifics
@@ -126,6 +121,7 @@ if (WIN32)
   set(PLATFORM "windows")
   add_definitions(-DPW_WIN32 -DWIN32 -D_WINDOWS -D_UNICODE -DUNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX)
 elseif(APPLE)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_HOME_DIRECTORY}/build/install_config)
   set(PLATFORM "macos")
   enable_language(OBJCXX CXX)
   add_definitions(-DPW_MACOS)
@@ -145,7 +141,6 @@ project(${NAME})
 
 include_directories(
   ${SOURCE_DIR}
-  ${INCLUDE_DIR}
   ${CMAKE_HOME_DIRECTORY}/vendor/stb
 )
 
@@ -196,7 +191,7 @@ set(MSDFGEN_LIBRARIES ${CMAKE_HOME_DIRECTORY}/build/vendor/msdf-atlas-gen)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_library(${NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES} ${STB_FILES})
+add_library(${NAME} SHARED ${SOURCE_FILES} ${STB_FILES})
 
 # Eliminate target prefixes
 set_target_properties(${NAME} PROPERTIES PREFIX "")
@@ -209,6 +204,7 @@ if (WIN32)
   target_compile_definitions(${NAME} PRIVATE
     PW_BUILD_LIB
     BASE_DIR="${CMAKE_HOME_DIRECTORY}/"
+    GLM_FORCE_DEPTH_ZERO_TO_ONE
     GLM_FORCE_RADIANS
     WINVER=0x0A00
   )

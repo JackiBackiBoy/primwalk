@@ -1,7 +1,7 @@
-#include "primwalk/data/shader.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
-#include "primwalk/rendering/graphicsPipeline.hpp"
-#include "primwalk/rendering/vertex.hpp"
+#include "graphicsPipeline.hpp"
+#include "graphicsDevice_Vulkan.hpp"
+#include "vertex.hpp"
+#include "../data/shader.hpp"
 
 // std
 #include <stdexcept>
@@ -65,22 +65,22 @@ namespace pw {
 			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
 			VK_COLOR_COMPONENT_A_BIT;
 		configInfo.colorBlendAttachment.blendEnable = VK_TRUE;
-		configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;   // Optional
-		configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;  // Optional
-		configInfo.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;              // Optional
-		configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-		configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-		configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;              // Optional
+		configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		configInfo.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 		configInfo.colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 		configInfo.colorBlendInfo.logicOpEnable = VK_FALSE;
-		configInfo.colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;  // Optional
+		configInfo.colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
 		configInfo.colorBlendInfo.attachmentCount = 1;
 		configInfo.colorBlendInfo.pAttachments = &configInfo.colorBlendAttachment;
-		configInfo.colorBlendInfo.blendConstants[0] = 0.0f;  // Optional
-		configInfo.colorBlendInfo.blendConstants[1] = 0.0f;  // Optional
-		configInfo.colorBlendInfo.blendConstants[2] = 0.0f;  // Optional
-		configInfo.colorBlendInfo.blendConstants[3] = 0.0f;  // Optional
+		configInfo.colorBlendInfo.blendConstants[0] = 0.0f;
+		configInfo.colorBlendInfo.blendConstants[1] = 0.0f;
+		configInfo.colorBlendInfo.blendConstants[2] = 0.0f;
+		configInfo.colorBlendInfo.blendConstants[3] = 0.0f;
 
 		// Depth stencil
 		configInfo.depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;

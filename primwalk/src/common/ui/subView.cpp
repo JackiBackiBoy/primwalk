@@ -1,5 +1,5 @@
-#include "primwalk/ui/subView.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
+#include "subView.hpp"
+#include "../rendering/graphicsDevice_Vulkan.hpp"
 
 // std
 #include <array>

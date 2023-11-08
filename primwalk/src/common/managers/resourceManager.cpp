@@ -1,4 +1,4 @@
-#include "primwalk/managers/resourceManager.hpp"
+#include "resourceManager.hpp"
 
 // std
 #include <unordered_map>

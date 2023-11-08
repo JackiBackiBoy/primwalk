@@ -1,4 +1,4 @@
-#include "primwalk/ui/uiImage.hpp"
+#include "uiImage.hpp"
 
 namespace pw {
 

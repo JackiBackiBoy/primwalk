@@ -1,14 +1,14 @@
-#include "primwalk/rendering/systems/uiRenderSystem.hpp"
-#include "primwalk/rendering/renderer.hpp"
-#include "primwalk/rendering/buffer.hpp"
-#include "primwalk/ui/uiElement.hpp"
-#include "primwalk/rendering/graphicsDevice_Vulkan.hpp"
-#include "primwalk/rendering/graphicsPipeline.hpp"
+#include "uiRenderSystem.hpp"
+#include "../renderer.hpp"
+#include "../buffer.hpp"
+#include "../graphicsDevice_Vulkan.hpp"
+#include "../graphicsPipeline.hpp"
 
-#include "primwalk/rendering/descriptors.hpp"
-#include "primwalk/rendering/texture2D.hpp"
-#include "primwalk/managers/resourceManager.hpp"
-#include "primwalk/data/font.hpp"
+#include "../descriptors.hpp"
+#include "../texture2D.hpp"
+#include "../../managers/resourceManager.hpp"
+#include "../../data/font.hpp"
+#include "../../ui/uiElement.hpp"
 
 // std
 #include <stdexcept>
@@ -58,7 +58,7 @@ namespace pw {
 		UniformBufferObject ubo{};
 		ubo.proj = glm::ortho(0.0f, (float)frameInfo.windowWidth, 0.0f, (float)frameInfo.windowHeight);
 
-		m_UniformBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
+		m_UBOs[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
 		if (!m_RenderParams.empty()) {
 			m_StorageBuffers[frameInfo.frameIndex]->writeToBuffer(m_RenderParams.data(), m_RenderParams.size() * sizeof(RenderParams));
@@ -216,14 +216,14 @@ namespace pw {
 				double t1 = glyph.atlasBounds.y / font->atlasHeight;
 
 				FontRenderParams fontParams{};
-				fontParams.position = { x0, y0 + std::round((font->getMaxHeight() * scale)) };
-				fontParams.size = { glyph.width * scale, -glyph.height * scale };
+				fontParams.position = { x0, y0 + std::round((font->getMaxHeight() * scale)) - (glyph.height * scale)};
+				fontParams.size = { glyph.width * scale, glyph.height * scale };
 				fontParams.color = Color::normalize(color);
 				fontParams.texIndex = texIndex;
-				fontParams.texCoords[0] = { s0, t1 }; // top right
-				fontParams.texCoords[1] = { s1, t1 }; // bottom right
-				fontParams.texCoords[2] = { s1, t0 }; // bottom left
-				fontParams.texCoords[3] = { s0, t0 }; // top left
+				fontParams.texCoords[0] = { s0, t0 }; // top left
+				fontParams.texCoords[1] = { s1, t0 }; // bottom left
+				fontParams.texCoords[2] = { s1, t1 }; // bottom right
+				fontParams.texCoords[3] = { s0, t1 }; // top right
 
 				m_FontRenderParams.emplace_back(fontParams);
 			}
@@ -280,7 +280,7 @@ namespace pw {
 
 		// Uniform buffer
 		for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
-			auto bufferInfo = m_UniformBuffers[i]->getDescriptorInfo();
+			auto bufferInfo = m_UBOs[i]->getDescriptorInfo();
 			DescriptorWriter(*uniformSetLayout, *m_Device.m_BindlessDescriptorPool)
 				.writeBuffer(0, &bufferInfo)
 				.build(m_UniformDescriptorSets[i]);
@@ -418,16 +418,16 @@ namespace pw {
 	void UIRenderSystem::createUniformBuffers() {
 		// Uniform buffer
 		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-		m_UniformBuffers.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+		m_UBOs.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 		for (size_t i = 0; i < GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT; i++) {
-			m_UniformBuffers[i] = std::make_unique<Buffer>(
+			m_UBOs[i] = std::make_unique<Buffer>(
 				m_Device,
 				sizeof(UniformBufferObject),
 				1,
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 			);
-			m_UniformBuffers[i]->map();
+			m_UBOs[i]->map();
 		}
 
 		// Storage buffer (render params)
