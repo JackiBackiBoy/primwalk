@@ -69,32 +69,50 @@ namespace pw {
 			alignas(16) glm::mat4 modelMatrix{ 1.0f };
 		};
 
+		struct SkyboxPushConstant {
+			alignas(16) glm::mat4 modelMatrix{ 1.0f };
+			alignas(4) uint32_t texIndex = 0;
+		};
+
 		void createDescriptorPool();
-		void createUniformBuffers();
+		void createBuffers();
 		void createDescriptorSetLayout();
-		void createPipelineLayout();
+		void createPipelineLayouts();
 		void createPipelines(VkRenderPass renderPass);
+
+		uint32_t addTexture(Image* image);
+		void freeTextureID(Image* image);
+		std::unordered_map<Image*, uint32_t> m_TextureIDs{};
+		std::set<uint32_t> m_VacantTextureIDs{};
 
 		GraphicsDevice_Vulkan& m_Device;
 		std::unique_ptr<GraphicsPipeline> m_MainPipeline;
 		std::unique_ptr<GraphicsPipeline> m_DebugPipeline;
+		std::unique_ptr<GraphicsPipeline> m_SkyboxPipeline;
 
 		VkPipelineLayout m_MainPipelineLayout = VK_NULL_HANDLE;
 		VkPipelineLayout m_DebugPipelineLayout = VK_NULL_HANDLE;
+		VkPipelineLayout m_SkyboxPipelineLayout = VK_NULL_HANDLE;
 
 		std::vector<VkDescriptorSetLayout> m_MainDescriptorSetLayouts;
 		std::vector<VkDescriptorSetLayout> m_DebugDescriptorSetLayouts;
+		std::vector<VkDescriptorSetLayout> m_SkyboxDescriptorSetLayouts;
+
 		std::vector<std::unique_ptr<Buffer>> m_UBOs;
 		std::vector<std::unique_ptr<Buffer>> m_DebugSSBOs;
 		std::vector<DebugLineParams> m_DebugLineParams;
 
 		std::unique_ptr<DescriptorSetLayout> m_UBOSetLayout{};
 		std::unique_ptr<DescriptorSetLayout> m_DebugSSBOSetLayout{};
+		std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
+
+		std::vector<std::shared_ptr<Texture2D>> m_Textures;
 
 		std::vector<VkDescriptorSet> m_UniformDescriptorSets;
 		std::vector<VkDescriptorSet> m_DebugStorageDescriptorSets;
+		VkDescriptorSet m_TextureDescriptorSet;
 
-		std::shared_ptr<Model> m_DefaultModel;
+		std::shared_ptr<Model> m_DefaultModel; // also used as skybox model
 	};
 }
 

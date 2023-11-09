@@ -11,8 +11,11 @@
 // std
 #include <cstdint>
 #include <memory>
-#include <vector>
+#include <set>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
 #include <glm/glm.hpp>
 
 namespace pw {
@@ -61,7 +64,7 @@ namespace pw {
 
 	private:
 		struct UniformBufferObject {
-		alignas(16) glm::mat4 proj;
+			alignas(16) glm::mat4 proj;
 		};
 
 		void createDescriptorSetLayout();
@@ -71,6 +74,13 @@ namespace pw {
 		void createIndexBuffer();
 		void createUniformBuffers();
 		void createDescriptorPool();
+
+		uint32_t addTexture(Image* image);
+
+		// TODO: It will not remove texture from m_Textures if the related Vulkan image was bounded through Texture2D object
+		void freeTextureID(Image* image);
+		std::unordered_map<Image*, uint32_t> m_TextureIDs{};
+		std::set<uint32_t> m_VacantTextureIDs{};
 
 		std::vector<RenderParams> m_RenderParams;
 		std::vector<FontRenderParams> m_FontRenderParams;
@@ -86,7 +96,7 @@ namespace pw {
 		std::vector<VkDescriptorSetLayout> m_FontDescriptorSetLayouts;
 		std::unique_ptr<DescriptorSetLayout> uniformSetLayout{};
 		std::unique_ptr<DescriptorSetLayout> storageSetLayout{};
-		std::unique_ptr<DescriptorSetLayout> textureSetLayout{};
+		std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
 
 		std::vector<std::shared_ptr<Texture2D>> m_Textures;
 		std::vector<std::shared_ptr<Font>> m_Fonts;

@@ -15,6 +15,12 @@ namespace pw {
 	Texture2D::Texture2D(const std::string& path, int channels, VkFormat imageFormat, bool absolutePath) {
 		std::string truePath = (absolutePath ? path : BASE_DIR + path);
 
+		// TODO: Make this more general instead of hardcoded
+		if (stbi_is_hdr(truePath.c_str())) {
+			loadHDR(path, channels, imageFormat);
+			return;
+		}
+
 		stbi_uc* pixels = stbi_load(truePath.c_str(), &m_Width, &m_Height, &m_Channels, channels);
 
 		if (!pixels) {
@@ -109,6 +115,26 @@ namespace pw {
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 			device->endSingleTimeCommands(commandBuffer);*/
+	}
+
+	void Texture2D::loadHDR(const std::string& path, int channels, VkFormat imageFormat) {
+		std::string truePath = BASE_DIR + path;
+
+		// TODO: Remove hardcoded values
+		float* pixels = stbi_loadf(truePath.c_str(), &m_Width, &m_Height, &m_Channels, 4);
+
+		if (!pixels) {
+			throw std::runtime_error("Failed to load texture image!");
+		}
+
+		// stb_image.h automatically maps the HDR values to a list of floating point values: 32 bits per channel and 3 channels per color by default.
+		// This corresponds to a RGBA32_FLOAT format, and we need to first convert it to RGBA16_FLOAT
+
+		int bytesPerChannel = 4;
+		int bytesPerPixel = 4 * bytesPerChannel;
+		VkDeviceSize imageSize = m_Width * m_Height * bytesPerPixel;
+		createImage(pixels, imageSize, VK_FORMAT_R32G32B32A32_SFLOAT);
+		stbi_image_free(pixels);
 	}
 
 	void Texture2D::createImage(void* pixels, VkDeviceSize imageSize, VkFormat imageFormat) {

@@ -28,6 +28,7 @@ namespace pw {
 		void updateData(unsigned char* pixels);
 
 	private:
+		void loadHDR(const std::string& path, int channels, VkFormat imageFormat);
 		void createImage(void* pixels, VkDeviceSize imageSize, VkFormat imageFormat);
 
 		int m_Width = 0;

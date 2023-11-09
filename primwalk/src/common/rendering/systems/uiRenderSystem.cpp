@@ -26,19 +26,6 @@ namespace pw {
 		m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/motivasans.ttf", 32));
 		m_Fonts.push_back(ResourceManager::Get().loadFont("assets/fonts/catamaranb.ttf", 15));
 
-		// Textures
-		m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = m_Textures[0]->getImageView();
-		imageInfo.sampler = Renderer::m_TextureSampler;
-
-		DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-			.writeImage(0, &imageInfo, 0)
-			.overwrite(m_Device.m_TextureDescriptorSet);
-
-		m_Device.addTextureID(m_Textures[0]->getImage());
-
 		createDescriptorPool();
 		createUniformBuffers();
 		createDescriptorSetLayout();
@@ -46,6 +33,10 @@ namespace pw {
 		createPipeline(renderPass);
 		createVertexBuffer();
 		createIndexBuffer();
+
+		// Textures
+		m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
+		addTexture(m_Textures[0]->getImage());
 	}
 
 	UIRenderSystem::~UIRenderSystem() {
@@ -84,7 +75,7 @@ namespace pw {
 		vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			m_BasePipelineLayout, 1, 1, &m_StorageDescriptorSets[frameInfo.frameIndex], 0, nullptr);
 		vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_BasePipelineLayout, 2, 1, &m_Device.m_TextureDescriptorSet, 0, nullptr);
+			m_BasePipelineLayout, 2, 1, &m_TextureDescriptorSet, 0, nullptr);
 		vkCmdDrawIndexed(frameInfo.commandBuffer, static_cast<uint32_t>(m_Indices.size()), static_cast<uint32_t>(m_RenderParams.size()), 0, 0, 0);
 
 		// Font pipeline rendering
@@ -99,24 +90,7 @@ namespace pw {
 	}
 
 	void UIRenderSystem::removeImage(Image* image) {
-		if (!m_Device.getTextureID(image, nullptr)) {
-			return;
-		}
-
-		m_Device.removeTextureID(image);
-
-		uint32_t id = 0;
-		bool hasID = m_Device.getTextureID(m_Textures[0]->getImage(), &id);
-
-		// Clear the image from the texture descriptor
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = m_Textures[0]->getImageView(); // default 1x1 white texture
-		imageInfo.sampler = Renderer::m_TextureSampler;
-
-		DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-			.writeImage(0, &imageInfo, id)
-			.overwrite(m_Device.m_TextureDescriptorSet);
+		freeTextureID(image);
 	}
 
 	void UIRenderSystem::drawRect(glm::vec2 position, float width, float height,
@@ -126,20 +100,23 @@ namespace pw {
 		uint32_t texIndex = 0;
 
 		if (texture != nullptr) {
-			bool hasID = m_Device.getTextureID(texture->getImage(), &texIndex);
+			texIndex = addTexture(texture->getImage());
 
-			if (!hasID) {
-				texIndex = m_Device.addTextureID(texture->getImage());
+			////
+			//bool hasID = m_Device.getTextureID(texture->getImage(), &texIndex);
 
-				VkDescriptorImageInfo imageInfo{};
-				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = texture->getImageView();
-				imageInfo.sampler = Renderer::m_TextureSampler;
+			//if (!hasID) {
+			//	texIndex = m_Device.addTextureID(texture->getImage());
 
-				DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-					.writeImage(0, &imageInfo, texIndex)
-					.overwrite(m_Device.m_TextureDescriptorSet);
-			}
+			//	VkDescriptorImageInfo imageInfo{};
+			//	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			//	imageInfo.imageView = texture->getImageView();
+			//	imageInfo.sampler = Renderer::m_TextureSampler;
+
+			//	DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
+			//		.writeImage(0, &imageInfo, texIndex)
+			//		.overwrite(m_TextureDescriptorSet);
+			//}
 		}
 
 		RenderParams params{};
@@ -184,20 +161,7 @@ namespace pw {
 		uint32_t texIndex = 2;
 
 		if (font != nullptr) {
-			bool hasID = m_Device.getTextureID(font->getTextureAtlas().getImage(), &texIndex);
-
-			if (!hasID) {
-				texIndex = m_Device.addTextureID(font->getTextureAtlas().getImage());
-
-				VkDescriptorImageInfo imageInfo{};
-				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = font->getTextureAtlas().getImageView();
-				imageInfo.sampler = Renderer::m_TextureSampler;
-
-				DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-					.writeImage(0, &imageInfo, texIndex)
-					.overwrite(m_Device.m_TextureDescriptorSet);
-			}
+			texIndex = addTexture(font->getTextureAtlas().getImage());
 		}
 
 
@@ -233,21 +197,7 @@ namespace pw {
 	}
 
 	void UIRenderSystem::drawSubView(SubView& subView) {
-		uint32_t texIndex = 0;
-		bool hasID = m_Device.getTextureID(subView.getImage(), &texIndex);
-
-		if (!hasID) { // texture does not exist
-			texIndex = m_Device.addTextureID(subView.getImage());
-
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = subView.getImage()->getVulkanImageView();
-			imageInfo.sampler = Renderer::m_TextureSampler;
-
-			DescriptorWriter(*m_Device.m_TextureSetLayout, *m_Device.m_BindlessDescriptorPool)
-				.writeImage(0, &imageInfo, texIndex)
-				.overwrite(m_Device.m_TextureDescriptorSet);
-		}
+		uint32_t texIndex = addTexture(subView.getImage());
 
 		RenderParams params{};
 		params.position = subView.getPosition();
@@ -270,6 +220,7 @@ namespace pw {
 	}
 
 	void UIRenderSystem::createDescriptorSetLayout() {
+		// Descriptor set layouts
 		uniformSetLayout = DescriptorSetLayout::Builder(m_Device)
 			.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 			.build();
@@ -278,10 +229,16 @@ namespace pw {
 			.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 			.build();
 
+		m_TextureSetLayout = DescriptorSetLayout::Builder(m_Device)
+			.setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
+			.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1024,
+				VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
+			.build();
+
 		// Uniform buffer
 		for (size_t i = 0; i < m_UniformDescriptorSets.size(); i++) {
 			auto bufferInfo = m_UBOs[i]->getDescriptorInfo();
-			DescriptorWriter(*uniformSetLayout, *m_Device.m_BindlessDescriptorPool)
+			DescriptorWriter(*uniformSetLayout, m_Device.getBindlessPool())
 				.writeBuffer(0, &bufferInfo)
 				.build(m_UniformDescriptorSets[i]);
 		}
@@ -290,7 +247,7 @@ namespace pw {
 		for (size_t i = 0; i < m_StorageDescriptorSets.size(); i++) {
 			auto bufferInfo = m_StorageBuffers[i]->getDescriptorInfo();
 
-			DescriptorWriter(*storageSetLayout, *m_Device.m_BindlessDescriptorPool)
+			DescriptorWriter(*storageSetLayout, m_Device.getBindlessPool())
 				.writeBuffer(0, &bufferInfo)
 				.build(m_StorageDescriptorSets[i]);
 		}
@@ -299,21 +256,24 @@ namespace pw {
 		for (size_t i = 0; i < m_FontStorageDescriptorSets.size(); i++) {
 			auto bufferInfo = m_FontStorageBuffers[i]->getDescriptorInfo();
 
-			DescriptorWriter(*storageSetLayout, *m_Device.m_BindlessDescriptorPool)
+			DescriptorWriter(*storageSetLayout, m_Device.getBindlessPool())
 				.writeBuffer(0, &bufferInfo)
 				.build(m_FontStorageDescriptorSets[i]);
 		}
 
+		DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
+			.build(m_TextureDescriptorSet);
+
 		m_BaseDescriptorSetLayouts = {
 			uniformSetLayout->getDescriptorSetLayout(),
 			storageSetLayout->getDescriptorSetLayout(),
-			m_Device.m_TextureSetLayout->getDescriptorSetLayout()
+			m_TextureSetLayout->getDescriptorSetLayout()
 		};
 
 		m_FontDescriptorSetLayouts = {
 			uniformSetLayout->getDescriptorSetLayout(),
 			storageSetLayout->getDescriptorSetLayout(),
-			m_Device.m_TextureSetLayout->getDescriptorSetLayout()
+			m_TextureSetLayout->getDescriptorSetLayout()
 		};
 	}
 
@@ -466,6 +426,55 @@ namespace pw {
 		m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 		m_StorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 		m_FontStorageDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
+	}
+
+	// TODO: Add check for nullptr
+	uint32_t UIRenderSystem::addTexture(Image* image) {
+		auto idSearch = m_TextureIDs.find(image);
+
+		if (idSearch == m_TextureIDs.end()) { // texture is not associated with any ID yet
+			uint32_t id = m_TextureIDs.size();
+
+			if (!m_VacantTextureIDs.empty()) {
+				id = *m_VacantTextureIDs.begin(); // get the lowest vacant ID
+				m_VacantTextureIDs.erase(m_VacantTextureIDs.begin());
+			}
+
+			VkDescriptorImageInfo imageInfo{};
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageInfo.imageView = image->getVulkanImageView();
+			imageInfo.sampler = Renderer::m_TextureSampler;
+
+			DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
+				.writeImage(0, &imageInfo, id)
+				.overwrite(m_TextureDescriptorSet);
+
+			m_TextureIDs.insert({ image, id });
+			return id;
+		}
+
+		return idSearch->second;
+	}
+
+	void UIRenderSystem::freeTextureID(Image* image) {
+		auto idSearch = m_TextureIDs.find(image);
+
+		if (idSearch == m_TextureIDs.end()) { // texture has no ID, can not free ID
+			return;
+		}
+
+		// Clear the image from the texture descriptor
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = m_Textures[0]->getImageView(); // default 1x1 white texture
+		imageInfo.sampler = Renderer::m_TextureSampler;
+
+		DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
+			.writeImage(0, &imageInfo, idSearch->second)
+			.overwrite(m_TextureDescriptorSet);
+
+		m_VacantTextureIDs.emplace(idSearch->second);
+		m_TextureIDs.erase(image);
 	}
 
 }

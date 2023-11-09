@@ -20,7 +20,6 @@ namespace pw {
 		createLogicalDevice();
 		createCommandPool();
 		createDescriptorPool();
-		createDescriptorSetLayouts();
 	}
 
 	CommandList GraphicsDevice_Vulkan::beginFrame() {
@@ -38,7 +37,6 @@ namespace pw {
 
 	GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan() {
 		m_BindlessDescriptorPool.reset();
-		m_TextureSetLayout.reset();
 
 		vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
 		vkDestroyDevice(m_Device, nullptr);
@@ -70,10 +68,8 @@ namespace pw {
 		VkInstanceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
-		//createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
-		auto requiredExtensions = getRequiredExtensions();
-		//requiredExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+		auto requiredExtensions = getInstanceExtensions();
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 		createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
@@ -244,20 +240,9 @@ namespace pw {
 			.setMaxSets(MAX_FRAMES_IN_FLIGHT * 6)
 			.setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_IMAGE_DESCRIPTORS) // image sampler
-			.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT) // uniform buffer
-			.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_FRAMES_IN_FLIGHT) // storage buffer
+			.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_UBO_DESCRIPTORS) // UBO
+			.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_SSBO_DESCRIPTORS) // SSBO
 			.build();
-	}
-
-	void GraphicsDevice_Vulkan::createDescriptorSetLayouts() {
-		m_TextureSetLayout = DescriptorSetLayout::Builder(*this)
-			.setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
-			.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_IMAGE_DESCRIPTORS,
-				VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
-			.build();
-
-		DescriptorWriter(*m_TextureSetLayout, *m_BindlessDescriptorPool)
-			.build(m_TextureDescriptorSet);
 	}
 
 	std::vector<std::string> GraphicsDevice_Vulkan::getRequiredVulkanInstanceExtensions() {
@@ -332,8 +317,7 @@ namespace pw {
 		vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
 	}
 
-	void GraphicsDevice_Vulkan::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-		{
+	void GraphicsDevice_Vulkan::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 		// TODO: Create separate command pool for optimization of short lived objects
 		VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -399,29 +383,26 @@ namespace pw {
 		);
 	}
 
-	std::vector<const char*> GraphicsDevice_Vulkan::getRequiredExtensions() {
-		// Retrieve required Vulkan extensions
+	std::vector<const char*> GraphicsDevice_Vulkan::getInstanceExtensions() {
+		// Enumerate all available instance extensions
 		uint32_t extensionCount = 0;
-		std::vector<VkExtensionProperties> extensionProperties;
-
+		
 		vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL); // get extension count
-		extensionProperties.resize(extensionCount);
+		std::vector<VkExtensionProperties> extensionProperties(extensionCount);
 		vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensionProperties.data()); // fill out extensions
-
-		m_RequiredExtensions.clear();
 
 		std::vector<std::string> requiredExtensions = getRequiredVulkanInstanceExtensions();
 		int foundExtensions = 0;
 
-		std::cout << "Available Vulkan extensions (* = required):\n";
-		for (uint32_t i = 0; i < extensionCount; i++) {
-			std::string extensionName = extensionProperties[i].extensionName;
+		std::cout << "Available Vulkan extensions:\n";
+		for (const auto& extension : extensionProperties) {
+			std::string extensionName = extension.extensionName;
 			std::cout << '\t' << extensionName;
 
 			for (std::string e : requiredExtensions) {
 				if (extensionName == e) {
 					m_RequiredExtensions.push_back(extensionName);
-					std::cout << '*';
+					std::cout << " (REQUIRED)";
 					foundExtensions++;
 				}
 			}
@@ -429,7 +410,6 @@ namespace pw {
 			std::cout << '\n';
 		}
 
-		// TODO: Refactor cross-platform extension requirements
 		if (foundExtensions != requiredExtensions.size()) {
 			throw std::runtime_error("VULKAN ERROR: Required extensions not available!");
 		}
@@ -613,53 +593,53 @@ namespace pw {
 		return depthFormat;
 	}
 
-	bool GraphicsDevice_Vulkan::getTextureID(Image* image, uint32_t* id) {
-		auto search = m_TextureIDs.find(image);
+	//bool GraphicsDevice_Vulkan::getTextureID(Image* image, uint32_t* id) {
+	//	auto search = m_TextureIDs.find(image);
 
-		if (search == m_TextureIDs.end()) { // no associated texture ID found
-			return false;
-		}
+	//	if (search == m_TextureIDs.end()) { // no associated texture ID found
+	//		return false;
+	//	}
 
-		if (id != nullptr) {
-			*id = search->second;
-		}
+	//	if (id != nullptr) {
+	//		*id = search->second;
+	//	}
 
-		return true;
-	}
+	//	return true;
+	//}
 
-	uint32_t GraphicsDevice_Vulkan::addTextureID(Image* image) {
-		if (image == nullptr) {
-			return -1;
-		}
+	//uint32_t GraphicsDevice_Vulkan::addTextureID(Image* image) {
+	//	if (image == nullptr) {
+	//		return -1;
+	//	}
 
-		auto search = m_TextureIDs.find(image);
+	//	auto search = m_TextureIDs.find(image);
 
-		if (search == m_TextureIDs.end()) { // image not associated with any existing texture id, thus create one
-			uint32_t id = m_TextureIDs.size();
+	//	if (search == m_TextureIDs.end()) { // image not associated with any existing texture id, thus create one
+	//		uint32_t id = m_TextureIDs.size();
 
-			if (!m_VacantTextureIDs.empty()) {
-				id = *m_VacantTextureIDs.begin();
-				m_VacantTextureIDs.erase(m_VacantTextureIDs.begin());
-			}
+	//		if (!m_VacantTextureIDs.empty()) {
+	//			id = *m_VacantTextureIDs.begin();
+	//			m_VacantTextureIDs.erase(m_VacantTextureIDs.begin());
+	//		}
 
-			m_TextureIDs.insert({ image, id });
-			return id;
-		}
+	//		m_TextureIDs.insert({ image, id });
+	//		return id;
+	//	}
 
-		// image already has associated texture id, return that
-		return search->second;
-	}
+	//	// image already has associated texture id, return that
+	//	return search->second;
+	//}
 
-	void GraphicsDevice_Vulkan::removeTextureID(Image* image) {
-		auto search = m_TextureIDs.find(image);
+	//void GraphicsDevice_Vulkan::removeTextureID(Image* image) {
+	//	auto search = m_TextureIDs.find(image);
 
-		if (search == m_TextureIDs.end()) { // attempt to remove non-existent image
-			return;
-		}
+	//	if (search == m_TextureIDs.end()) { // attempt to remove non-existent image
+	//		return;
+	//	}
 
-		m_VacantTextureIDs.emplace(search->second);
-		m_TextureIDs.erase(image);
-	}
+	//	m_VacantTextureIDs.emplace(search->second);
+	//	m_TextureIDs.erase(image);
+	//}
 
 	VkCommandBuffer GraphicsDevice_Vulkan::beginSingleTimeCommands() {
 		VkCommandBufferAllocateInfo allocInfo{};

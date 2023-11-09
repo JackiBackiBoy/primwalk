@@ -94,18 +94,12 @@ namespace pw {
 		inline VkQueue getPresentQueue() const { return m_PresentQueue; }
 		inline SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(m_PhysicalDevice); }
 		inline QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(m_PhysicalDevice); }
-
-		
-		std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
-		std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
-		VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
-
-		bool getTextureID(Image* image, uint32_t* id); // Returns false if no texture ID is associated with the image
-		uint32_t addTextureID(Image* image);
-		void removeTextureID(Image* image);
+		inline DescriptorPool& getBindlessPool() { return *m_BindlessDescriptorPool; }
 
 		static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 		static constexpr uint32_t MAX_IMAGE_DESCRIPTORS = 4096;
+		static constexpr uint32_t MAX_UBO_DESCRIPTORS = 32;
+		static constexpr uint32_t MAX_SSBO_DESCRIPTORS = 32;
 
 	private:
 		void createInstance();
@@ -115,7 +109,6 @@ namespace pw {
 		void createLogicalDevice();
 		void createCommandPool();
 		void createDescriptorPool();
-		void createDescriptorSetLayouts();
 		static std::vector<std::string> getRequiredVulkanInstanceExtensions();
 
 		void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
@@ -135,7 +128,7 @@ namespace pw {
 			VkDebugUtilsMessengerEXT* pDebugMessenger);
 		QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 		SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-		std::vector<const char*> getRequiredExtensions();
+		std::vector<const char*> getInstanceExtensions();
 
 		VkInstance m_Instance = VK_NULL_HANDLE;
 		VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
@@ -145,12 +138,17 @@ namespace pw {
 		VkQueue m_GraphicsQueue = VK_NULL_HANDLE;
 		VkQueue m_PresentQueue = VK_NULL_HANDLE;
 		VkCommandPool m_CommandPool = VK_NULL_HANDLE;
+		std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
 
 		
 		Window& m_Window;
-		uint32_t m_CurrentFrame = 0;
 
-
+		std::vector<const char*> m_DesiredInstanceExtensions = {
+			#ifdef _DEBUG
+				VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+			#endif
+			VK_KHR_SURFACE_EXTENSION_NAME,
+		};
 		std::vector<std::string> m_RequiredExtensions;
 		std::vector<const char*> m_ExtensionPointers;
 		bool m_BindlessSupported = false;
@@ -170,8 +168,8 @@ namespace pw {
 			"VK_LAYER_KHRONOS_validation"
 		};
 
-		std::unordered_map<Image*, uint32_t> m_TextureIDs{};
-		std::set<uint32_t> m_VacantTextureIDs{};
+		//std::unordered_map<Image*, uint32_t> m_TextureIDs{};
+		//std::set<uint32_t> m_VacantTextureIDs{};
 
 		#ifdef NDEBUG
 		const bool m_EnableValidationLayers = false;

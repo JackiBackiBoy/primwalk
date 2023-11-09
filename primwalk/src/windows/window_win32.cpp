@@ -30,7 +30,7 @@ namespace pw {
 		// 1. Setup window class attributes
 		WNDCLASSEX wcex{};
 		wcex.cbSize = sizeof(wcex);							// Window class size in bytes
-		wcex.style = CS_OWNDC | CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS;  // Window class styles
+		wcex.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS;  // Window class styles
 		wcex.lpszClassName = wName.c_str();					// Window class name
 		wcex.hbrBackground = NULL;							// Window background brush color
 		wcex.hCursor = LoadIcon(NULL, IDC_ARROW);			// Window cursor
