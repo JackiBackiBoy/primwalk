@@ -5,6 +5,7 @@
 #include "../data/model.hpp"
 #include "../rendering/frameInfo.hpp"
 #include "../rendering/vertex3d.hpp"
+#include "../rendering/sampler.hpp"
 #include "../managers/componentManager.hpp"
 #include "system.hpp"
 
@@ -79,6 +80,7 @@ namespace pw {
 		void createDescriptorSetLayout();
 		void createPipelineLayouts();
 		void createPipelines(VkRenderPass renderPass);
+		void createSamplers();
 
 		uint32_t addTexture(Image* image);
 		void freeTextureID(Image* image);
@@ -111,6 +113,7 @@ namespace pw {
 		std::vector<VkDescriptorSet> m_UniformDescriptorSets;
 		std::vector<VkDescriptorSet> m_DebugStorageDescriptorSets;
 		VkDescriptorSet m_TextureDescriptorSet;
+		std::unique_ptr<Sampler> m_Sampler;
 
 		std::shared_ptr<Model> m_DefaultModel; // also used as skybox model
 	};

@@ -33,6 +33,7 @@ namespace pw {
 		createPipeline(renderPass);
 		createVertexBuffer();
 		createIndexBuffer();
+		createSamplers();
 
 		// Textures
 		m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
@@ -196,12 +197,17 @@ namespace pw {
 		}
 	}
 
-	void UIRenderSystem::drawSubView(SubView& subView) {
-		uint32_t texIndex = addTexture(subView.getImage());
+	void UIRenderSystem::drawFramebuffer(Image* image, glm::vec2 position, int width, int height) {
+		if (width == 0 && height == 0) {
+			width = image->getWidth();
+			height = image->getHeight();
+		}
+
+		uint32_t texIndex = addTexture(image);
 
 		RenderParams params{};
-		params.position = subView.getPosition();
-		params.size = { subView.getWidth(), subView.getHeight() };
+		params.position = position;
+		params.size = { width, height };
 		params.color = Color::normalize(Color::White);
 		params.texIndex = texIndex;
 		params.borderRadius = 0;
@@ -375,6 +381,11 @@ namespace pw {
 		m_Device.copyBuffer(stagingBuffer.getBuffer(), m_IndexBuffer->getBuffer(), bufferSize);
 	}
 
+	void UIRenderSystem::createSamplers() {
+		SamplerCreateInfo samplerInfo{};
+		m_Sampler = std::make_unique<Sampler>(samplerInfo, m_Device);
+	}
+
 	void UIRenderSystem::createUniformBuffers() {
 		// Uniform buffer
 		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
@@ -443,7 +454,7 @@ namespace pw {
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = image->getVulkanImageView();
-			imageInfo.sampler = Renderer::m_TextureSampler;
+			imageInfo.sampler = m_Sampler->getVkSampler();
 
 			DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
 				.writeImage(0, &imageInfo, id)
@@ -467,7 +478,7 @@ namespace pw {
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		imageInfo.imageView = m_Textures[0]->getImageView(); // default 1x1 white texture
-		imageInfo.sampler = Renderer::m_TextureSampler;
+		imageInfo.sampler = m_Sampler->getVkSampler();
 
 		DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
 			.writeImage(0, &imageInfo, idSearch->second)

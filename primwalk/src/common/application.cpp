@@ -30,24 +30,39 @@ namespace pw {
 		m_ComponentManager.registerComponent<Transform>();
 
 		// Render systems
-		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getSwapChainRenderPass());
+		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getVkRenderPass());
 
-		m_SceneView = std::make_unique<SubView>(m_Window->getWidth() / 2, m_Window->getHeight() / 2,
-			glm::vec2(m_Window->getWidth() / 4, 100));
-		m_RenderSystem3D = m_SystemManager.registerSystem<RenderSystem3D>(
-			(GraphicsDevice_Vulkan&)(*m_Device), m_SceneView->m_OffscreenPass->getVulkanRenderPass());
+		/*m_RenderSystem3D = m_SystemManager.registerSystem<RenderSystem3D>(
+			(GraphicsDevice_Vulkan&)(*m_Device), m_OffscreenPass->getVulkanRenderPass());
 		{
 			component_signature signature;
 			signature.set(m_ComponentManager.getComponentType<Renderable>());
 			signature.set(m_ComponentManager.getComponentType<Transform>());
 			m_SystemManager.setSignature<RenderSystem3D>(signature);
-		}
+		}*/
+
+		m_DeferredPass = std::make_unique<DeferredPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
 
 		initialize();
 
 		// Create entities
 		Entity* camera = createEntity("Camera");
 		camera->getComponent<Transform>().position = { 5.0f, 5.0f, 0.0f };
+	}
+
+	Application::~Application() {
+	}
+
+	void Application::onStart() {
+
+	}
+
+	void Application::onUpdate(float dt) {
+
+	}
+
+	void Application::onFixedUpdate(float dt) {
+
 	}
 
 	void Application::initialize() {
@@ -197,7 +212,7 @@ namespace pw {
 		// Properties panel
 		propertiesPanel.setTitle("Properties");
 		propertiesPanel.setBorderRadius(8);
-		propertiesPanel.setPosition(m_SceneView->getPosition() + glm::vec2(m_SceneView->getWidth() + 4, 0));
+		propertiesPanel.setPosition({ (3 * m_Window->getWidth()) / 4 + 4, 100 });
 		propertiesPanel.setWidth(m_Window->getWidth() / 4 - 8);
 		propertiesPanel.setHeight(m_Window->getHeight() - propertiesPanel.getPosition().y - 4);
 		propertiesPanel.setBackgroundColor({ 60, 60, 60 });
@@ -260,9 +275,12 @@ namespace pw {
 			propertiesPanel.setWidth(width / 4 - 8);
 			propertiesPanel.setHeight(height - sceneExplorer.getPosition().y - 4);
 
-			m_UIRenderSystem->removeImage(m_SceneView->getImage());
-			m_SceneView->setPosition({ width / 4, 100 });
-			m_SceneView->resize(width / 2, height / 2);
+			m_UIRenderSystem->removeImage(m_DeferredPass->getOutputImage());
+			m_UIRenderSystem->removeImage(m_DeferredPass->getPositionBufferImage());
+			m_UIRenderSystem->removeImage(m_DeferredPass->getNormalBufferImage());
+			m_UIRenderSystem->removeImage(m_DeferredPass->getDiffuseBufferImage());
+
+			m_DeferredPass->resize(width / 2, height / 2);
 		});
 
 		// Game loop
@@ -311,10 +329,6 @@ namespace pw {
 			onUpdate(dt);
 			onFixedUpdate(dt);
 
-			if (m_DebugMode) {
-				m_RenderSystem3D->drawDebugBox({ 0.0f, 0.01f, 0.0f }, glm::vec3(2.0f));
-			}
-
 			// Rendering
 			onRender(dt);
 
@@ -326,6 +340,9 @@ namespace pw {
 
 	Entity* Application::createEntity(const std::string& name) {
 		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager));
+
+		m_DeferredPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
+
 		return (*(m_Entities.end() - 1)).get();
 	}
 
@@ -334,44 +351,51 @@ namespace pw {
 		entity->addComponent<PointLight>().color = { 1.0f, 1.0f, 1.0f, 0.1f };
 		m_Entities.push_back(std::move(entity));
 
+		m_DeferredPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
+
 		return (*(m_Entities.end() - 1)).get();
 	}
 
 	void Application::onRender(float dt) {
 		// Begin command list
 		auto commandBuffer = m_Renderer->beginFrame();
-		int frameIndex = m_Renderer->getFrameIndex();
 
-		// Update
-		FrameInfo frameInfo{};
-		frameInfo.frameIndex = m_Renderer->getFrameIndex();
-		frameInfo.frameTime = dt;
-		frameInfo.commandBuffer = commandBuffer;
-		frameInfo.windowWidth = (float)m_Window->getWidth();
-		frameInfo.windowHeight = (float)m_Window->getHeight();
+		{
+			size_t frameIndex = m_Renderer->getFrameIndex();
 
-		// Scene view
-		FrameInfo subViewInfo = frameInfo;
-		subViewInfo.windowWidth = m_SceneView->getWidth();
-		subViewInfo.windowHeight = m_SceneView->getHeight();
+			// Update
+			FrameInfo frameInfo{};
+			frameInfo.frameIndex = static_cast<int>(frameIndex);
+			frameInfo.frameTime = dt;
+			frameInfo.commandBuffer = commandBuffer;
+			frameInfo.windowWidth = static_cast<float>(m_Window->getWidth());
+			frameInfo.windowHeight = static_cast<float>(m_Window->getHeight());
 
-		m_RenderSystem3D->onUpdate(subViewInfo, m_ComponentManager);
+			// Deferred rendering
+			m_DeferredPass->draw(commandBuffer, frameIndex, m_ComponentManager);
 
-		updateScene(dt);
-		m_SceneView->beginPass(commandBuffer);
-		renderScene(subViewInfo);
-		m_SceneView->endPass(commandBuffer);
+			// Render GUI
+			updateScene(dt);
+			m_GUI.onRender(*m_UIRenderSystem);
 
-		m_UIRenderSystem->drawSubView(*m_SceneView);
+			// Main renderpass (swapchain)
+			m_Renderer->beginRenderPass(commandBuffer);
+			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getOutputImage(), { m_Window->getWidth() / 4, 100 });
 
-		// Render GUI
-		m_GUI.onRender(*m_UIRenderSystem);
-		m_UIRenderSystem->onUpdate(frameInfo);
+			// Draw G-Buffer resources
+			float aspect =  (float)m_DeferredPass->getOutputImage()->getHeight() / m_DeferredPass->getOutputImage()->getWidth();
+			int elemWidth = (m_Window->getWidth() / 2) / 3;
+			int elemHeight = elemWidth * aspect;
+			glm::vec2 groupOrigin = { m_Window->getWidth() / 4, 100 + m_DeferredPass->getOutputImage()->getHeight() };
 
-		// Render
-		m_Renderer->beginSwapChainRenderPass(commandBuffer);
-		m_UIRenderSystem->onRender(frameInfo);
-		m_Renderer->endSwapChainRenderPass(commandBuffer);
+			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getPositionBufferImage(), groupOrigin, elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getNormalBufferImage(), groupOrigin + glm::vec2(elemWidth, 0), elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getDiffuseBufferImage(), groupOrigin + glm::vec2(elemWidth * 2, 0), elemWidth, elemHeight);
+
+			m_UIRenderSystem->onUpdate(frameInfo);
+			m_UIRenderSystem->onRender(frameInfo);
+			m_Renderer->endRenderPass(commandBuffer);
+		}
 
 		m_Renderer->endFrame();
 	}
@@ -385,10 +409,6 @@ namespace pw {
 				icons, {224, 0}, 32, 32,
 				[this]() {}});
 		}
-	}
-
-	void Application::renderScene(const FrameInfo& frameInfo) {
-		m_RenderSystem3D->onRender(frameInfo, m_ComponentManager);
 	}
 
 }

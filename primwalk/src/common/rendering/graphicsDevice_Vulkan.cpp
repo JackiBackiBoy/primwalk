@@ -11,8 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace pw {
-	GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) :
-	m_Window(window), GraphicsDevice() {
+	GraphicsDevice_Vulkan::GraphicsDevice_Vulkan(Window& window) : m_Window(window), GraphicsDevice() {
 		createInstance();
 		setupDebugMessenger();
 		createSurface();
@@ -50,12 +49,10 @@ namespace pw {
 	}
 
 	void GraphicsDevice_Vulkan::createInstance() {
-		// Check validation layer support
 		if (m_EnableValidationLayers && !checkValidationLayerSupport()) {
 			throw std::runtime_error("VULKAN ERROR: Validation layers requested, but not available!");
 		}
 
-		// Application info (optional)
 		VkApplicationInfo appInfo{};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		appInfo.pApplicationName = "Vulkan Renderer";
@@ -64,12 +61,10 @@ namespace pw {
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.apiVersion = VK_API_VERSION_1_3;
 
-		// Instance creation info
+		auto requiredExtensions = getInstanceExtensions();
 		VkInstanceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
-
-		auto requiredExtensions = getInstanceExtensions();
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 		createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
@@ -192,17 +187,13 @@ namespace pw {
 		vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &deviceFeatures);
 
 		// TODO: If descriptor indexing is not available, use another approach
-		if (descriptorIndexingFeatures.descriptorBindingPartiallyBound && descriptorIndexingFeatures.runtimeDescriptorArray) {
-			m_BindlessSupported = true;
-			std::cout << "Bindless supported!\n";
-		}
+		m_BindlessSupported = descriptorIndexingFeatures.descriptorBindingPartiallyBound && descriptorIndexingFeatures.runtimeDescriptorArray;
 
 		// Logical device creation
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
-		//createInfo.pEnabledFeatures = &deviceFeatures;
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(m_DeviceExtensions.size());
 		createInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
 		createInfo.pNext = &deviceFeatures;
@@ -593,53 +584,60 @@ namespace pw {
 		return depthFormat;
 	}
 
-	//bool GraphicsDevice_Vulkan::getTextureID(Image* image, uint32_t* id) {
-	//	auto search = m_TextureIDs.find(image);
+	VkSurfaceFormatKHR GraphicsDevice_Vulkan::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+		for (const auto& availableFormat : availableFormats) {
+			if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM) {
+				return availableFormat;
+			}
+		}
 
-	//	if (search == m_TextureIDs.end()) { // no associated texture ID found
-	//		return false;
-	//	}
+		return availableFormats[0];
+	}
 
-	//	if (id != nullptr) {
-	//		*id = search->second;
-	//	}
+	VkPresentModeKHR GraphicsDevice_Vulkan::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+		for (const auto& availablePresentMode : availablePresentModes) {
+			if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+				//return availablePresentMode;
+			}
+		}
 
-	//	return true;
-	//}
+		return VK_PRESENT_MODE_FIFO_KHR;
+	}
 
-	//uint32_t GraphicsDevice_Vulkan::addTextureID(Image* image) {
-	//	if (image == nullptr) {
-	//		return -1;
-	//	}
+	VkExtent2D GraphicsDevice_Vulkan::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+		#if defined(PW_WIN32)
+			if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
+				return capabilities.currentExtent;
+			}
 
-	//	auto search = m_TextureIDs.find(image);
+			VkExtent2D actualExtent = {
+				static_cast<uint32_t>(m_Window.getWidth()),
+				static_cast<uint32_t>(m_Window.getHeight())
+			};
 
-	//	if (search == m_TextureIDs.end()) { // image not associated with any existing texture id, thus create one
-	//		uint32_t id = m_TextureIDs.size();
+			actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+			actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
-	//		if (!m_VacantTextureIDs.empty()) {
-	//			id = *m_VacantTextureIDs.begin();
-	//			m_VacantTextureIDs.erase(m_VacantTextureIDs.begin());
-	//		}
+			return actualExtent;
+		#elif defined(PW_MACOS)
+			if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
+				return capabilities.currentExtent;
+			}
 
-	//		m_TextureIDs.insert({ image, id });
-	//		return id;
-	//	}
+			int width = m_Window.getWidth();
+			int height = m_Window.getWidth();
 
-	//	// image already has associated texture id, return that
-	//	return search->second;
-	//}
+			VkExtent2D actualExtent = {
+				static_cast<uint32_t>(width),
+				static_cast<uint32_t>(height)
+			};
 
-	//void GraphicsDevice_Vulkan::removeTextureID(Image* image) {
-	//	auto search = m_TextureIDs.find(image);
+			actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+			actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
-	//	if (search == m_TextureIDs.end()) { // attempt to remove non-existent image
-	//		return;
-	//	}
-
-	//	m_VacantTextureIDs.emplace(search->second);
-	//	m_TextureIDs.erase(image);
-	//}
+			return actualExtent;
+		#endif
+	}
 
 	VkCommandBuffer GraphicsDevice_Vulkan::beginSingleTimeCommands() {
 		VkCommandBufferAllocateInfo allocInfo{};

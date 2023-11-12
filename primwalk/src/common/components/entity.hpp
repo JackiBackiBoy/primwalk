@@ -40,6 +40,8 @@ namespace pw {
 			return m_ComponentManager.getComponent<T>(m_ID);
 		}
 
+		entity_id getID() const { return m_ID; }
+
 	private:
 		entity_id m_ID = 0;
 

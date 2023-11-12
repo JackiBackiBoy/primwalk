@@ -52,6 +52,8 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/pwmath.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/deferredPass.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/deferredPass.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/framebuffer.cpp
@@ -69,6 +71,10 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderer.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpass.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpass.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/sampler.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/sampler.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/swapChain.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/swapChain.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/texture2D.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/texture2D.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex.hpp
@@ -84,8 +90,6 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/mouseCursor.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/subView.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/subView.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiContainer.cpp

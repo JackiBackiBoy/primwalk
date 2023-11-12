@@ -85,6 +85,10 @@ namespace pw {
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 		VkFormat getSupportedDepthFormat();
 
+		VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+		VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+		VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
 		// Getters
 		inline VkDevice getDevice() const { return m_Device; }
 		inline VkPhysicalDevice getPhysicalDevice() const { return m_PhysicalDevice; }
@@ -96,7 +100,7 @@ namespace pw {
 		inline QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(m_PhysicalDevice); }
 		inline DescriptorPool& getBindlessPool() { return *m_BindlessDescriptorPool; }
 
-		static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+		static constexpr size_t MAX_FRAMES_IN_FLIGHT = 2;
 		static constexpr uint32_t MAX_IMAGE_DESCRIPTORS = 4096;
 		static constexpr uint32_t MAX_UBO_DESCRIPTORS = 32;
 		static constexpr uint32_t MAX_SSBO_DESCRIPTORS = 32;
@@ -139,7 +143,6 @@ namespace pw {
 		VkQueue m_PresentQueue = VK_NULL_HANDLE;
 		VkCommandPool m_CommandPool = VK_NULL_HANDLE;
 		std::unique_ptr<DescriptorPool> m_BindlessDescriptorPool{};
-
 		
 		Window& m_Window;
 

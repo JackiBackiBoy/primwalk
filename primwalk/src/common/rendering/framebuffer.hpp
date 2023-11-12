@@ -28,7 +28,7 @@ namespace pw {
 		/* Getters */
 		[[nodiscard]] inline uint32_t getWidth() const { return m_Width; }
 		[[nodiscard]] inline uint32_t getHeight() const { return m_Height; }
-		[[nodiscard]] inline VkFramebuffer getRawFramebuffer() const { return m_FrameBuffer; }
+		[[nodiscard]] inline VkFramebuffer getVkFramebuffer() const { return m_FrameBuffer; }
 
 		void destroy();
 	

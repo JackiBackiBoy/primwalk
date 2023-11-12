@@ -4,9 +4,9 @@
 #include "../../../core.hpp"
 #include "../../color.hpp"
 #include "../../math/hitbox.hpp"
-#include "../../ui/subView.hpp"
 #include "../frameInfo.hpp"
 #include "../vertex.hpp"
+#include "../sampler.hpp"
 
 // std
 #include <cstdint>
@@ -60,20 +60,22 @@ namespace pw {
 			Color color, int borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr,
 		glm::vec2 scissorPos = { 0, 0 }, int scissorWidth = 1, int scissorHeight = 1);
 		void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
-		void drawSubView(SubView& subView);
+		// Draw a framebuffer image, default width = 0, height = 0 means the image will be drawn at its original resolution
+		void drawFramebuffer(Image* image, glm::vec2 position, int width = 0, int height = 0);
 
 	private:
 		struct UniformBufferObject {
 			alignas(16) glm::mat4 proj;
 		};
 
+		void createDescriptorPool();
+		void createUniformBuffers();
 		void createDescriptorSetLayout();
 		void createPipelineLayout();
 		void createPipeline(VkRenderPass renderPass);
 		void createVertexBuffer();
 		void createIndexBuffer();
-		void createUniformBuffers();
-		void createDescriptorPool();
+		void createSamplers();
 
 		uint32_t addTexture(Image* image);
 
@@ -110,6 +112,7 @@ namespace pw {
 		std::vector<VkDescriptorSet> m_StorageDescriptorSets;
 		std::vector<VkDescriptorSet> m_FontStorageDescriptorSets;
 		VkDescriptorSet m_TextureDescriptorSet = VK_NULL_HANDLE;
+		std::unique_ptr<Sampler> m_Sampler;
 
 		const std::vector<Vertex> m_Vertices = {
 			{ { 0.0f, 0.0f }, { 0.0f, 0.0f }, 0 },

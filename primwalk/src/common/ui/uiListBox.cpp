@@ -23,7 +23,7 @@ namespace pw {
 
 		for (const auto& i : m_Items) {
 			if (m_CurrentItem == &i) {
-			renderer.drawRect(itemPos, m_Width, m_ItemHeight, m_ItemHoverColor);
+				renderer.drawRect(itemPos, m_Width - 10, m_ItemHeight, m_ItemHoverColor);
 			}
 
 			if (i.icon != nullptr) {

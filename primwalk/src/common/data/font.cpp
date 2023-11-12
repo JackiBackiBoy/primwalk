@@ -13,7 +13,6 @@ namespace pw {
 		m_FontSize(fontSize), m_FontWeight(weight)
 	{
 		std::string truePath = BASE_DIR + path;
-
 		loadMetadata(truePath);
 
 		msdfgen::FreetypeHandle* freetypeHandle = msdfgen::initializeFreetype();

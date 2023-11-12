@@ -175,7 +175,7 @@ namespace pw {
 	}
 
 	void Model::initMaterials(const aiScene* scene, const std::string& modelDir) {
-		for (size_t i = 0; i < scene->mNumMaterials; i++) {
+		for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
 			const aiMaterial* material = scene->mMaterials[i];
 
 			auto diffuseMap = getEmbeddedTexture(material, scene, aiTextureType_DIFFUSE, modelDir);

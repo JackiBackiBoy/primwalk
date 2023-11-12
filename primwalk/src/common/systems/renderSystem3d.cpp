@@ -25,6 +25,7 @@ namespace pw {
 		createDescriptorSetLayout();
 		createPipelineLayouts();
 		createPipelines(renderPass);
+		createSamplers();
 
 		// Textures
 		m_Textures.push_back(std::make_shared<Texture2D>(1, 1, std::vector<uint8_t>(4, 255).data())); // default 1x1 white texture
@@ -49,7 +50,7 @@ namespace pw {
 		UniformBuffer3D ubo{};
 		ubo.view = Camera::MainCamera->getViewMatrix();
 		ubo.proj = glm::mat4(1.0f);
-		ubo.proj = glm::perspective(glm::radians(45.0f), (float)frameInfo.windowWidth / frameInfo.windowHeight, 0.1f, 100.0f);
+		ubo.proj = glm::perspective(glm::radians(45.0f), (float)frameInfo.windowWidth / frameInfo.windowHeight, 0.1f, 1000.0f);
 		ubo.viewPosition = Camera::MainCamera->position;
 
 		uint32_t lightIndex = 0;
@@ -414,6 +415,11 @@ namespace pw {
 			skyboxPipelineConfig);
 	}
 
+	void RenderSystem3D::createSamplers() {
+		SamplerCreateInfo samplerInfo{};
+		m_Sampler = std::make_unique<Sampler>(samplerInfo, m_Device);
+	}
+
 	uint32_t RenderSystem3D::addTexture(Image* image) {
 		auto idSearch = m_TextureIDs.find(image);
 
@@ -428,7 +434,7 @@ namespace pw {
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = image->getVulkanImageView();
-			imageInfo.sampler = Renderer::m_TextureSampler;
+			imageInfo.sampler = m_Sampler->getVkSampler();
 
 			DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
 				.writeImage(0, &imageInfo, id)

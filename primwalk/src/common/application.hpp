@@ -11,10 +11,11 @@
 #include "rendering/graphicsDevice_Vulkan.hpp"
 #include "rendering/renderer.hpp"
 #include "rendering/systems/uiRenderSystem.hpp"
+#include "rendering/deferredPass.hpp"
+
 #include "systems/renderSystem3d.hpp"
 #include "ui/GUI.hpp"
 #include "ui/menuWidget.hpp"
-#include "ui/subView.hpp"
 #include "ui/uiElement.hpp"
 #include "ui/uiEvent.hpp"
 #include "ui/uiIconButton.hpp"
@@ -37,7 +38,7 @@ namespace pw {
 	class PW_API Application {
 	public:
 		Application();
-		virtual ~Application() = default;
+		virtual ~Application();
 
 		/* Called once at application startup */
 		virtual void onStart() = 0;
@@ -45,7 +46,7 @@ namespace pw {
 		/* Called once per frame */
 		virtual void onUpdate(float dt) = 0;
 
-		/* Called 60 times per second */
+		/* Called 60 times per second (primarily used for physics) */
 		virtual void onFixedUpdate(float dt) = 0;
 
 		void initialize();
@@ -57,17 +58,16 @@ namespace pw {
 	private:
 		void onRender(float dt);
 		void updateScene(float dt);
-		void renderScene(const FrameInfo& frameInfo);
 
 		std::unique_ptr<Window> m_Window;
 		std::unique_ptr<GraphicsDevice> m_Device;
 		std::unique_ptr<Renderer> m_Renderer;
 		std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
-		std::shared_ptr<RenderSystem3D> m_RenderSystem3D;
-		std::unique_ptr<SubView> m_SceneView;
 		std::unique_ptr<Model> m_Cube;
+		std::unique_ptr<DeferredPass> m_DeferredPass;
 
 		// GUI
+		// TODO: Move all editor GUI to a more suitable place, i.e. an Editor class
 		UILabel testLabel;
 		UIImage engineLogo;
 		UIIconButton fullscreenButton;

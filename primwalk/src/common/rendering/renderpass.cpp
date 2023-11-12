@@ -1,11 +1,14 @@
 #include "renderpass.hpp"
 #include "graphicsDevice_Vulkan.hpp"
+#include "../color.hpp"
 
 // std
+#include <array>
 #include <stdexcept>
 
 namespace pw {
 
+	// TODO: This method assumes the depth attachment is passed last, fix this
 	RenderPass::RenderPass(const RenderPassInfo& createInfo) {
 		GraphicsDevice_Vulkan* device = (GraphicsDevice_Vulkan*&)pw::GetDevice();
 
@@ -14,6 +17,7 @@ namespace pw {
 
 		std::vector<VkAttachmentDescription> attachmentDescriptions(attachments.size());
 		attachmentDescriptions.resize(attachments.size());
+		m_ClearValues.resize(attachments.size());
 
 		// Attachment description
 		for (size_t i = 0; i < attachments.size(); i++) {
@@ -27,7 +31,15 @@ namespace pw {
 
 			// TODO: Add check for depth
 			attachmentDescriptions[i].finalLayout = attachments[i].finalLayout;
+
+			if (attachmentDescriptions[i].finalLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+				m_ClearValues[i].depthStencil = { 1.0f, 0 };
+			}
+			else {
+				m_ClearValues[i].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+			}
 		}
+
 
 		// Sub-passes
 		bool hasDepthAttachment = false;
@@ -39,20 +51,26 @@ namespace pw {
 			}
 		}
 
-		VkAttachmentReference depthAttachmentRef{};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		size_t depthAttachmentIndex = 0;
+		std::vector<VkAttachmentReference> colorAttachmentsRefs(hasDepthAttachment ? attachments.size() - 1 : attachments.size());
 
-		VkAttachmentReference colorAttachmentRef{};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		for (size_t i = 0; i < colorAttachmentsRefs.size(); i++) {
+			colorAttachmentsRefs[i].attachment = i;
+			colorAttachmentsRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		}
 
 		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.colorAttachmentCount = colorAttachmentsRefs.size();
+		subpass.pColorAttachments = colorAttachmentsRefs.data();
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = colorAttachmentsRefs.size(); // makes sure the attachment ID is greater than all color attachments
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		if (hasDepthAttachment) {
+
+
 			subpass.pDepthStencilAttachment = &depthAttachmentRef;
 		}
 
@@ -116,6 +134,52 @@ namespace pw {
 		if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &m_RenderPass)) {
 			throw std::runtime_error("VULKAN ERROR: Failed to create render pass!");
 		}
+	}
+
+	RenderPass::~RenderPass() {
+		GraphicsDevice_Vulkan* device = (GraphicsDevice_Vulkan*&)pw::GetDevice();
+
+		vkDestroyRenderPass(device->getDevice(), m_RenderPass, nullptr);
+	}
+
+	void RenderPass::begin(Framebuffer& frameBuffer, VkCommandBuffer commandBuffer) {
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = m_RenderPass;
+		renderPassInfo.framebuffer = frameBuffer.getVkFramebuffer();
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent.width = frameBuffer.getWidth();
+		renderPassInfo.renderArea.extent.height = frameBuffer.getHeight();
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(m_ClearValues.size());
+		renderPassInfo.pClearValues = m_ClearValues.data();
+
+		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = static_cast<float>(frameBuffer.getWidth());
+		viewport.height = static_cast<float>(frameBuffer.getHeight());
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = { frameBuffer.getWidth(), frameBuffer.getHeight() };
+
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	}
+
+	void RenderPass::end(VkCommandBuffer commandBuffer) {
+		vkCmdEndRenderPass(commandBuffer);
+	}
+
+	void RenderPass::setClearColor(uint32_t attachmentIndex, Color color) {
+		assert(attachmentIndex < m_ClearValues.size());
+
+		glm::vec4 normColor = Color::normalize(color);
+		m_ClearValues[attachmentIndex].color = { normColor.r, normColor.g, normColor.b, 1.0f };
 	}
 
 }
