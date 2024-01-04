@@ -8,7 +8,6 @@
 #include "../texture2D.hpp"
 #include "../../managers/resourceManager.hpp"
 #include "../../data/font.hpp"
-#include "../../ui/uiElement.hpp"
 
 // std
 #include <stdexcept>
@@ -195,6 +194,24 @@ namespace pw {
 
 			xPos += glyph.advanceX * fontSize;
 		}
+	}
+
+	void UIRenderSystem::drawTextCentered(glm::vec2 position, const std::string& text, Color color, double fontSize /*= 0*/, std::shared_ptr<Font> font /*= nullptr*/) {
+		if (font == nullptr) {
+			font = m_Fonts[0];
+		}
+
+		if (fontSize == 0) {
+			fontSize = font->getFontSize();
+		}
+
+		float scaling = fontSize / font->getFontSize();
+
+		float textWidth = font->getTextWidth(text, fontSize);
+		float textHeight = font->getMaxHeight() * scaling;
+		glm::vec2 newPosition = position - glm::vec2(textWidth, textHeight) * 0.5f;
+
+		drawText(newPosition, text, fontSize, color, font);
 	}
 
 	void UIRenderSystem::drawFramebuffer(Image* image, glm::vec2 position, int width, int height) {

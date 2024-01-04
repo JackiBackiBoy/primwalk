@@ -60,6 +60,8 @@ namespace pw {
 			Color color, int borderRadius = 0, std::shared_ptr<Texture2D> texture = nullptr,
 		glm::vec2 scissorPos = { 0, 0 }, int scissorWidth = 1, int scissorHeight = 1);
 		void drawText(glm::vec2 position, const std::string& text, double fontSize, Color color, std::shared_ptr<Font> font = nullptr);
+		void drawTextCentered(glm::vec2 position, const std::string& text, Color color, double fontSize = 0, std::shared_ptr<Font> font = nullptr);
+
 		// Draw a framebuffer image, default width = 0, height = 0 means the image will be drawn at its original resolution
 		void drawFramebuffer(Image* image, glm::vec2 position, int width = 0, int height = 0);
 

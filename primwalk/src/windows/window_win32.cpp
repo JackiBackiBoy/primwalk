@@ -3,7 +3,7 @@
 #include "resource.hpp"
 #include "../common/input/keycode.hpp"
 #include "../common/input/rawInput.hpp"
-#include "../common/ui/GUI.hpp"
+#include "../common/ui/editor.hpp"
 
 // std
 #include <iostream>
@@ -199,7 +199,8 @@ namespace pw {
 	}
 
 	void WindowWin32::processEvent(const UIEvent& event) {
-		bool wasHandled = pw::gui::processEvent(event);
+		WidgetEventData eventData = Editor::getInstance().processEvent(event);
+		m_Cursor = eventData.cursorRequest;
 	}
 
 	bool WindowWin32::isCursorInTitleBar(int x, int y) const {
@@ -261,14 +262,16 @@ namespace pw {
 				cursor = MouseCursor::Default;
 				POINT mousePos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 				ScreenToClient(hWnd, &mousePos);
-				auto target = pw::gui::hitTest({ mousePos.x, mousePos.y });
+				//auto target = pw::gui::hitTest({ mousePos.x, mousePos.y });
 
-				if (target != nullptr) {
-					cursor = target->getCursor();
-				}
+				//if (target != nullptr) {
+				//	cursor = target->getCursor();
+				//}
+
+				window->setCursor(window->m_Cursor);
 			}
 
-			window->setCursor(cursor);
+			
 		}
 		break;
 		case WM_ERASEBKGND:
@@ -392,6 +395,12 @@ namespace pw {
 		static auto idcHand = LoadCursor(nullptr, IDC_HAND);
 		static auto idcIBeam = LoadCursor(nullptr, IDC_IBEAM);
 		static auto idcNo = LoadCursor(nullptr, IDC_NO);
+		
+		// Resize cursors
+		static auto idcHorizontalResize = LoadCursor(nullptr, IDC_SIZEWE);
+		static auto idcVerticalResize = LoadCursor(nullptr, IDC_SIZENS);
+		static auto idcNWSEResize = LoadCursor(nullptr, IDC_SIZENWSE);
+		static auto idcNESWResize = LoadCursor(nullptr, IDC_SIZENESW);
 
 		auto idc = idcNo;
 		switch (cursor) {
@@ -406,6 +415,18 @@ namespace pw {
 			break;
 		case MouseCursor::IBeam:
 			idc = idcIBeam;
+			break;
+		case MouseCursor::HorizontalResize:
+			idc = idcHorizontalResize;
+			break;
+		case MouseCursor::VerticalResize:
+			idc = idcVerticalResize;
+			break;
+		case MouseCursor::NWSEDiagonalResize:
+			idc = idcNWSEResize;
+			break;
+		case MouseCursor::NESWDiagonalResize:
+			idc = idcNESWResize;
 			break;
 		}
 

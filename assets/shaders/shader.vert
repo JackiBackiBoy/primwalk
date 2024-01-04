@@ -26,6 +26,7 @@ layout(location = 1) out float fragTexIndex;
 layout(location = 2) out vec4 fragColor;
 layout(location = 3) out uint fragTexCoordIndex;
 layout(location = 4) out uint fragBorderRadius;
+layout(location = 5) out vec2 fragSize;
 
 void main() {
     RenderParams params = in_render_params.params[gl_InstanceIndex];
@@ -35,4 +36,5 @@ void main() {
     fragTexCoordIndex = inTexCoordIndex;
     fragColor = params.color;
     fragBorderRadius = params.borderRadius;
+    fragSize = params.size;
 }

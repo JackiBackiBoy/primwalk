@@ -6,6 +6,7 @@ layout(location = 1) in float fragTexIndex;
 layout(location = 2) in vec4 fragColor;
 layout(location = 3) flat in uint fragTexCoordIndex;
 layout(location = 4) flat in uint fragBorderRadius;
+layout(location = 5) in vec2 fragSize;
 
 layout(set = 2, binding = 0) uniform sampler2D vGlobalTextures[];
 
@@ -15,13 +16,16 @@ float roundedBoxSDF(vec2 centerPosition, vec2 size, float radius) {
     return length(max(abs(centerPosition)- size + radius, 0.0)) - radius;
 }
 
+const float sqrtTwo = sqrt(2);
+
 void main() {
-    float radius = fragBorderRadius;
+    // Compute the hypotenuse of radius x radius corner block.
+    // This is effectively the radius value used for box SDF
+    float radius = sqrtTwo * fragBorderRadius;
     float edgeSoftness = 1.0;
 
-    vec2 delta = vec2(dFdx(fragTexCoord.x), dFdy(fragTexCoord.y));
-    float fragWidth = 1.0 / delta.x;
-    float fragHeight = 1.0 / delta.y;
+    float fragWidth = fragSize.x;
+    float fragHeight = fragSize.y;
     vec2 size = vec2(fragWidth, fragHeight);
     vec2 uvRadius = vec2(radius / fragWidth, radius / fragHeight);
 
@@ -35,6 +39,5 @@ void main() {
     float distance 		= roundedBoxSDF(uvScreen - (size / 2.0), size / 2.0, radius);
     float smoothedAlpha =  1.0 - smoothstep(0.0, edgeSoftness, distance);
 
-    // Return the resultant shape.
     outColor = fragColor * texture(vGlobalTextures[int(fragTexIndex)], fragTexCoord) * vec4(1.0, 1.0, 1.0, smoothedAlpha);
 }

@@ -6,5 +6,9 @@ namespace pw {
 		Default,
 		Hand,
 		IBeam,
+		HorizontalResize,
+		VerticalResize,
+		NWSEDiagonalResize,
+		NESWDiagonalResize,
 	};
 }

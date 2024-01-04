@@ -12,18 +12,7 @@
 #include "rendering/renderer.hpp"
 #include "rendering/systems/uiRenderSystem.hpp"
 #include "rendering/deferredPass.hpp"
-
-#include "systems/renderSystem3d.hpp"
-#include "ui/GUI.hpp"
-#include "ui/menuWidget.hpp"
-#include "ui/uiElement.hpp"
 #include "ui/uiEvent.hpp"
-#include "ui/uiIconButton.hpp"
-#include "ui/uiImage.hpp"
-#include "ui/uiLabel.hpp"
-#include "ui/uiListBox.hpp"
-#include "ui/uiPanel.hpp"
-#include "ui/uiSlider.hpp"
 
 // std
 #include <atomic>
@@ -57,7 +46,6 @@ namespace pw {
 
 	private:
 		void onRender(float dt);
-		void updateScene(float dt);
 
 		std::unique_ptr<Window> m_Window;
 		std::unique_ptr<GraphicsDevice> m_Device;
@@ -66,44 +54,9 @@ namespace pw {
 		std::unique_ptr<Model> m_Cube;
 		std::unique_ptr<DeferredPass> m_DeferredPass;
 
-		// GUI
-		// TODO: Move all editor GUI to a more suitable place, i.e. an Editor class
-		UILabel testLabel;
-		UIImage engineLogo;
-		UIIconButton fullscreenButton;
-		UIIconButton minimizeButton;
-		UIIconButton maximizeButton;
-		UIIconButton closeButton;
-		UIIconButton selectButton;
-		UIIconButton moveButton;
-		UIIconButton rotateButton;
-		UIIconButton scaleButton;
-		MenuWidget menu;
-		MenuItem fileMenu;
-		MenuItem fileSubNewMenu;
-		MenuItem fileSubOpenMenu;
-		MenuItem editMenu;
-		MenuItem assetsMenu;
-		MenuItem toolsMenu;
-		MenuItem windowMenu;
-		MenuItem helpMenu;
-		MenuItem helpView;
-		MenuItem helpGettingStarted;
-		MenuItem helpTipsAndTricks;
-		MenuItem helpKeyboardShortcuts;
-		MenuItem helpWhatsNew;
-		MenuItem helpCheckForUpdates;
-		MenuItem helpReleaseNotes;
-		MenuItem helpRoadmap;
-		MenuItem helpAbout;
-		UIIconButton playButton;
-		UIIconButton pauseButton;
-		UIPanel sceneExplorer;
-		UIListBox sceneEntitiesListBox;
-		UIPanel propertiesPanel;
-		pw::gui::GUI m_GUI;
 		bool m_ScenePaused = false;
 		bool m_DebugMode = false;
+		bool m_ShowHitboxes = false;
 
 		// Entities
 		std::vector<std::unique_ptr<Entity>> m_Entities{};
@@ -112,6 +65,8 @@ namespace pw {
 		ComponentManager m_ComponentManager{};
 		EntityManager m_EntityManager{};
 		SystemManager m_SystemManager{};
+
+		friend class Editor;
 	};
 }
 

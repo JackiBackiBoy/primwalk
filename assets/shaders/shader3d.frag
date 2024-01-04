@@ -21,6 +21,7 @@ layout(push_constant) uniform Push {
 	vec3 color;
     uint diffuseTexIndex;
     uint normalMapIndex;
+    float ambientIntensity;
 } push;
 
 layout(location = 0) in vec2 fragTexCoord;
@@ -30,10 +31,8 @@ layout(location = 3) in mat3 fragTBN;
 
 layout(location = 0) out vec4 outColor;
 
-const float ambient = 0.1;
-
 void main() {
-    vec3 diffuseLight = vec3(ambient);
+    vec3 diffuseLight = vec3(push.ambientIntensity);
     vec3 specularLight = vec3(0.0);
     //vec3 surfaceNormal = normalize(fragNormalWorld);
     vec3 surfaceNormal = texture(vGlobalTextures[int(push.normalMapIndex)], fragTexCoord).rgb;

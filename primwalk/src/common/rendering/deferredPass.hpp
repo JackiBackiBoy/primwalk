@@ -25,11 +25,11 @@ namespace pw {
 
 		void draw(VkCommandBuffer commandBuffer, size_t frameIndex, ComponentManager& manager);
 		void resize(uint32_t width, uint32_t height);
+
 		inline Image* getPositionBufferImage() { return m_PositionBuffer.get(); }
 		inline Image* getNormalBufferImage() { return m_NormalBuffer.get(); }
 		inline Image* getDiffuseBufferImage() { return m_DiffuseBuffer.get(); }
-
-		inline Image* getOutputImage() { return m_OffscreenImage.get(); }
+		inline Image* getComposedImage() { return m_ComposedImage.get(); }
 
 		std::set<entity_id> m_Entities;
 
@@ -37,6 +37,12 @@ namespace pw {
 		struct PointLightParams {
 			alignas(16) glm::vec3 position{};
 			alignas(16) glm::vec4 color{}; // w component holds intensity
+		};
+
+		struct UBOComposition {
+			alignas(16) glm::vec3 viewPosition{};
+			PointLightParams pointLights[MAX_LIGHTS];
+			uint32_t numLights = 0;
 		};
 
 		struct UniformBuffer3D {
@@ -52,6 +58,7 @@ namespace pw {
 			alignas(16) glm::vec3 color = { 1.0, 1.0, 1.0 };
 			alignas(4) uint32_t diffuseTexIndex = 0;
 			alignas(4) uint32_t normalMapIndex = 0;
+			alignas(4) float ambientIntensity = 0.1f;
 		};
 
 		void createImages(uint32_t width, uint32_t height);
@@ -61,7 +68,7 @@ namespace pw {
 		void createBuffers();
 		void createDescriptorSetLayout();
 		void createPipelineLayouts();
-		void createPipelines(VkRenderPass renderPass);
+		void createPipelines();
 		void createSamplers();
 
 		GraphicsDevice_Vulkan& m_Device;
@@ -75,22 +82,18 @@ namespace pw {
 		std::set<uint32_t> m_VacantTextureIDs{};
 
 		std::vector<std::unique_ptr<Buffer>> m_UBOs;
+		std::vector<std::unique_ptr<Buffer>> m_CompositionUBOs;
 
 		// TODO: Bindless resources might fit better in a dedicated scene class
 		std::unique_ptr<DescriptorSetLayout> m_UBOSetLayout{};
+		std::unique_ptr<DescriptorSetLayout> m_CompositionUBOSetLayout{};
 		std::unique_ptr<DescriptorSetLayout> m_TextureSetLayout{};
 
 		std::vector<std::shared_ptr<Texture2D>> m_Textures;
 
-		// TODO: Add more renderpasses
-		std::unique_ptr<RenderPass> m_OffscreenPass;
-		std::unique_ptr<Image> m_OffscreenImage;
-		std::unique_ptr<Image> m_OffscreenDepthImage;
-		std::unique_ptr<Framebuffer> m_OffscreenFramebuffer;
-
 		// Deferred render passes
 		std::unique_ptr<RenderPass> m_GeometryPass;
-		std::unique_ptr<RenderPass> m_LightingPass;
+		std::unique_ptr<RenderPass> m_CompositionPass;
 
 		// G-Buffer
 		std::unique_ptr<Framebuffer> m_DeferredFramebuffer;
@@ -101,7 +104,18 @@ namespace pw {
 		std::unique_ptr<Image> m_DeferredDepthBuffer;
 		std::unique_ptr<GraphicsPipeline> m_GBufferPipeline;
 
+		// Deferred Lighting
+		std::unique_ptr<GraphicsPipeline> m_CompositionPipeline;
+		VkPipelineLayout m_DeferredPipelineLayout = VK_NULL_HANDLE;
+		std::vector<VkDescriptorSetLayout> m_DeferredDescriptorSetLayouts;
+		std::unique_ptr<Image> m_ComposedImage;
+		std::unique_ptr<Framebuffer> m_ComposedFramebuffer;
+		std::unique_ptr<DescriptorSetLayout> m_GBufferSetLayout;
+		VkDescriptorSet m_GBufferSet = VK_NULL_HANDLE;
+		std::unique_ptr<DescriptorPool> m_DescriptorPool = VK_NULL_HANDLE;
+
 		std::vector<VkDescriptorSet> m_UniformDescriptorSets;
+		std::vector<VkDescriptorSet> m_CompositionUBODescriptorSets;
 		std::vector<VkDescriptorSet> m_DebugStorageDescriptorSets;
 		VkDescriptorSet m_TextureDescriptorSet;
 		std::unique_ptr<Sampler> m_Sampler;

@@ -81,37 +81,26 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex3d.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/renderSystem3d.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/renderSystem3d.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/GUI.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/GUI.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/menuWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/buttonWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/buttonWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/checkboxWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/checkboxWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/containerWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/containerWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/labelWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/labelWidget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/editor.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/editor.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/mouseCursor.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiButton.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiContainer.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiContainer.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiElement.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiElement.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/sliderWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/sliderWidget.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiEvent.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiEvent.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiIconButton.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiIconButton.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiImage.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiImage.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiLabel.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiLabel.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiListBox.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiListBox.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiPanel.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiPanel.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiSlider.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiSlider.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiTextField.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/uiTextField.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/widget.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/windowWidget.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/windowWidget.hpp
 
   # Windows specific
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/windows/resource.hpp
