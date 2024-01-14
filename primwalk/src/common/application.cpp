@@ -32,7 +32,10 @@ namespace pw {
 
 		// Render systems
 		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getVkRenderPass());
-		m_DeferredPass = std::make_unique<DeferredPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
+
+		// Renderpasses
+		m_DeferredPass = std::make_unique<GBufferPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
+		m_LightingPass = std::make_unique<LightingPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
 
 		initialize();
 
@@ -77,12 +80,13 @@ namespace pw {
 		m_Window->setResizeCallback([this](int width, int height) {
 			m_Renderer->resizeSwapChain((uint32_t)width, (uint32_t)height);
 
-			m_UIRenderSystem->removeImage(m_DeferredPass->getComposedImage());
 			m_UIRenderSystem->removeImage(m_DeferredPass->getPositionBufferImage());
 			m_UIRenderSystem->removeImage(m_DeferredPass->getNormalBufferImage());
 			m_UIRenderSystem->removeImage(m_DeferredPass->getDiffuseBufferImage());
+			m_UIRenderSystem->removeImage(m_LightingPass->getOutputImage());
 
 			m_DeferredPass->resize(width / 2, height / 2);
+			m_LightingPass->resize(width / 2, height / 2);
 		});
 
 		// Game loop
@@ -142,7 +146,7 @@ namespace pw {
 	}
 
 	Entity* Application::createEntity(const std::string& name) {
-		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager));
+		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager));
 
 		m_DeferredPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
 
@@ -150,7 +154,7 @@ namespace pw {
 	}
 
 	Entity* Application::createLightEntity(const std::string& name) {
-		auto entity = std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager, m_SystemManager);
+		auto entity = std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager);
 		entity->addComponent<PointLight>().color = { 1.0f, 1.0f, 1.0f, 0.1f };
 		m_Entities.push_back(std::move(entity));
 
@@ -176,16 +180,21 @@ namespace pw {
 
 			// Deferred rendering
 			m_DeferredPass->draw(commandBuffer, frameIndex, m_ComponentManager);
+			m_LightingPass->draw(commandBuffer, frameIndex, m_DeferredPass->m_Entities, m_ComponentManager,
+				m_DeferredPass->getPositionBufferImage(),
+				m_DeferredPass->getNormalBufferImage(),
+				m_DeferredPass->getDiffuseBufferImage()
+			);
 
 			// Main renderpass (swapchain)
 			m_Renderer->beginRenderPass(commandBuffer);
-			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getComposedImage(), { m_Window->getWidth() / 4, 100 });
+			m_UIRenderSystem->drawFramebuffer(m_LightingPass->getOutputImage(), { m_Window->getWidth() / 4, 100 });
 
 			// Draw G-Buffer resources
-			float aspect =  (float)m_DeferredPass->getComposedImage()->getHeight() / m_DeferredPass->getComposedImage()->getWidth();
+			float aspect =  (float)m_LightingPass->getOutputImage()->getHeight() / m_LightingPass->getOutputImage()->getWidth();
 			int elemWidth = (m_Window->getWidth() / 2) / 3;
 			int elemHeight = elemWidth * aspect;
-			glm::vec2 groupOrigin = { m_Window->getWidth() / 4, 100 + m_DeferredPass->getComposedImage()->getHeight() };
+			glm::vec2 groupOrigin = { m_Window->getWidth() / 4, 100 + m_LightingPass->getOutputImage()->getHeight() };
 
 			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getPositionBufferImage(), groupOrigin, elemWidth, elemHeight);
 			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getNormalBufferImage(), groupOrigin + glm::vec2(elemWidth, 0), elemWidth, elemHeight);

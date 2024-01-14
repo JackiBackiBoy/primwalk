@@ -28,8 +28,15 @@ public:
 
 		test = createEntity("Test");
 
-		light = createLightEntity("Main light");
-		light->getComponent<pw::PointLight>().color = { 1.0f, 1.0f, 1.0f, 4.0f };
+		//light = createLightEntity("Main light");
+		//light->getComponent<pw::PointLight>().color = { 1.0f, 1.0f, 1.0f, 4.0f };
+
+		//auto testLight = createLightEntity("Test Light");
+		//testLight->getComponent<pw::Transform>().position = { 1.0f, 1.0f, 1.0f };
+		//testLight->getComponent<pw::PointLight>().color = { 1.0f, 0.0f, 0.0f, 3.0f };
+
+		auto obj = createEntity("Sun");
+		obj->addComponent<pw::DirectionLight>();
 	}
 
 	void onUpdate(float dt) override {
@@ -58,7 +65,7 @@ public:
 			playerTransform.position.y += 10.0f * dt;
 		}
 
-		light->getComponent<pw::Transform>().position = { cos(t), 2.0f, sin(t) };
+		//light->getComponent<pw::Transform>().position = { cos(t), 2.0f, sin(t) };
 	}
 
 	void onFixedUpdate(float dt) override {

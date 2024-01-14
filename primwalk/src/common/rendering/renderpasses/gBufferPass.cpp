@@ -1,18 +1,18 @@
-#include "deferredPass.hpp"
+#include "gBufferPass.hpp"
 
-#include "../components/camera.hpp"
-#include "vertex3d.hpp"
+#include "../../components/camera.hpp"
+#include "../vertex3d.hpp"
 #include <stdexcept>
 
 #include <glm/gtc/matrix_transform.hpp>
-#include "../components/pointLight.hpp"
-#include "../components/renderable.hpp"
-#include "../components/transform.hpp"
-
+#include "../../components/directionLight.hpp"
+#include "../../components/pointLight.hpp"
+#include "../../components/renderable.hpp"
+#include "../../components/transform.hpp"
 
 namespace pw {
 
-	DeferredPass::DeferredPass(uint32_t width, uint32_t height, GraphicsDevice_Vulkan& device) : m_Device(device) {
+	GBufferPass::GBufferPass(uint32_t width, uint32_t height, GraphicsDevice_Vulkan& device) : m_Device(device) {
 		createImages(width, height);
 		createRenderPasses();
 		createFramebuffers(width, height);
@@ -33,30 +33,27 @@ namespace pw {
 		//addTexture(m_Textures[1]->getImage());
 	}
 
-	DeferredPass::~DeferredPass() {
-		vkDestroyPipelineLayout(m_Device.getDevice(), m_MainPipelineLayout, nullptr);
-		vkDestroyPipelineLayout(m_Device.getDevice(), m_DeferredPipelineLayout, nullptr);
+	GBufferPass::~GBufferPass() {
+		vkDestroyPipelineLayout(m_Device.getDevice(), m_GBufferPipelineLayout, nullptr);
+		//vkDestroyPipelineLayout(m_Device.getDevice(), m_DeferredPipelineLayout, nullptr);
 
 		m_DeferredFramebuffer->destroy();
 		m_PositionBuffer->destroy();
 		m_NormalBuffer->destroy();
-		m_DiffuseBuffer->destroy();
+		m_AlbedoBuffer->destroy();
 		m_SpecularBuffer->destroy();
 		m_DeferredDepthBuffer->destroy();
 
-		m_ComposedFramebuffer->destroy();
-		m_ComposedImage->destroy();
+		//m_ComposedFramebuffer->destroy();
+		//m_ComposedImage->destroy();
 	}
 
-	void DeferredPass::draw(VkCommandBuffer commandBuffer, size_t frameIndex, ComponentManager& manager) {
+	void GBufferPass::draw(VkCommandBuffer commandBuffer, size_t frameIndex, ComponentManager& manager) {
 		UniformBuffer3D ubo{};
 		ubo.view = Camera::MainCamera->getViewMatrix();
 		ubo.proj = glm::mat4(1.0f);
-		ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_ComposedImage->getWidth() / m_ComposedImage->getHeight(), 0.1f, 1000.0f);
+		ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_PositionBuffer->getWidth() / m_PositionBuffer->getHeight(), 0.1f, 1000.0f); // TODO: Fix use of position buffer
 		ubo.viewPosition = Camera::MainCamera->position;
-
-		UBOComposition uboComposition{};
-		uboComposition.viewPosition = ubo.viewPosition;
 
 		uint32_t lightIndex = 0;
 		for (const auto& e : m_Entities) {
@@ -64,19 +61,17 @@ namespace pw {
 				auto& light = manager.getComponent<PointLight>(e);
 				ubo.pointLights[lightIndex].position = manager.getComponent<Transform>(e).position;
 				ubo.pointLights[lightIndex].color = light.color;
-
-				uboComposition.pointLights[lightIndex].position = ubo.pointLights[lightIndex].position;
-				uboComposition.pointLights[lightIndex].color = ubo.pointLights[lightIndex].color;
-
 				lightIndex++;
+			}
+
+			if (manager.hasComponent<DirectionLight>(e)) {
+				auto& light = manager.getComponent<DirectionLight>(e);
 			}
 		}
 
-		ubo.numLights = lightIndex;
-		uboComposition.numLights = lightIndex;
+		ubo.numPointLights = lightIndex;
 
 		m_UBOs[frameIndex]->writeToBuffer(&ubo);
-		m_CompositionUBOs[frameIndex]->writeToBuffer(&uboComposition);
 
 		// Geometry pass
 		m_GeometryPass->begin(*m_DeferredFramebuffer, commandBuffer);
@@ -84,9 +79,9 @@ namespace pw {
 			m_GBufferPipeline->bind(commandBuffer);
 
 			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				m_MainPipelineLayout, 0, 1, &m_UniformDescriptorSets[frameIndex], 0, nullptr);
+				m_GBufferPipelineLayout, 0, 1, &m_UniformDescriptorSets[frameIndex], 0, nullptr);
 			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				m_MainPipelineLayout, 1, 1, &m_TextureDescriptorSet, 0, nullptr);
+				m_GBufferPipelineLayout, 1, 1, &m_TextureDescriptorSet, 0, nullptr);
 
 			for (const auto& e : m_Entities) {
 				auto& component = manager.getComponent<Renderable>(e);
@@ -120,7 +115,7 @@ namespace pw {
 
 					vkCmdPushConstants(
 						commandBuffer,
-						m_MainPipelineLayout,
+						m_GBufferPipelineLayout,
 						VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 						0,
 						sizeof(ModelPushConstant),
@@ -131,61 +126,59 @@ namespace pw {
 			}
 
 		m_GeometryPass->end(commandBuffer);
-
-		// Composition pass
-
-
-		m_CompositionPass->begin(*m_ComposedFramebuffer, commandBuffer);
-		m_CompositionPipeline->bind(commandBuffer);
-
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_DeferredPipelineLayout, 0, 1, &m_GBufferSet, 0, nullptr);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_DeferredPipelineLayout, 1, 1, &m_CompositionUBODescriptorSets[frameIndex], 0, nullptr);
-
-		VkDescriptorImageInfo positionImageInfo{};
-		positionImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		positionImageInfo.imageView = m_PositionBuffer->getVulkanImageView();
-		positionImageInfo.sampler = m_Sampler->getVkSampler();
-
-		VkDescriptorImageInfo normalImageInfo{};
-		normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		normalImageInfo.imageView = m_NormalBuffer->getVulkanImageView();
-		normalImageInfo.sampler = m_Sampler->getVkSampler();
-
-		VkDescriptorImageInfo diffuseImageInfo{};
-		diffuseImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		diffuseImageInfo.imageView = m_DiffuseBuffer->getVulkanImageView();
-		diffuseImageInfo.sampler = m_Sampler->getVkSampler();
-
-		DescriptorWriter(*m_GBufferSetLayout, *m_DescriptorPool)
-			.writeImage(0, &positionImageInfo)
-			.writeImage(1, &normalImageInfo)
-			.writeImage(2, &diffuseImageInfo)
-			.overwrite(m_GBufferSet);
-
-		vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-		m_CompositionPass->end(commandBuffer);
 	}
 
-	void DeferredPass::resize(uint32_t width, uint32_t height) {
+	void GBufferPass::resize(uint32_t width, uint32_t height) {
 		m_Device.waitForGPU();
 
 		m_DeferredFramebuffer->destroy();
 		m_PositionBuffer->destroy();
 		m_NormalBuffer->destroy();
-		m_DiffuseBuffer->destroy();
+		m_AlbedoBuffer->destroy();
 		m_SpecularBuffer->destroy();
 		m_DeferredDepthBuffer->destroy();
 
-		m_ComposedFramebuffer->destroy();
-		m_ComposedImage->destroy();
+		//m_ComposedFramebuffer->destroy();
+		//m_ComposedImage->destroy();
 
 		createImages(width, height);
 		createFramebuffers(width, height);
 	}
 
-	void DeferredPass::createImages(uint32_t width, uint32_t height) {
+	void GBufferPass::createImages(uint32_t width, uint32_t height) {
+		// ------ G-Buffer Images ------
+		// Position
+		ImageInfo positionImageInfo{};
+		positionImageInfo.width = width;
+		positionImageInfo.height = height;
+		positionImageInfo.depth = 1;
+		positionImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		positionImageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+		// Normals
+		ImageInfo normalImageInfo{};
+		normalImageInfo.width = width;
+		normalImageInfo.height = height;
+		normalImageInfo.depth = 1;
+		normalImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		normalImageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+		// Albedo
+		ImageInfo albedoImageInfo{};
+		albedoImageInfo.width = width;
+		albedoImageInfo.height = height;
+		albedoImageInfo.depth = 1;
+		albedoImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		albedoImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+
+		// Specular
+		ImageInfo specularImageInfo{};
+		specularImageInfo.width = width;
+		specularImageInfo.height = height;
+		specularImageInfo.depth = 1;
+		specularImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		specularImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+
 		// Depth
 		ImageInfo depthImageInfo{};
 		depthImageInfo.width = width;
@@ -194,64 +187,19 @@ namespace pw {
 		depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		depthImageInfo.format = m_Device.getSupportedDepthFormat();
 
-		// Deferred images
-		// Position
-		ImageInfo positionImageInfo;
-		positionImageInfo.width = width;
-		positionImageInfo.height = height;
-		positionImageInfo.depth = 1;
-		positionImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		positionImageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-
-		// Normals
-		ImageInfo normalImageInfo;
-		normalImageInfo.width = width;
-		normalImageInfo.height = height;
-		normalImageInfo.depth = 1;
-		normalImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		normalImageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-
-		// Diffuse
-		ImageInfo diffuseImageInfo;
-		diffuseImageInfo.width = width;
-		diffuseImageInfo.height = height;
-		diffuseImageInfo.depth = 1;
-		diffuseImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		diffuseImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-
-		// Specular
-		ImageInfo specularImageInfo;
-		specularImageInfo.width = width;
-		specularImageInfo.height = height;
-		specularImageInfo.depth = 1;
-		specularImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		specularImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-
 		m_PositionBuffer = std::make_unique<Image>(positionImageInfo);
 		m_NormalBuffer = std::make_unique<Image>(normalImageInfo);
-		m_DiffuseBuffer = std::make_unique<Image>(diffuseImageInfo);
+		m_AlbedoBuffer = std::make_unique<Image>(albedoImageInfo);
 		m_SpecularBuffer = std::make_unique<Image>(specularImageInfo);
-
-		// Deferred depth image
 		m_DeferredDepthBuffer = std::make_unique<Image>(depthImageInfo);
-
-		// Deferred composition
-		ImageInfo composedImageInfo;
-		composedImageInfo.width = width;
-		composedImageInfo.height = height;
-		composedImageInfo.depth = 1;
-		composedImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		composedImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-
-		m_ComposedImage = std::make_unique<Image>(composedImageInfo);
 	}
 
-	void DeferredPass::createRenderPasses() {
+	void GBufferPass::createRenderPasses() {
 		// No subpasses on desktop
 		SubpassInfo subpass{};
 		subpass.renderTargets = { 0 };
 
-		// Deferred attachments
+		// ------ G-Buffer Render Pass ------
 		RenderPassAttachment positionAttachment = {
 			m_PositionBuffer,
 			VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -266,8 +214,8 @@ namespace pw {
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 		};
 
-		RenderPassAttachment diffuseAttachment = {
-			m_DiffuseBuffer,
+		RenderPassAttachment albedoAttachment = {
+			m_AlbedoBuffer,
 			VK_ATTACHMENT_LOAD_OP_CLEAR,
 			VK_ATTACHMENT_STORE_OP_STORE,
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
@@ -280,7 +228,7 @@ namespace pw {
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 		};
 
-		RenderPassAttachment deferredDepth = {
+		RenderPassAttachment deferredDepthAttachment = {
 			m_DeferredDepthBuffer,
 			VK_ATTACHMENT_LOAD_OP_CLEAR,
 			VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -290,9 +238,9 @@ namespace pw {
 		std::vector<RenderPassAttachment> deferredAttachments = {
 			positionAttachment,
 			normalAttachment,
-			diffuseAttachment,
+			albedoAttachment,
 			specularAttachment,
-			deferredDepth
+			deferredDepthAttachment
 		};
 
 		RenderPassInfo geometryPassInfo = {
@@ -301,28 +249,9 @@ namespace pw {
 		};
 
 		m_GeometryPass = std::make_unique<RenderPass>(geometryPassInfo);
-
-		// Deferred lighting composition pass
-		RenderPassAttachment lightingDeferredColorAttachment = {
-			m_ComposedImage,
-			VK_ATTACHMENT_LOAD_OP_CLEAR,
-			VK_ATTACHMENT_STORE_OP_STORE,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-		};
-
-		std::vector<RenderPassAttachment> lightingDeferredAttachments = {
-			lightingDeferredColorAttachment
-		};
-
-		RenderPassInfo lightingPassInfo = {
-			lightingDeferredAttachments,
-			{ subpass }
-		};
-
-		m_CompositionPass = std::make_unique<RenderPass>(lightingPassInfo);
 	}
 
-	void DeferredPass::createFramebuffers(uint32_t width, uint32_t height) {
+	void GBufferPass::createFramebuffers(uint32_t width, uint32_t height) {
 		// Deferred framebuffer
 		FramebufferInfo deferredInfo = {
 			width,
@@ -332,7 +261,7 @@ namespace pw {
 				{
 					m_PositionBuffer,
 					m_NormalBuffer,
-					m_DiffuseBuffer,
+					m_AlbedoBuffer,
 					m_SpecularBuffer,
 					m_DeferredDepthBuffer
 				}
@@ -340,33 +269,14 @@ namespace pw {
 		};
 
 		m_DeferredFramebuffer = std::make_unique<Framebuffer>(deferredInfo);
-
-		// Composition framebuffer
-		FramebufferInfo compositionInfo = {
-			width,
-			height,
-			m_CompositionPass->getVulkanRenderPass(),
-			{ { m_ComposedImage } }
-		};
-
-		m_ComposedFramebuffer = std::make_unique<Framebuffer>(compositionInfo);
 	}
 
-	void DeferredPass::createDescriptorPool() {
+	void GBufferPass::createDescriptorPool() {
 		m_UniformDescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
-		m_CompositionUBODescriptorSets.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
-
-		m_DescriptorPool = DescriptorPool::Builder(m_Device)
-			.setMaxSets(4)
-			.setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
-			.addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4)
-			.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT) // UBO
-			.build();
 	}
 
-	void DeferredPass::createBuffers() {
+	void GBufferPass::createBuffers() {
 		m_UBOs.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
-		m_CompositionUBOs.resize(GraphicsDevice_Vulkan::MAX_FRAMES_IN_FLIGHT);
 
 		// Main UBOs
 		for (auto& ubo : m_UBOs) {
@@ -379,28 +289,12 @@ namespace pw {
 
 			ubo->map();
 		}
-
-		// Composition UBOs
-		for (auto& ubo : m_CompositionUBOs) {
-			ubo = std::make_unique<Buffer>(
-				m_Device,
-				sizeof(UBOComposition),
-				1,
-				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-			ubo->map();
-		}
 	}
 
-	void DeferredPass::createDescriptorSetLayout() {
+	void GBufferPass::createDescriptorSetLayout() {
 		// Descriptor set layouts
 		m_UBOSetLayout = DescriptorSetLayout::Builder(m_Device)
 			.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-			.build();
-
-		m_CompositionUBOSetLayout = DescriptorSetLayout::Builder(m_Device)
-			.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
 			.build();
 
 		m_TextureSetLayout = DescriptorSetLayout::Builder(m_Device)
@@ -418,15 +312,6 @@ namespace pw {
 				.build(m_UniformDescriptorSets[i]);
 		}
 
-		// Composition UBO
-		for (size_t i = 0; i < m_CompositionUBODescriptorSets.size(); i++) {
-			auto bufferInfo = m_CompositionUBOs[i]->getDescriptorInfo();
-
-			DescriptorWriter(*m_CompositionUBOSetLayout, *m_DescriptorPool)
-				.writeBuffer(0, &bufferInfo)
-				.build(m_CompositionUBODescriptorSets[i]);
-		}
-
 		DescriptorWriter(*m_TextureSetLayout, m_Device.getBindlessPool())
 			.build(m_TextureDescriptorSet);
 
@@ -434,25 +319,9 @@ namespace pw {
 			m_UBOSetLayout->getDescriptorSetLayout(),
 			m_TextureSetLayout->getDescriptorSetLayout()
 		};
-
-		// Composition
-		m_GBufferSetLayout = DescriptorSetLayout::Builder(m_Device)
-			.setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
-			.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // position buffer
-			.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // normal buffer
-			.addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // diffuse buffer
-			.addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // specular buffer
-			.build();
-
-		DescriptorWriter(*m_GBufferSetLayout, *m_DescriptorPool).build(m_GBufferSet);
-
-		m_DeferredDescriptorSetLayouts = {
-			m_GBufferSetLayout->getDescriptorSetLayout(),
-			m_CompositionUBOSetLayout->getDescriptorSetLayout()
-		};
 	}
 
-	void DeferredPass::createPipelineLayouts() {
+	void GBufferPass::createPipelineLayouts() {
 		// Main pipeline layout
 		VkPushConstantRange pushConstantRange{};
 		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -466,29 +335,19 @@ namespace pw {
 		basePipelineLayoutInfo.pushConstantRangeCount = 1;
 		basePipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-		if (vkCreatePipelineLayout(m_Device.getDevice(), &basePipelineLayoutInfo, nullptr, &m_MainPipelineLayout) != VK_SUCCESS) {
+		if (vkCreatePipelineLayout(m_Device.getDevice(), &basePipelineLayoutInfo, nullptr, &m_GBufferPipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("VULKAN ERROR: Failed to create pipeline layout!");
-		}
-
-		// Deferred lighting pipeline layout
-		VkPipelineLayoutCreateInfo deferredPipelineLayoutInfo{};
-		deferredPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		deferredPipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_DeferredDescriptorSetLayouts.size());
-		deferredPipelineLayoutInfo.pSetLayouts = m_DeferredDescriptorSetLayouts.data();
-		
-		if (vkCreatePipelineLayout(m_Device.getDevice(), &deferredPipelineLayoutInfo, nullptr, &m_DeferredPipelineLayout) != VK_SUCCESS) {
-			throw std::runtime_error("VULKAN ERROR: Failed to create deferred pipeline layout!");
 		}
 	}
 
-	void DeferredPass::createPipelines() {
+	void GBufferPass::createPipelines() {
 		// G-Buffer pipeline
 		PipelineConfigInfo gBufferPipelineConfig{};
 		GraphicsPipeline::defaultPipelineConfigInfo(gBufferPipelineConfig);
 		gBufferPipelineConfig.bindingDescriptions = Vertex3D::getBindingDescriptions();
 		gBufferPipelineConfig.attributeDescriptions = Vertex3D::getAttributeDescriptions();
 		gBufferPipelineConfig.renderPass = m_GeometryPass->getVulkanRenderPass();
-		gBufferPipelineConfig.pipelineLayout = m_MainPipelineLayout;
+		gBufferPipelineConfig.pipelineLayout = m_GBufferPipelineLayout;
 
 		std::vector<VkPipelineColorBlendAttachmentState> blendStates(4);
 		blendStates[0] = gBufferPipelineConfig.colorBlendAttachment;
@@ -504,34 +363,14 @@ namespace pw {
 			"assets/shaders/gbuffer.vert.spv",
 			"assets/shaders/gbuffer.frag.spv",
 			gBufferPipelineConfig);
-
-		// Deferred lighting pipeline
-		PipelineConfigInfo deferredPipelineConfig{};
-		GraphicsPipeline::defaultPipelineConfigInfo(deferredPipelineConfig);
-		deferredPipelineConfig.bindingDescriptions = {};
-		deferredPipelineConfig.attributeDescriptions = {};
-		deferredPipelineConfig.renderPass = m_CompositionPass->getVulkanRenderPass();
-		deferredPipelineConfig.pipelineLayout = m_DeferredPipelineLayout;
-
-		std::vector<VkPipelineColorBlendAttachmentState> deferredBlendStates(4);
-		deferredBlendStates[0] = deferredPipelineConfig.colorBlendAttachment;
-
-		deferredPipelineConfig.colorBlendInfo.attachmentCount = 1;
-		deferredPipelineConfig.colorBlendInfo.pAttachments = deferredBlendStates.data();
-
-		m_CompositionPipeline = std::make_unique<GraphicsPipeline>(
-			m_Device,
-			"assets/shaders/deferred.vert.spv",
-			"assets/shaders/deferred.frag.spv",
-			deferredPipelineConfig);
 	}
 
-	void DeferredPass::createSamplers() {
+	void GBufferPass::createSamplers() {
 		SamplerCreateInfo samplerInfo{};
 		m_Sampler = std::make_unique<Sampler>(samplerInfo, m_Device);
 	}
 
-	uint32_t DeferredPass::addTexture(Image* image) {
+	uint32_t GBufferPass::addTexture(Image* image) {
 		auto idSearch = m_TextureIDs.find(image);
 
 		if (idSearch == m_TextureIDs.end()) { // texture is not associated with any ID yet
@@ -558,7 +397,7 @@ namespace pw {
 		return idSearch->second;
 	}
 
-	void DeferredPass::freeTextureID(Image* image) {
+	void GBufferPass::freeTextureID(Image* image) {
 		//auto idSearch = m_TextureIDs.find(image);
 
 		//if (idSearch == m_TextureIDs.end()) { // texture has no ID, can not free ID

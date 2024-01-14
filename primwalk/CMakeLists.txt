@@ -44,16 +44,12 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/entityManager.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/resourceManager.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/resourceManager.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/systemManager.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/managers/systemManager.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/hitbox.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/hitbox.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/pwmath.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/math/pwmath.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/buffer.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/deferredPass.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/deferredPass.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/descriptors.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/framebuffer.cpp
@@ -79,10 +75,12 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/texture2D.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/vertex3d.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/gBufferPass.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/gBufferPass.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/lightingPass.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/lightingPass.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.hpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.cpp
-  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/systems/system.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/buttonWidget.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/buttonWidget.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/checkboxWidget.cpp

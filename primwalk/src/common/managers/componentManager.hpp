@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 namespace pw {
-	class PW_API ComponentManager {
+	class ComponentManager {
 	public:
 		ComponentManager() = default;
 		~ComponentManager() = default;
@@ -38,9 +38,9 @@ namespace pw {
 			return m_ComponentTypes[typeName];
 		}
 
-		template<typename T, typename... Args>
-		T& addComponent(entity_id entity, Args&&... args) {
-			getComponentArray<T>()->insert(entity, std::forward<Args>(args)...);
+		template<typename T>
+		T& addComponent(entity_id entity) {
+			getComponentArray<T>()->insert(entity);
 			return getComponent<T>(entity);
 		}
 

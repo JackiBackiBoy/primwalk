@@ -7,11 +7,11 @@
 #include "data/model.hpp"
 #include "managers/componentManager.hpp"
 #include "managers/entityManager.hpp"
-#include "managers/systemManager.hpp"
 #include "rendering/graphicsDevice_Vulkan.hpp"
 #include "rendering/renderer.hpp"
 #include "rendering/systems/uiRenderSystem.hpp"
-#include "rendering/deferredPass.hpp"
+#include "rendering/renderpasses/gBufferPass.hpp"
+#include "rendering/renderpasses/lightingPass.hpp"
 #include "ui/uiEvent.hpp"
 
 // std
@@ -52,7 +52,11 @@ namespace pw {
 		std::unique_ptr<Renderer> m_Renderer;
 		std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
 		std::unique_ptr<Model> m_Cube;
-		std::unique_ptr<DeferredPass> m_DeferredPass;
+
+		// Renderpasses
+		std::unique_ptr<GBufferPass> m_DeferredPass;
+		//std::unique_ptr<ShadowPass> m_ShadowPass;
+		std::unique_ptr<LightingPass> m_LightingPass;
 
 		bool m_ScenePaused = false;
 		bool m_DebugMode = false;
@@ -64,7 +68,6 @@ namespace pw {
 
 		ComponentManager m_ComponentManager{};
 		EntityManager m_EntityManager{};
-		SystemManager m_SystemManager{};
 
 		friend class Editor;
 	};

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../core.hpp"
 #include "widget.hpp"
 #include "../application.hpp"
 
@@ -7,12 +8,12 @@
 #include <vector>
 
 namespace pw {
-	struct WidgetEventData {
+	struct PW_API WidgetEventData {
 		MouseCursor cursorRequest = MouseCursor::Default;
 	};
 
 	// Acts as the widget manager
-	class Editor {
+	class PW_API Editor {
 	public:
 		static Editor& getInstance();
 
