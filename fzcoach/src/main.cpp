@@ -17,6 +17,8 @@ public:
 		planeModel->loadFromFile("assets/models/plane.gltf");
 		playerModel = std::make_shared<pw::Model>();
 		playerModel->loadFromFile("assets/models/helmet.gltf");
+		cubeModel = std::make_shared<pw::Model>();
+		cubeModel->loadFromFile("assets/models/axes.gltf");
 
 		// Entities
 		player = createEntity("Player");
@@ -24,9 +26,12 @@ public:
 
 		ground = createEntity("Ground");
 		ground->getComponent<pw::Transform>().position.y = -1.0f;
+		ground->getComponent<pw::Transform>().scale = glm::vec3(5.0f);
 		ground->getComponent<pw::Renderable>().model = planeModel.get();
 
 		test = createEntity("Test");
+		test->getComponent<pw::Renderable>().model = cubeModel.get();
+		test->getComponent<pw::Transform>().position = { 0.0f, 0.0f, 0.0f };
 
 		//light = createLightEntity("Main light");
 		//light->getComponent<pw::PointLight>().color = { 1.0f, 1.0f, 1.0f, 4.0f };
@@ -79,6 +84,7 @@ private:
 	pw::Entity* light = nullptr;
 	std::shared_ptr<pw::Model> planeModel = nullptr;
 	std::shared_ptr<pw::Model> playerModel = nullptr;
+	std::shared_ptr<pw::Model> cubeModel = nullptr;
 };
 
 int main() {

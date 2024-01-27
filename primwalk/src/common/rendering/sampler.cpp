@@ -11,12 +11,12 @@ namespace pw {
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		samplerInfo.magFilter = samplerFilter;
 		samplerInfo.minFilter = samplerFilter;
-		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeU = info.addressModeU;
+		samplerInfo.addressModeV = info.addressModeV;
+		samplerInfo.addressModeW = info.addressModeW;
 		samplerInfo.borderColor = info.borderColor;
 		samplerInfo.unnormalizedCoordinates = VK_FALSE;
-		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareEnable = info.compareEnable;
 		samplerInfo.compareOp = info.compareOp;
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // TODO: Look into using nearest filtering instead
 		samplerInfo.mipLodBias = 0.0f;

@@ -34,16 +34,11 @@ namespace pw {
 		m_UIRenderSystem = std::make_unique<UIRenderSystem>((GraphicsDevice_Vulkan&)(*m_Device), m_Renderer->getVkRenderPass());
 
 		// Renderpasses
-		m_DeferredPass = std::make_unique<GBufferPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
+		m_GBufferPass = std::make_unique<GBufferPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
+		m_ShadowPass = std::make_unique<ShadowPass>(*((GraphicsDevice_Vulkan*)m_Device.get()), 1024);
 		m_LightingPass = std::make_unique<LightingPass>(m_Window->getWidth() / 2, m_Window->getHeight() / 2, *((GraphicsDevice_Vulkan*)m_Device.get()));
 
 		initialize();
-
-		// Create entities
-		Entity* camera = createEntity("Camera");
-		camera->getComponent<Transform>().position = { 5.0f, 5.0f, 0.0f };
-
-		Editor::getInstance().setTarget(this);
 	}
 
 	Application::~Application() {
@@ -54,7 +49,7 @@ namespace pw {
 	}
 
 	void Application::onUpdate(float dt) {
-
+		
 	}
 
 	void Application::onFixedUpdate(float dt) {
@@ -62,9 +57,11 @@ namespace pw {
 	}
 
 	void Application::initialize() {
-		// Models
-		m_Cube = std::make_unique<Model>();
-		m_Cube->loadFromFile("assets/models/helmet.gltf");
+		// Create base-entities
+		Entity* camera = createEntity("Camera");
+		camera->getComponent<Transform>().position = { 5.0f, 5.0f, 0.0f };
+
+		Editor::getInstance().setTarget(this);
 	}
 
 	void Application::run() {
@@ -80,12 +77,12 @@ namespace pw {
 		m_Window->setResizeCallback([this](int width, int height) {
 			m_Renderer->resizeSwapChain((uint32_t)width, (uint32_t)height);
 
-			m_UIRenderSystem->removeImage(m_DeferredPass->getPositionBufferImage());
-			m_UIRenderSystem->removeImage(m_DeferredPass->getNormalBufferImage());
-			m_UIRenderSystem->removeImage(m_DeferredPass->getDiffuseBufferImage());
+			m_UIRenderSystem->removeImage(m_GBufferPass->getPositionBuffer());
+			m_UIRenderSystem->removeImage(m_GBufferPass->getNormalBuffer());
+			m_UIRenderSystem->removeImage(m_GBufferPass->getAlbedoBuffer());
 			m_UIRenderSystem->removeImage(m_LightingPass->getOutputImage());
 
-			m_DeferredPass->resize(width / 2, height / 2);
+			m_GBufferPass->resize(width / 2, height / 2);
 			m_LightingPass->resize(width / 2, height / 2);
 		});
 
@@ -97,9 +94,10 @@ namespace pw {
 			lastTime = newTime;
 
 			// Input polling
+			pw::input::KeyboardState keyboard{};
+			pw::input::MouseState mouseState{};
+
 			pw::input::update();
-			pw::input::KeyboardState keyboard;
-			pw::input::MouseState mouseState;
 			pw::input::getKeyboardState(&keyboard);
 			pw::input::getMouseState(&mouseState);
 
@@ -107,7 +105,7 @@ namespace pw {
 			if (pw::input::isDown(KeyCode::MouseButtonMiddle)) {
 				// Middle mouse + Left Shift = horizontal/vertical move
 				if (pw::input::isDown(KeyCode::KeyboardButtonLShift)) {
-					camera->position += camera->getRight() * mouseState.deltaPosition.x * dt * speed;
+					camera->position += -camera->getRight() * mouseState.deltaPosition.x * dt * speed;
 					camera->position += camera->getUp() * mouseState.deltaPosition.y * dt * speed;
 				}
 				// Only Middle mouse = orbit move
@@ -130,7 +128,7 @@ namespace pw {
 				dt = 0.0f;
 			}
 
-			camera->update();
+			camera->update(m_Window->getWidth(), m_Window->getHeight());
 
 			onUpdate(dt);
 			onFixedUpdate(dt);
@@ -148,7 +146,7 @@ namespace pw {
 	Entity* Application::createEntity(const std::string& name) {
 		m_Entities.push_back(std::make_unique<Entity>(name, m_ComponentManager, m_EntityManager));
 
-		m_DeferredPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
+		m_GBufferPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
 
 		return (*(m_Entities.end() - 1)).get();
 	}
@@ -158,7 +156,7 @@ namespace pw {
 		entity->addComponent<PointLight>().color = { 1.0f, 1.0f, 1.0f, 0.1f };
 		m_Entities.push_back(std::move(entity));
 
-		m_DeferredPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
+		m_GBufferPass->m_Entities.insert((*(m_Entities.end() - 1))->getID());
 
 		return (*(m_Entities.end() - 1)).get();
 	}
@@ -178,27 +176,31 @@ namespace pw {
 			frameInfo.windowWidth = static_cast<float>(m_Window->getWidth());
 			frameInfo.windowHeight = static_cast<float>(m_Window->getHeight());
 
-			// Deferred rendering
-			m_DeferredPass->draw(commandBuffer, frameIndex, m_ComponentManager);
-			m_LightingPass->draw(commandBuffer, frameIndex, m_DeferredPass->m_Entities, m_ComponentManager,
-				m_DeferredPass->getPositionBufferImage(),
-				m_DeferredPass->getNormalBufferImage(),
-				m_DeferredPass->getDiffuseBufferImage()
+			// Renderpasses (TODO: Proper render graph)
+			m_GBufferPass->draw(commandBuffer, frameIndex, m_ComponentManager);
+			m_ShadowPass->draw(commandBuffer, frameIndex, m_GBufferPass->m_Entities, m_ComponentManager);
+			m_LightingPass->draw(commandBuffer, frameIndex, m_GBufferPass->m_Entities, m_ComponentManager,
+				m_GBufferPass->getPositionBuffer(),
+				m_GBufferPass->getNormalBuffer(),
+				m_GBufferPass->getAlbedoBuffer(),
+				m_ShadowPass->getOutputImage(),
+				m_ShadowPass->getLightSpaceMatrix()
 			);
 
 			// Main renderpass (swapchain)
 			m_Renderer->beginRenderPass(commandBuffer);
-			m_UIRenderSystem->drawFramebuffer(m_LightingPass->getOutputImage(), { m_Window->getWidth() / 4, 100 });
+			m_UIRenderSystem->drawFramebuffer(m_LightingPass->getOutputImage(), { m_Window->getWidth() / 4, 0 });
 
 			// Draw G-Buffer resources
-			float aspect =  (float)m_LightingPass->getOutputImage()->getHeight() / m_LightingPass->getOutputImage()->getWidth();
+			float aspect =  static_cast<float>(m_LightingPass->getOutputImage()->getHeight()) / m_LightingPass->getOutputImage()->getWidth();
 			int elemWidth = (m_Window->getWidth() / 2) / 3;
 			int elemHeight = elemWidth * aspect;
 			glm::vec2 groupOrigin = { m_Window->getWidth() / 4, 100 + m_LightingPass->getOutputImage()->getHeight() };
 
-			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getPositionBufferImage(), groupOrigin, elemWidth, elemHeight);
-			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getNormalBufferImage(), groupOrigin + glm::vec2(elemWidth, 0), elemWidth, elemHeight);
-			m_UIRenderSystem->drawFramebuffer(m_DeferredPass->getDiffuseBufferImage(), groupOrigin + glm::vec2(elemWidth * 2, 0), elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_GBufferPass->getPositionBuffer(), groupOrigin, elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_GBufferPass->getNormalBuffer(), groupOrigin + glm::vec2(elemWidth, 0), elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_GBufferPass->getAlbedoBuffer(), groupOrigin + glm::vec2(elemWidth * 2, 0), elemWidth, elemHeight);
+			m_UIRenderSystem->drawFramebuffer(m_ShadowPass->getOutputImage(), groupOrigin + glm::vec2(elemWidth * 3, 0), 256, 256);
 
 			// Editor UI
 			Editor::getInstance().draw(*m_UIRenderSystem);

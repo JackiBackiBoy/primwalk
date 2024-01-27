@@ -35,7 +35,6 @@ namespace pw {
 
 	GBufferPass::~GBufferPass() {
 		vkDestroyPipelineLayout(m_Device.getDevice(), m_GBufferPipelineLayout, nullptr);
-		//vkDestroyPipelineLayout(m_Device.getDevice(), m_DeferredPipelineLayout, nullptr);
 
 		m_DeferredFramebuffer->destroy();
 		m_PositionBuffer->destroy();
@@ -43,38 +42,20 @@ namespace pw {
 		m_AlbedoBuffer->destroy();
 		m_SpecularBuffer->destroy();
 		m_DeferredDepthBuffer->destroy();
-
-		//m_ComposedFramebuffer->destroy();
-		//m_ComposedImage->destroy();
 	}
 
 	void GBufferPass::draw(VkCommandBuffer commandBuffer, size_t frameIndex, ComponentManager& manager) {
 		UniformBuffer3D ubo{};
 		ubo.view = Camera::MainCamera->getViewMatrix();
-		ubo.proj = glm::mat4(1.0f);
-		ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_PositionBuffer->getWidth() / m_PositionBuffer->getHeight(), 0.1f, 1000.0f); // TODO: Fix use of position buffer
-		ubo.viewPosition = Camera::MainCamera->position;
-
-		uint32_t lightIndex = 0;
-		for (const auto& e : m_Entities) {
-			if (manager.hasComponent<PointLight>(e)) {
-				auto& light = manager.getComponent<PointLight>(e);
-				ubo.pointLights[lightIndex].position = manager.getComponent<Transform>(e).position;
-				ubo.pointLights[lightIndex].color = light.color;
-				lightIndex++;
-			}
-
-			if (manager.hasComponent<DirectionLight>(e)) {
-				auto& light = manager.getComponent<DirectionLight>(e);
-			}
-		}
-
-		ubo.numPointLights = lightIndex;
-
+		ubo.proj = Camera::MainCamera->getProjectionMatrix();
 		m_UBOs[frameIndex]->writeToBuffer(&ubo);
 
+		Viewport viewport{};
+		viewport.width = m_DeferredFramebuffer->getWidth();
+		viewport.height = m_DeferredFramebuffer->getHeight();
+
 		// Geometry pass
-		m_GeometryPass->begin(*m_DeferredFramebuffer, commandBuffer);
+		m_GeometryPass->begin(*m_DeferredFramebuffer, commandBuffer, viewport);
 
 			m_GBufferPipeline->bind(commandBuffer);
 
@@ -344,6 +325,7 @@ namespace pw {
 		// G-Buffer pipeline
 		PipelineConfigInfo gBufferPipelineConfig{};
 		GraphicsPipeline::defaultPipelineConfigInfo(gBufferPipelineConfig);
+
 		gBufferPipelineConfig.bindingDescriptions = Vertex3D::getBindingDescriptions();
 		gBufferPipelineConfig.attributeDescriptions = Vertex3D::getAttributeDescriptions();
 		gBufferPipelineConfig.renderPass = m_GeometryPass->getVulkanRenderPass();

@@ -79,6 +79,8 @@ set(SOURCE_FILES
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/gBufferPass.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/lightingPass.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/lightingPass.hpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/shadowPass.cpp
+  ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/renderpasses/shadowPass.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.cpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/rendering/systems/uiRenderSystem.hpp
   ${CMAKE_HOME_DIRECTORY}/primwalk/src/common/ui/buttonWidget.cpp

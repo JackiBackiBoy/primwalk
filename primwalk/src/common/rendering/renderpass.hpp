@@ -31,12 +31,21 @@ namespace pw {
 		const std::vector<SubpassInfo>& subpassInfos;
 	};
 
+	struct Viewport {
+		float offsetX = 0.0f;
+		float offsetY = 0.0f;
+		float width = 0.0f;
+		float height = 0.0f;
+		float minDepth = 0.0f;
+		float maxDepth = 1.0f;
+	};
+
 	class RenderPass {
 	public:
 		RenderPass(const RenderPassInfo& createInfo);
 		~RenderPass();
 
-		void begin(Framebuffer& frameBuffer, VkCommandBuffer commandBuffer);
+		void begin(Framebuffer& frameBuffer, VkCommandBuffer commandBuffer, const Viewport& viewport);
 		void end(VkCommandBuffer commandBuffer);
 
 		inline VkRenderPass getVulkanRenderPass() const { return m_RenderPass; }

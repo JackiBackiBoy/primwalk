@@ -77,6 +77,13 @@ namespace pw {
 		ambientIntensitySlider->minVal = 0.0f;
 		ambientIntensitySlider->maxVal = 1.0f;
 		ambientIntensitySlider->precision = 2;
+
+		// Graphics Settings
+		auto graphicsSettingsLabel = addWidget<LabelWidget>();
+		graphicsSettingsLabel->setParent(sceneExplorer);
+		graphicsSettingsLabel->text = "Graphics Settings";
+		graphicsSettingsLabel->fontSize = 13;
+		graphicsSettingsLabel->position = { 10, 220 };
 	}
 
 	Editor& Editor::getInstance() {

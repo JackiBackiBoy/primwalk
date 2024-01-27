@@ -142,7 +142,7 @@ namespace pw {
 		vkDestroyRenderPass(device->getDevice(), m_RenderPass, nullptr);
 	}
 
-	void RenderPass::begin(Framebuffer& frameBuffer, VkCommandBuffer commandBuffer) {
+	void RenderPass::begin(Framebuffer& frameBuffer, VkCommandBuffer commandBuffer, const Viewport& viewport) {
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderPassInfo.renderPass = m_RenderPass;
@@ -155,19 +155,19 @@ namespace pw {
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		VkViewport viewport{};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = static_cast<float>(frameBuffer.getWidth());
-		viewport.height = static_cast<float>(frameBuffer.getHeight());
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
+		VkViewport vkViewport{};
+		vkViewport.x = viewport.offsetX;
+		vkViewport.y = viewport.offsetY;
+		vkViewport.width = viewport.width;
+		vkViewport.height = viewport.height;
+		vkViewport.minDepth = viewport.minDepth;
+		vkViewport.maxDepth = viewport.maxDepth;
 
 		VkRect2D scissor{};
 		scissor.offset = { 0, 0 };
 		scissor.extent = { frameBuffer.getWidth(), frameBuffer.getHeight() };
 
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetViewport(commandBuffer, 0, 1, &vkViewport);
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	}
 

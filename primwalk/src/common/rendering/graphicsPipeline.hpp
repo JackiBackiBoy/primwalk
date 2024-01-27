@@ -5,6 +5,7 @@
 
 // std
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -43,7 +44,28 @@ namespace pw {
 			const std::string& vertPath,
 			const std::string& fragPath,
 			const PipelineConfigInfo& configInfo);
+
+		GraphicsPipeline(GraphicsDevice_Vulkan& device,
+			const std::vector<VkPipelineShaderStageCreateInfo>& shaderStages,
+			const PipelineConfigInfo& configInfo);
+
 		~GraphicsPipeline();
+		
+		// Nested builder class
+		class Builder {
+		public:
+			Builder(GraphicsDevice_Vulkan& device, const PipelineConfigInfo& configInfo);
+			~Builder();
+
+			Builder& addStage(VkShaderStageFlagBits stage, const std::string& codePath);
+			std::unique_ptr<GraphicsPipeline> build();
+
+		private:
+			GraphicsDevice_Vulkan& m_Device;
+			const PipelineConfigInfo& m_ConfigInfo;
+			std::vector<VkShaderModule> m_ShaderModules;
+			std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
+		};
 
 		void bind(VkCommandBuffer commandBuffer);
 		static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);

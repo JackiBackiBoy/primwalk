@@ -27,7 +27,7 @@ namespace pw {
 		~LightingPass();
 
 		void draw(VkCommandBuffer commandBuffer, size_t frameIndex, std::set<entity_id>& entities, ComponentManager& manager,
-			Image* positionBuffer, Image* normalBuffer, Image* albedoBuffer);
+			Image* positionBuffer, Image* normalBuffer, Image* albedoBuffer, Image* shadowMap, const glm::mat4& lightSpaceMatrix);
 		void resize(uint32_t width, uint32_t height);
 
 		inline Image* getOutputImage() { return m_CompositionImage.get(); }
@@ -48,6 +48,10 @@ namespace pw {
 			DirectionLightParams directionLight{};
 			PointLightParams pointLights[MAX_LIGHTS];
 			alignas(4) uint32_t numPointLights = 0;
+		};
+
+		struct PushConstant {
+			alignas(16) glm::mat4 lightSpaceMatrix{};
 		};
 
 		void createImages(uint32_t width, uint32_t height);
@@ -77,5 +81,6 @@ namespace pw {
 		std::vector<std::unique_ptr<Buffer>> m_CompositionUBOs;
 
 		std::unique_ptr<Sampler> m_Sampler;
+		std::unique_ptr<Sampler> m_ShadowSampler;
 	};
 }

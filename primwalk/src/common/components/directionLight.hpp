@@ -9,7 +9,7 @@
 
 namespace pw {
 	struct PW_API DirectionLight {
-		glm::vec3 direction = { 0.0f, 1.0f, 0.0f };
+		glm::vec3 direction = { 2.0f, 1.0f, 1.0f };
 		glm::vec3 color = { 1.0f, 1.0f, 1.0f };
 	};
 }

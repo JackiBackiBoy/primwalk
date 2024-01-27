@@ -15,8 +15,6 @@
 #include <memory>
 #include <set>
 
-#define MAX_LIGHTS 32
-
 namespace pw {
 	class GBufferPass {
 	public:
@@ -26,29 +24,16 @@ namespace pw {
 		void draw(VkCommandBuffer commandBuffer, size_t frameIndex, ComponentManager& manager);
 		void resize(uint32_t width, uint32_t height);
 
-		inline Image* getPositionBufferImage() { return m_PositionBuffer.get(); }
-		inline Image* getNormalBufferImage() { return m_NormalBuffer.get(); }
-		inline Image* getDiffuseBufferImage() { return m_AlbedoBuffer.get(); }
+		inline Image* getPositionBuffer() { return m_PositionBuffer.get(); }
+		inline Image* getNormalBuffer() { return m_NormalBuffer.get(); }
+		inline Image* getAlbedoBuffer() { return m_AlbedoBuffer.get(); }
 
 		std::set<entity_id> m_Entities;
 
 	private:
-		struct PointLightParams {
-			alignas(16) glm::vec3 position{};
-			alignas(16) glm::vec4 color{}; // w component holds intensity
-		};
-
-		struct DirectionLightParams {
-			alignas(16) glm::vec3 direction{};
-			alignas(16) glm::vec3 color{};
-		};
-
 		struct UniformBuffer3D {
 			alignas(16) glm::mat4 view{ 1.0f };
 			alignas(16) glm::mat4 proj{ 1.0f };
-			alignas(16) glm::vec3 viewPosition{};
-			PointLightParams pointLights[MAX_LIGHTS];
-			alignas(4) uint32_t numPointLights = 0;
 		};
 
 		struct ModelPushConstant {
@@ -56,7 +41,6 @@ namespace pw {
 			alignas(16) glm::vec3 color = { 1.0, 1.0, 1.0 };
 			alignas(4) uint32_t diffuseTexIndex = 0;
 			alignas(4) uint32_t normalMapIndex = 0;
-			alignas(4) float ambientIntensity = 0.1f;
 		};
 
 		void createImages(uint32_t width, uint32_t height);
@@ -90,7 +74,6 @@ namespace pw {
 
 		// Deferred render passes
 		std::unique_ptr<RenderPass> m_GeometryPass;
-		std::unique_ptr<RenderPass> m_CompositionPass;
 
 		// G-Buffer
 		std::unique_ptr<Framebuffer> m_DeferredFramebuffer;
@@ -101,8 +84,6 @@ namespace pw {
 		std::unique_ptr<Image> m_DeferredDepthBuffer;
 		std::unique_ptr<GraphicsPipeline> m_GBufferPipeline;
 		VkPipelineLayout m_GBufferPipelineLayout = VK_NULL_HANDLE;
-
-		//std::unique_ptr<DescriptorPool> m_DescriptorPool;
 
 		std::vector<VkDescriptorSet> m_UniformDescriptorSets;
 		VkDescriptorSet m_TextureDescriptorSet;

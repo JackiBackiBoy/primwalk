@@ -2,7 +2,7 @@
 
 struct DirectionLightParams {
     vec3 direction;
-    vec3 color; // w component is intensity for now
+    vec3 color;
 };
 
 struct PointLightParams {
@@ -14,6 +14,7 @@ layout (set = 0, binding = 0) uniform sampler2D positionBuffer;
 layout (set = 0, binding = 1) uniform sampler2D normalBuffer;
 layout (set = 0, binding = 2) uniform sampler2D albedoBuffer;
 layout (set = 0, binding = 3) uniform sampler2D specularBuffer;
+layout (set = 0, binding = 4) uniform sampler2D shadowMap;
 
 layout (set = 1, binding = 0) uniform UBO {
     vec3 viewPosition;
@@ -22,12 +23,60 @@ layout (set = 1, binding = 0) uniform UBO {
     uint numLights;
 } ubo;
 
+layout(push_constant) uniform Push {
+    mat4 lightSpaceMatrix;
+} push;
+
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outColor;
 
 #define MAX_LIGHTS 32
 #define ambientIntensity 0.3
+
+// Video Settings
+#define USE_PCF
+
+float calcShadowPCF(vec3 projCoords, float currentDepth, float bias, int kernel) {
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+            shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;        
+        }    
+    }
+
+    shadow /= 9.0;
+
+    return shadow;
+}
+
+float calcShadows(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = vec3(projCoords.xy * 0.5 + 0.5, projCoords.z);
+
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float shadow = 0.0;
+
+    #ifdef USE_PCF
+        shadow = calcShadowPCF(projCoords, currentDepth, bias, 3);
+    #else
+        shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    #endif
+
+    if (projCoords.z > 1.0) {
+        shadow = 0.0;
+    }
+
+    return shadow;
+}
 
 vec3 calcDirLight(DirectionLightParams light, vec3 normal, vec3 viewDir) {
     vec3 lightDir = normalize(light.direction);
@@ -68,6 +117,8 @@ void main() {
     vec3 albedo = texture(albedoBuffer, inUV).rgb;
     vec3 viewDir = normalize(ubo.viewPosition - fragPos);
 
+    vec4 fragPosLightSpace = push.lightSpaceMatrix * vec4(fragPos, 1.0);
+
     // 1. Calculate direction light
     vec3 result = vec3(ambientIntensity) + calcDirLight(ubo.directionLight, normal, viewDir);
 
@@ -76,5 +127,8 @@ void main() {
         result += calcPointLight(ubo.pointLights[i], normal, fragPos, viewDir);
     }
 
-    outColor = vec4(albedo * result, 1.0);
+    // 3. Shadows
+    float shadow = calcShadows(fragPosLightSpace, normal, normalize(ubo.directionLight.direction));
+
+    outColor = vec4((1.0 + ambientIntensity - shadow) * albedo * result, 1.0);
 }

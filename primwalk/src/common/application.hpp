@@ -12,6 +12,7 @@
 #include "rendering/systems/uiRenderSystem.hpp"
 #include "rendering/renderpasses/gBufferPass.hpp"
 #include "rendering/renderpasses/lightingPass.hpp"
+#include "rendering/renderpasses/shadowPass.hpp"
 #include "ui/uiEvent.hpp"
 
 // std
@@ -38,29 +39,30 @@ namespace pw {
 		/* Called 60 times per second (primarily used for physics) */
 		virtual void onFixedUpdate(float dt) = 0;
 
-		void initialize();
 		void run();
 
+		/* Helper Functions */
 		Entity* createEntity(const std::string& name);
 		Entity* createLightEntity(const std::string& name);
 
 	private:
+		void initialize();
 		void onRender(float dt);
 
 		std::unique_ptr<Window> m_Window;
 		std::unique_ptr<GraphicsDevice> m_Device;
 		std::unique_ptr<Renderer> m_Renderer;
 		std::unique_ptr<UIRenderSystem> m_UIRenderSystem;
-		std::unique_ptr<Model> m_Cube;
 
 		// Renderpasses
-		std::unique_ptr<GBufferPass> m_DeferredPass;
-		//std::unique_ptr<ShadowPass> m_ShadowPass;
+		std::unique_ptr<GBufferPass> m_GBufferPass;
+		std::unique_ptr<ShadowPass> m_ShadowPass;
 		std::unique_ptr<LightingPass> m_LightingPass;
 
 		bool m_ScenePaused = false;
 		bool m_DebugMode = false;
 		bool m_ShowHitboxes = false;
+		bool m_EnableShadows = true;
 
 		// Entities
 		std::vector<std::unique_ptr<Entity>> m_Entities{};

@@ -53,7 +53,15 @@ namespace pw {
 	}
 
 	void SwapChain::beginRenderPass(VkCommandBuffer commandBuffer) {
-		m_RenderPass->begin(*m_Framebuffers[m_CurrentImageIndex], commandBuffer);
+		// TRICK: In order to make coordinate systems API-agnostic we must
+		// flip the y-axis of the viewport in Vulkan. This effectively
+		// yields a left-handed coordinate system.
+		Viewport viewport{};
+		viewport.offsetY = static_cast<float>(m_Framebuffers[m_CurrentImageIndex]->getHeight());
+		viewport.width = static_cast<float>(m_Framebuffers[m_CurrentImageIndex]->getWidth());
+		viewport.height = -static_cast<float>(m_Framebuffers[m_CurrentImageIndex]->getHeight());
+
+		m_RenderPass->begin(*m_Framebuffers[m_CurrentImageIndex], commandBuffer, viewport);
 	}
 
 	void SwapChain::endRenderPass(VkCommandBuffer commandBuffer) {

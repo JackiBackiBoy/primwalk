@@ -15,6 +15,49 @@ namespace pw {
 		createPipeline(vertPath, fragPath, configInfo);
 	}
 
+	GraphicsPipeline::GraphicsPipeline(GraphicsDevice_Vulkan& device,
+		const std::vector<VkPipelineShaderStageCreateInfo>& shaderStages,
+		const PipelineConfigInfo& configInfo) : m_Device(device) {
+
+		// Vertex input
+		auto& bindingDescriptions = configInfo.bindingDescriptions;
+		auto& attributeDescriptions = configInfo.attributeDescriptions;
+
+		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+		vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+		// ... TODO. Pipeline layout create info moved to renderer
+
+		// Graphics pipeline
+		VkGraphicsPipelineCreateInfo pipelineInfo{};
+		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+		pipelineInfo.pStages = shaderStages.data();
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
+		pipelineInfo.pViewportState = &configInfo.viewportInfo;
+		pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
+		pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
+		pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
+		pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
+		pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
+
+		pipelineInfo.layout = configInfo.pipelineLayout;
+		pipelineInfo.renderPass = configInfo.renderPass;
+		pipelineInfo.subpass = configInfo.subpass;
+
+		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
+		pipelineInfo.basePipelineIndex = -1; // optional
+
+		if (vkCreateGraphicsPipelines(m_Device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS) {
+			throw std::runtime_error("VULKAN ERROR: Failed to create graphics pipeline!");
+		}
+	}
+
 	GraphicsPipeline::~GraphicsPipeline() {
 		vkDestroyPipeline(m_Device.getDevice(), m_GraphicsPipeline, nullptr);
 	}
@@ -186,4 +229,47 @@ namespace pw {
 
 		return shaderModule;
 	}
+
+	// ------ Builder ------
+	GraphicsPipeline::Builder::Builder(GraphicsDevice_Vulkan& device, const PipelineConfigInfo& configInfo) : m_Device(device), m_ConfigInfo(configInfo) {
+
+	}
+
+	GraphicsPipeline::Builder::~Builder() {
+		for (const auto& module : m_ShaderModules) {
+			vkDestroyShaderModule(m_Device.getDevice(), module, nullptr);
+		}
+	}
+
+	GraphicsPipeline::Builder& GraphicsPipeline::Builder::addStage(VkShaderStageFlagBits stage, const std::string& codePath) {
+		auto shaderCode = Shader_Vulkan::readFile(codePath);
+
+		// Creation info
+		VkShaderModuleCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = shaderCode.size();
+		createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
+
+		VkShaderModule shaderModule;
+		if (vkCreateShaderModule(m_Device.getDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+			throw std::runtime_error("VULKAN ERROR: Failed to create shader module!");
+		}
+
+		VkPipelineShaderStageCreateInfo stageInfo{};
+		stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stageInfo.module = shaderModule;
+		stageInfo.pName = "main";
+		stageInfo.pSpecializationInfo = nullptr; // optional
+
+		m_ShaderModules.push_back(shaderModule);
+		m_ShaderStages.push_back(stageInfo);
+
+		return *this;
+	}
+
+	std::unique_ptr<GraphicsPipeline> GraphicsPipeline::Builder::build() {
+		return std::make_unique<GraphicsPipeline>(m_Device, m_ShaderStages, m_ConfigInfo);
+	}
+
 }

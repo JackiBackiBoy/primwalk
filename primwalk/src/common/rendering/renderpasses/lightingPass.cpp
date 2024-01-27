@@ -27,7 +27,7 @@ namespace pw {
 	}
 
 	void LightingPass::draw(VkCommandBuffer commandBuffer, size_t frameIndex, std::set<entity_id>& entities, ComponentManager& manager,
-		Image* positionBuffer, Image* normalBuffer, Image* albedoBuffer) {
+		Image* positionBuffer, Image* normalBuffer, Image* albedoBuffer, Image* shadowMap, const glm::mat4& lightSpaceMatrix) {
 
 		UBOComposition ubo{};
 		ubo.viewPosition = Camera::MainCamera->position;
@@ -55,7 +55,11 @@ namespace pw {
 		ubo.numPointLights = lightIndex;
 		m_CompositionUBOs[frameIndex]->writeToBuffer(&ubo);
 
-		m_LightingPass->begin(*m_CompositionFramebuffer, commandBuffer);
+		Viewport viewport{};
+		viewport.width = m_CompositionFramebuffer->getWidth();
+		viewport.height = m_CompositionFramebuffer->getHeight();
+
+		m_LightingPass->begin(*m_CompositionFramebuffer, commandBuffer, viewport);
 		m_CompositionPipeline->bind(commandBuffer);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -78,11 +82,30 @@ namespace pw {
 		albedoImageInfo.imageView = albedoBuffer->getVulkanImageView();
 		albedoImageInfo.sampler = m_Sampler->getVkSampler();
 
+		VkDescriptorImageInfo shadowMapInfo{};
+		shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		shadowMapInfo.imageView = shadowMap->getVulkanImageView();
+		shadowMapInfo.sampler = m_ShadowSampler->getVkSampler();
+
 		DescriptorWriter(*m_GBufferSetLayout, *m_GBufferDescriptorPool)
 			.writeImage(0, &positionImageInfo)
 			.writeImage(1, &normalImageInfo)
 			.writeImage(2, &albedoImageInfo)
+			// TODO: Specular buffer
+			.writeImage(4, &shadowMapInfo)
 			.overwrite(m_GBufferDescriptorSet);
+
+		// Push constants
+		PushConstant push{};
+		push.lightSpaceMatrix = lightSpaceMatrix;
+
+		vkCmdPushConstants(
+			commandBuffer,
+			m_CompositionPipelineLayout,
+			VK_SHADER_STAGE_FRAGMENT_BIT,
+			0,
+			sizeof(PushConstant),
+			&push);
 
 		vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
@@ -190,6 +213,7 @@ namespace pw {
 			.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // normal buffer
 			.addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // albedo buffer
 			.addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // specular buffer
+			.addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) // shadow map
 			.build();
 
 		DescriptorWriter(*m_GBufferSetLayout, *m_GBufferDescriptorPool).build(m_GBufferDescriptorSet);
@@ -201,11 +225,19 @@ namespace pw {
 	}
 
 	void LightingPass::createPipeline() {
+		// Push constants
+		VkPushConstantRange pushConstantRange{};
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		pushConstantRange.offset = 0;
+		pushConstantRange.size = sizeof(PushConstant);
+
 		// Pipeline layout
 		VkPipelineLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		layoutInfo.setLayoutCount = static_cast<uint32_t>(m_DescriptorSetLayouts.size());
 		layoutInfo.pSetLayouts = m_DescriptorSetLayouts.data();
+		layoutInfo.pushConstantRangeCount = 1;
+		layoutInfo.pPushConstantRanges = &pushConstantRange;
 
 		if (vkCreatePipelineLayout(m_Device.getDevice(), &layoutInfo, nullptr, &m_CompositionPipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("VULKAN ERROR: Failed to create deferred pipeline layout!");
@@ -229,7 +261,15 @@ namespace pw {
 
 	void LightingPass::createSampler() {
 		SamplerCreateInfo samplerInfo{};
+
+		SamplerCreateInfo shadowSamplerInfo{};
+		shadowSamplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		shadowSamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		shadowSamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		shadowSamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
 		m_Sampler = std::make_unique<Sampler>(samplerInfo, m_Device);
+		m_ShadowSampler = std::make_unique<Sampler>(shadowSamplerInfo, m_Device);
 	}
 
 }

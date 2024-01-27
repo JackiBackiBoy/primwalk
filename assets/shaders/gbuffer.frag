@@ -9,9 +9,6 @@ struct PointLightParams {
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
-    vec3 viewPosition;
-    PointLightParams pointLights[32];
-    uint numLights;
 } ubo;
 
 layout(set = 1, binding = 0) uniform sampler2D vGlobalTextures[];

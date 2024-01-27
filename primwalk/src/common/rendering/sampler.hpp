@@ -10,7 +10,11 @@ namespace pw {
 		bool anisotropicFiltering = true;
 		// TODO: Make API agnostic
 		VkBorderColor borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+		VkBool32 compareEnable = VK_FALSE;
 		VkCompareOp compareOp = VK_COMPARE_OP_ALWAYS;
+		VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		VkSamplerAddressMode addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	};
 
 	class Sampler {

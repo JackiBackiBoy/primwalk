@@ -47,7 +47,7 @@ namespace pw {
 	void UIRenderSystem::onUpdate(const FrameInfo& frameInfo) {
 		// TODO: Fix frameInfo dimension flickering on resize
 		UniformBufferObject ubo{};
-		ubo.proj = glm::ortho(0.0f, (float)frameInfo.windowWidth, 0.0f, (float)frameInfo.windowHeight);
+		ubo.proj = glm::ortho(0.0f, (float)frameInfo.windowWidth, (float)frameInfo.windowHeight, 0.0f);
 
 		m_UBOs[frameInfo.frameIndex]->writeToBuffer(&ubo);
 
