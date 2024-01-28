@@ -23,10 +23,10 @@ namespace pw {
 		m_ProjectionMatrix = glm::perspective(glm::radians(fov), m_FovRatio, nearClip, farClip);
 	}
 
-	std::array<glm::vec3, 8> Camera::getFrustum() const {
+	std::array<glm::vec4, 8> Camera::getFrustum() const {
 		glm::mat4 invProjView = glm::inverse(m_ProjectionMatrix * m_ViewMatrix);
 
-		std::array<glm::vec3, 8> corners{};
+		std::array<glm::vec4, 8> corners{};
 		size_t index = 0;
 
 		for (size_t x = 0; x < 2; ++x) {

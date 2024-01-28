@@ -28,7 +28,7 @@ namespace pw {
 		inline glm::vec3 getRight() const { return m_Right; }
 		inline glm::vec3 getUp() const { return m_Up; }
 
-		std::array<glm::vec3, 8> getFrustum() const;
+		std::array<glm::vec4, 8> getFrustum() const;
 
 		inline void setYaw(float radians) { m_Yaw = glm::mod(radians, glm::two_pi<float>()); }
 		inline void setPitch(float radians) { m_Pitch = glm::clamp(radians, -1.57f, 1.57f); }

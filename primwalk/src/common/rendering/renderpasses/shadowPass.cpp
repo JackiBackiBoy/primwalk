@@ -46,7 +46,7 @@ namespace pw {
 		auto& camera = Camera::MainCamera;
 
 		// Calculate suitable positioning of projection based on view frustum
-		std::array<glm::vec3, 8> frustum = camera->getFrustum();
+		std::array<glm::vec4, 8> frustum = camera->getFrustum();
 
 		glm::vec3 frustumCentroid = (frustum[0] + frustum[1] + frustum[2] + frustum[3] +
 									frustum[4] + frustum[5] + frustum[6] + frustum[7]) / 8.0f;
@@ -54,25 +54,39 @@ namespace pw {
 
 
 		// Calculate matrices from light's perspective
-		ubo.view = glm::lookAt(ubo.directionLight.direction * 2.0f, glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+		ubo.view = glm::lookAt(frustumCentroid + ubo.directionLight.direction, frustumCentroid, glm::vec3(0.0f, -1.0f, 0.0f));
 
 		// Find frustum corners in light-space and calculate min/max of x, y, z
-		glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
-		glm::vec3 max = glm::vec3(std::numeric_limits<float>::min());
+		glm::vec3 minimums = glm::vec3(std::numeric_limits<float>::max());
+		glm::vec3 maximums = glm::vec3(std::numeric_limits<float>::lowest());
 
-		for (size_t i = 0; i < 8; i++) {
-			glm::vec3 lightSpaceCorner = ubo.view * glm::vec4(frustum[i], 1.0);
+		for (const auto& v : frustum) {
+			glm::vec4 trf = ubo.view * v;
+			minimums.x = std::min(minimums.x, trf.x);
+			minimums.y = std::min(minimums.y, trf.y);
+			minimums.z = std::min(minimums.z, trf.z);
 
-			if (lightSpaceCorner.x < min.x) { min.x = lightSpaceCorner.x; }
-			if (lightSpaceCorner.y < min.y) { min.y = lightSpaceCorner.y; }
-			if (lightSpaceCorner.z < min.z) { min.z = lightSpaceCorner.z; }
-
-			if (lightSpaceCorner.x > max.x) { max.x = lightSpaceCorner.x; }
-			if (lightSpaceCorner.y > max.y) { max.y = lightSpaceCorner.y; }
-			if (lightSpaceCorner.z > max.z) { max.z = lightSpaceCorner.z; }
+			maximums.x = std::max(maximums.x, trf.x);
+			maximums.y = std::max(maximums.y, trf.y);
+			maximums.z = std::max(maximums.z, trf.z);
 		}
 
-		ubo.proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, -10.0f, 10.0f);
+		// Tune this parameter according to the scene
+		const float zMult = 1.0f;
+		if (minimums.z < 0) {
+			minimums.z *= zMult;
+		}
+		else {
+			minimums.z /= zMult;
+		}
+		if (maximums.z < 0) {
+			maximums.z /= zMult;
+		}
+		else {
+			maximums.z *= zMult;
+		}
+
+		ubo.proj = glm::ortho(minimums.x, maximums.x, minimums.y, maximums.y, -maximums.z, -minimums.z);
 
 		m_LightSpaceMatrix = ubo.proj * ubo.view;
 
